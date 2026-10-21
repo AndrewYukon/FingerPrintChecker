@@ -8,7 +8,7 @@ attestation, and receives a stable `visitorId`, a trust score, and an `attestati
 |---|---|
 | Android (Kotlin / Java) | Available: [`android/`](android) |
 | iOS, macOS (Swift Package) | Available: [`apple/`](apple) |
-| CLI | Coming |
+| CLI | Protocol + examples in [`cli/`](cli/README.md) |
 
 The wire format is specified in [PROTOCOL.md](PROTOCOL.md); conformance vectors live in
 [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) and every SDK must reproduce them.
@@ -102,6 +102,12 @@ Concurrent `identify()` calls are serialised. `swift build && swift test` at the
   For this, create a DeviceCheck key in your Apple Developer account and upload it to your fpchecker project; without it
   the token is ignored.
 - Simulators have neither feature and report `ios.simulator=true`.
+
+## Command-line tools
+
+No library: a CLI can be written in any language. [`cli/`](cli/README.md) has dependency-free
+examples for Node, Python and Go (under 100 lines each). CLI devices are never attested; enable
+PoW human verification for the project.
 
 ## Verify the attestation on YOUR backend
 
