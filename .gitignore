@@ -10,3 +10,11 @@ signing.properties
 .DS_Store
 .kotlin/
 captures/
+
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+apple/Demo/Config.xcconfig
+apple/Demo/*.xcodeproj

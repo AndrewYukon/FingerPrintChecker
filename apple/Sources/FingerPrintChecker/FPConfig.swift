@@ -1,0 +1,36 @@
+import Foundation
+
+/// Configuration for ``FingerPrintChecker``.
+public struct FPConfig: Sendable {
+    /// Base URL of the fpchecker API.
+    public var baseURL: URL
+    /// Publishable key of your fpchecker project (public by design).
+    public var publishableKey: String
+    /// Seal key of your fpchecker project. It ships inside the app, so treat everything the
+    /// device computes as forgeable and verify the returned `attestation` on your backend.
+    public var sealKey: String
+    /// Proof-of-work difficulty (8...28) when your project requires it; `nil` otherwise.
+    public var powDifficulty: Int?
+    /// Attach an App Attest proof when the device supports it.
+    public var useAppAttest: Bool
+    /// Attach a DeviceCheck token when the device supports it.
+    public var useDeviceCheck: Bool
+
+    public static let defaultBaseURL = URL(string: "https://api.fpchecker.com")!
+
+    public init(
+        baseURL: URL = FPConfig.defaultBaseURL,
+        publishableKey: String,
+        sealKey: String,
+        powDifficulty: Int? = nil,
+        useAppAttest: Bool = true,
+        useDeviceCheck: Bool = true
+    ) {
+        self.baseURL = baseURL
+        self.publishableKey = publishableKey
+        self.sealKey = sealKey
+        self.powDifficulty = powDifficulty
+        self.useAppAttest = useAppAttest
+        self.useDeviceCheck = useDeviceCheck
+    }
+}

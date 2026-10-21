@@ -1,0 +1,7 @@
+// Copy to Config.xcconfig (gitignored) and fill in your project values. Never commit real keys.
+FPCHECKER_PUBLISHABLE_KEY = pk_replace_me
+FPCHECKER_SEAL_KEY = replace_me
+// In .xcconfig files "//" starts a comment, so the scheme separator is escaped with $().
+FPCHECKER_BASE_URL = https:/$()/api.fpchecker.com
+// Your Apple Developer team, needed for device builds with the App Attest entitlement.
+DEVELOPMENT_TEAM =
