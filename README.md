@@ -118,6 +118,8 @@ with the fpchecker API (for example `/v1/eligibility`, `/v1/quota`) using your s
 
 ## Privacy
 
+Store disclosure answers (Google Play Data safety, App Store App Privacy): [docs/PRIVACY.md](docs/PRIVACY.md).
+
 What leaves the device (Android):
 
 - `ANDROID_ID` (app-signing-key scoped, resettable by factory reset).
