@@ -79,6 +79,7 @@ seal and send the same text).
   (network or otherwise), the next call must attest again with a NEW key; Apple allows `attestKey` once per key.
 - `proofStatus: "unknown_key"` or Apple's `DCError.invalidKey`: delete the stored key so the next call attests a new one
   (never loop within one call).
+- `proofStatus: "unconfigured"` or `"wrong_platform"`: the project cannot verify App Attest. Do not store the key and skip App Attest for 24 hours (persisted), then try once again.
 - Any App Attest error, or no support (simulators, unsupported devices): send no `proof`. It never fails identify.
 - Serialise identify calls; assertion counters must reach the server in order.
 

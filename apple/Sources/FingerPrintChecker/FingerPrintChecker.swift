@@ -52,7 +52,9 @@ public final class FingerPrintChecker: Sendable {
             config: config, platform: .current, transport: URLSessionTransport(),
             collector: SystemSignalCollector(),
             appAttest: config.useAppAttest
-                ? AppAttestCoordinator(service: SystemAppAttestService(), store: KeychainAppAttestKeyStore())
+                ? AppAttestCoordinator(
+                    service: SystemAppAttestService(), store: KeychainAppAttestKeyStore(),
+                    backoff: UserDefaultsBackoffStore())
                 : nil)
     }
 

@@ -22,6 +22,25 @@ protocol AppAttestKeyStore: Sendable {
     func clear()
 }
 
+/// Persistence for "do not try App Attest before this date" (project without Apple credentials).
+protocol AppAttestBackoffStore: Sendable {
+    func skipUntil() -> Date?
+    func setSkipUntil(_ date: Date)
+}
+
+struct UserDefaultsBackoffStore: AppAttestBackoffStore {
+    private static let key = "com.fpchecker.sdk.appAttestSkipUntil"
+
+    func skipUntil() -> Date? {
+        let seconds = UserDefaults.standard.double(forKey: Self.key)
+        return seconds > 0 ? Date(timeIntervalSince1970: seconds) : nil
+    }
+
+    func setSkipUntil(_ date: Date) {
+        UserDefaults.standard.set(date.timeIntervalSince1970, forKey: Self.key)
+    }
+}
+
 /// The `proof` object of an identify request.
 struct AppAttestProof: Equatable, Sendable {
     enum Kind: Sendable { case attestation, assertion }
@@ -49,14 +68,23 @@ struct AppAttestProof: Equatable, Sendable {
 final class AppAttestCoordinator: @unchecked Sendable {
     private let service: AppAttestService
     private let store: AppAttestKeyStore
+    private let backoff: AppAttestBackoffStore?
+    private let clock: @Sendable () -> Date
+    static let unconfiguredBackoff: TimeInterval = 24 * 60 * 60
 
-    init(service: AppAttestService, store: AppAttestKeyStore) {
+    init(
+        service: AppAttestService, store: AppAttestKeyStore,
+        backoff: AppAttestBackoffStore? = nil, clock: @escaping @Sendable () -> Date = { Date() }
+    ) {
         self.service = service
         self.store = store
+        self.backoff = backoff
+        self.clock = clock
     }
 
     func makeProof(clientDataHash: Data) async -> AppAttestProof? {
         guard service.isSupported else { return nil }
+        if let until = backoff?.skipUntil(), clock() < until { return nil }
         if let keyId = store.attestedKeyId() {
             do {
                 let assertion = try await service.generateAssertion(keyId, clientDataHash: clientDataHash)
@@ -80,6 +108,11 @@ final class AppAttestCoordinator: @unchecked Sendable {
     /// Feed back the outcome of the request that carried `proof`. `proofStatus` is `nil` when the
     /// request failed at network level or the response had no status.
     func recordOutcome(proof: AppAttestProof, proofStatus: String?) {
+        if proofStatus == "unconfigured" || proofStatus == "wrong_platform" {
+            // The project cannot verify App Attest: stop burning keys and Apple rate limit for a day.
+            backoff?.setSkipUntil(clock().addingTimeInterval(Self.unconfiguredBackoff))
+            return
+        }
         switch (proof.kind, proofStatus) {
         case (.attestation, "checked"):
             store.saveAttestedKeyId(proof.keyId)

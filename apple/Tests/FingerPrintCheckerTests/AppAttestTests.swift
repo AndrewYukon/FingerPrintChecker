@@ -33,6 +33,16 @@ final class MemoryKeyStore: AppAttestKeyStore, @unchecked Sendable {
     func clear() { keyId = nil }
 }
 
+final class MemoryBackoffStore: AppAttestBackoffStore, @unchecked Sendable {
+    var until: Date?
+    func skipUntil() -> Date? { until }
+    func setSkipUntil(_ date: Date) { until = date }
+}
+
+final class MutableClock: @unchecked Sendable {
+    var now = Date(timeIntervalSince1970: 1_800_000_000)
+}
+
 final class AppAttestTests: XCTestCase {
     private let cdHash = Data(repeating: 7, count: 32)
     private var service: FakeAppAttestService!
@@ -136,5 +146,39 @@ final class AppAttestTests: XCTestCase {
         let proof = await coordinator.makeProof(clientDataHash: cdHash)
         XCTAssertNil(proof)
         XCTAssertEqual(service.generatedKeys, 0)
+    }
+
+    func testUnconfiguredBacksOffFor24HoursWithoutStoringKey() async throws {
+        let clock = MutableClock()
+        let backoff = MemoryBackoffStore()
+        let c = AppAttestCoordinator(service: service, store: store, backoff: backoff, clock: { clock.now })
+        let firstOpt = await c.makeProof(clientDataHash: cdHash)
+        let first = try XCTUnwrap(firstOpt)
+        c.recordOutcome(proof: first, proofStatus: "unconfigured")
+        XCTAssertNil(store.keyId)
+        XCTAssertEqual(service.generatedKeys, 1)
+
+        for _ in 0..<2 {
+            clock.now = clock.now.addingTimeInterval(3600)
+            let skipped = await c.makeProof(clientDataHash: cdHash)
+            XCTAssertNil(skipped)
+        }
+        XCTAssertEqual(service.generatedKeys, 1, "no new key while backing off")
+        XCTAssertEqual(service.attested.count, 1)
+
+        clock.now = clock.now.addingTimeInterval(24 * 3600)
+        let again = await c.makeProof(clientDataHash: cdHash)
+        XCTAssertNotNil(again)
+        XCTAssertEqual(service.generatedKeys, 2)
+    }
+
+    func testWrongPlatformAlsoBacksOff() async throws {
+        let clock = MutableClock()
+        let backoff = MemoryBackoffStore()
+        let c = AppAttestCoordinator(service: service, store: store, backoff: backoff, clock: { clock.now })
+        let proofOpt = await c.makeProof(clientDataHash: cdHash)
+        let proof = try XCTUnwrap(proofOpt)
+        c.recordOutcome(proof: proof, proofStatus: "wrong_platform")
+        XCTAssertEqual(backoff.until, clock.now.addingTimeInterval(86400))
     }
 }

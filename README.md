@@ -130,7 +130,7 @@ What leaves the device (iOS / macOS):
 - A SHA-256 of the DeviceCheck token (the token itself is sent so the server can query Apple), and App Attest key id and
   attestation/assertion objects, when enabled.
 
-No advertising id, location, contacts or accounts are read. The package ships a `PrivacyInfo.xcprivacy` declaring
+The SDK stores one timestamp in UserDefaults (App Attest back-off). No advertising id, location, contacts or accounts are read. The package ships a `PrivacyInfo.xcprivacy` declaring
 Device ID collection (not linked, not used for tracking) and no required-reason APIs. Disclose this in your App Privacy details.
 
 ## License
