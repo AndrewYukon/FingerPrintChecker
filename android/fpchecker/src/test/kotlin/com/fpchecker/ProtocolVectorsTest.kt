@@ -50,6 +50,13 @@ class ProtocolVectorsTest {
     }
 
     @Test
+    fun sortsJoinedKeyValueStringsNotKeys() {
+        // Prefix pair: sorting by key puts "a" first, sorting "key=value" strings puts "a.b=y" first ('.' < '=').
+        val canonical = Canonical.payload("n", listOf(Component("a", "z"), Component("a.b", "y")))
+        assertEquals("n|a.b=y|a=z", canonical)
+    }
+
+    @Test
     fun androidVectorPassesTheSdkValidator() {
         val case = androidCases().first { it.getString("platform") == "android" }
         assertEquals(emptyList<String>(), ComponentRules.validate(componentsOf(case)))
