@@ -1,0 +1,36 @@
+package com.fpchecker
+
+/**
+ * @property baseUrl API origin, e.g. `https://api.fpchecker.com` (no trailing path).
+ * @property publishableKey the project's public key, sent as `X-Publishable-Key`.
+ * @property sealKey the project's seal key used to sign each request.
+ * @property cloudProjectNumber your Google Cloud project number; enables the Play Integrity proof.
+ * @property powDifficulty proof-of-work difficulty in leading zero bits (8..28), or null for none.
+ * @property integrityTimeoutMillis maximum time to wait for a Play Integrity token.
+ */
+public data class FpCheckerConfig @JvmOverloads constructor(
+    val baseUrl: String = DEFAULT_BASE_URL,
+    val publishableKey: String,
+    val sealKey: String,
+    val cloudProjectNumber: Long? = null,
+    val powDifficulty: Int? = null,
+    val integrityTimeoutMillis: Long = 5_000L,
+) {
+    init {
+        require(baseUrl.startsWith("https://") || baseUrl.startsWith("http://")) { "baseUrl must be http(s)" }
+        require(publishableKey.isNotBlank()) { "publishableKey is required" }
+        require(sealKey.isNotEmpty()) { "sealKey is required" }
+        require(powDifficulty == null || powDifficulty in Pow.MIN_BITS..Pow.MAX_BITS) {
+            "powDifficulty must be in ${Pow.MIN_BITS}..${Pow.MAX_BITS}"
+        }
+        require(cloudProjectNumber == null || cloudProjectNumber > 0) { "cloudProjectNumber must be positive" }
+    }
+
+    // Do not leak secrets through logs.
+    override fun toString(): String =
+        "FpCheckerConfig(baseUrl=$baseUrl, cloudProjectNumber=$cloudProjectNumber, powDifficulty=$powDifficulty)"
+
+    public companion object {
+        public const val DEFAULT_BASE_URL: String = "https://api.fpchecker.com"
+    }
+}
