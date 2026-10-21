@@ -7,7 +7,8 @@ attestation, and receives a stable `visitorId`, a trust score, and an `attestati
 | Platform | Status |
 |---|---|
 | Android (Kotlin / Java) | Available: [`android/`](android) |
-| iOS, macOS, CLI | Coming |
+| iOS, macOS (Swift Package) | Available: [`apple/`](apple) |
+| CLI | Coming |
 
 The wire format is specified in [PROTOCOL.md](PROTOCOL.md); conformance vectors live in
 [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) and every SDK must reproduce them.
@@ -61,6 +62,47 @@ cd android
 The release APK is unsigned unless `fpcheckerStoreFile`, `fpcheckerStorePassword`, `fpcheckerKeyAlias` and
 `fpcheckerKeyPassword` are all set.
 
+## iOS / macOS quick start
+
+Swift Package Manager: add `https://github.com/AndrewYukon/FingerPrintChecker` (product `FingerPrintChecker`,
+iOS 14+, macOS 11+), or in `Package.swift`:
+
+```swift
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.1.0")
+```
+
+```swift
+import FingerPrintChecker
+
+let checker = FingerPrintChecker(config: FPConfig(
+    publishableKey: "pk_...",   // from your fpchecker project
+    sealKey: "...",             // from your fpchecker project
+    powDifficulty: nil          // optional: 8...28 when your project uses proof-of-work
+))
+
+switch await checker.identify() {
+case .success(let r): try await sendToBackend(r.attestation)   // verify server-side!
+case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(httpStatus)")
+}
+```
+
+`FPConfig` also has `baseURL` (default `https://api.fpchecker.com`), `useAppAttest` and `useDeviceCheck` (both default `true`).
+Concurrent `identify()` calls are serialised. `swift build && swift test` at the repo root run the unit tests on macOS.
+`apple/Demo` is a SwiftUI demo for both platforms, see [apple/Demo/README.md](apple/Demo/README.md).
+
+### App Attest and DeviceCheck
+
+- **App Attest** (real devices only; iOS 14+, supported macOS versions): the SDK creates one key per install, attests it on the
+  first request and sends assertions afterwards. Add the App Attest capability to your app. In fpchecker configure the
+  Team ID and Bundle ID of your app (and the environment, `development` vs `production`), otherwise the proof is not checked
+  and the device is scored as unattested. If App Attest is unavailable or fails, identify still succeeds without a proof.
+  A key is remembered only after the server confirmed its attestation; if the server forgets a key, the SDK transparently
+  attests a new one on the next call.
+- **DeviceCheck**: the SDK sends a DeviceCheck token so fpchecker can remember per device whether a claim was already made.
+  For this, create a DeviceCheck key in your Apple Developer account and upload it to your fpchecker project; without it
+  the token is ignored.
+- Simulators have neither feature and report `ios.simulator=true`.
+
 ## Verify the attestation on YOUR backend
 
 The seal key ships inside your app, so anything computed on the device can be forged by a determined attacker.
@@ -79,6 +121,17 @@ What leaves the device (Android):
 
 The SDK does not read the advertising id, accounts, contacts, location, phone number or IMEI. As the integrator you are
 responsible for disclosing this in your privacy policy and Play Data safety form.
+
+What leaves the device (iOS / macOS):
+
+- A random UUID stored in the Keychain (this device only, not synchronised, not backed up to other devices).
+- iOS: `identifierForVendor`. macOS: the hardware `IOPlatformUUID`.
+- Time zone identifier, hardware model (for example `iPhone17,1`, `Mac15,3`), OS version, simulator flag (iOS).
+- A SHA-256 of the DeviceCheck token (the token itself is sent so the server can query Apple), and App Attest key id and
+  attestation/assertion objects, when enabled.
+
+The SDK stores one timestamp in UserDefaults (App Attest back-off). No advertising id, location, contacts or accounts are read. The package ships a `PrivacyInfo.xcprivacy` declaring
+Device ID collection (not linked, not used for tracking) and no required-reason APIs. Disclose this in your App Privacy details.
 
 ## License
 

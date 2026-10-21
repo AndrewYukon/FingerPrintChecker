@@ -1,0 +1,44 @@
+name: FingerPrintCheckerDemo
+options:
+  bundleIdPrefix: com.fpchecker
+  deploymentTarget:
+    iOS: "16.0"
+    macOS: "13.0"
+configFiles:
+  Debug: Base.xcconfig
+  Release: Base.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+  configs:
+    Debug:
+      APPATTEST_ENVIRONMENT: development
+    Release:
+      APPATTEST_ENVIRONMENT: production
+packages:
+  FingerPrintChecker:
+    path: ../..
+targets:
+  Demo:
+    type: application
+    supportedDestinations: [iOS, macOS]
+    sources: [Sources]
+    dependencies:
+      - package: FingerPrintChecker
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: FPChecker Demo
+        UILaunchScreen: {}
+        FPCheckerPublishableKey: $(FPCHECKER_PUBLISHABLE_KEY)
+        FPCheckerSealKey: $(FPCHECKER_SEAL_KEY)
+        FPCheckerBaseURL: $(FPCHECKER_BASE_URL)
+    entitlements:
+      path: Demo.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.fpchecker.demo
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_PREVIEWS: YES

@@ -1,0 +1,6 @@
+// Committed defaults; local values come from the optional, gitignored Config.xcconfig.
+FPCHECKER_PUBLISHABLE_KEY =
+FPCHECKER_SEAL_KEY =
+FPCHECKER_BASE_URL = https:/$()/api.fpchecker.com
+DEVELOPMENT_TEAM =
+#include? "Config.xcconfig"
