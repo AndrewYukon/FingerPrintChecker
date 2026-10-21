@@ -38,8 +38,8 @@ class WireFormatTest {
     @Test
     fun parsesSuccess() {
         val json = """{"ok":true,"platform":"android","visitorId":"a4_abc","confidence":100,"identityConfidence":100,
-            "trustScore":55,"trustDeductions":["native_unattested"],"shadowDeductions":[],"rulesVersion":"n2",
-            "isNew":true,"attestation":"tok.en"}"""
+            "trustScore":55,"trustDeductions":["native_unattested"],"shadowDeductions":["play_integrity_unavailable",7],
+            "rulesVersion":"n2","isNew":true,"attestation":"tok.en","proofStatus":"unavailable"}"""
         val r = ResponseParser.parseIdentify(json, 200) as FpResult.Success
         assertEquals("a4_abc", r.visitorId)
         assertEquals(55, r.trustScore)
@@ -47,7 +47,16 @@ class WireFormatTest {
         assertTrue(r.isNew)
         assertEquals("tok.en", r.attestation)
         assertEquals(listOf("native_unattested"), r.trustDeductions)
+        assertEquals(listOf("play_integrity_unavailable"), r.shadowDeductions)
+        assertEquals("unavailable", r.proofStatus)
         assertEquals(json, r.rawJson)
+    }
+
+    @Test
+    fun olderServerWithoutShadowOrProofStatus() {
+        val r = ResponseParser.parseIdentify("""{"ok":true,"visitorId":"a4_abc","trustScore":55}""", 200) as FpResult.Success
+        assertEquals(emptyList<String>(), r.shadowDeductions)
+        assertEquals(null, r.proofStatus)
     }
 
     @Test

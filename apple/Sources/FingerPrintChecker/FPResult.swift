@@ -10,6 +10,8 @@ public struct FPSuccess: Sendable, Equatable {
     /// Never make entitlement decisions from the other fields on the device.
     public let attestation: String?
     public let trustDeductions: [String]
+    /// Rules that are scored but not yet weighted (shadow mode); for evaluation only.
+    public let shadowDeductions: [String]
     /// `none`, `unconfigured`, `wrong_platform`, `unavailable`, `checked` or `unknown_key`.
     public let proofStatus: String?
     /// The unmodified response body.
@@ -17,7 +19,8 @@ public struct FPSuccess: Sendable, Equatable {
 
     public init(
         visitorId: String, trustScore: Int, identityConfidence: Int, isNew: Bool,
-        attestation: String?, trustDeductions: [String], proofStatus: String?, raw: Data
+        attestation: String?, trustDeductions: [String], shadowDeductions: [String] = [],
+        proofStatus: String?, raw: Data
     ) {
         self.visitorId = visitorId
         self.trustScore = trustScore
@@ -25,6 +28,7 @@ public struct FPSuccess: Sendable, Equatable {
         self.isNew = isNew
         self.attestation = attestation
         self.trustDeductions = trustDeductions
+        self.shadowDeductions = shadowDeductions
         self.proofStatus = proofStatus
         self.raw = raw
     }

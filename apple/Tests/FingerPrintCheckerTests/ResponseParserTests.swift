@@ -5,7 +5,7 @@ final class ResponseParserTests: XCTestCase {
     func testSuccessIncludingProofStatus() throws {
         let body = Data("""
         {"ok":true,"platform":"ios","visitorId":"i4_abc","identityConfidence":100,"trustScore":88,
-         "trustDeductions":["tz_ip_mismatch"],"shadowDeductions":[],"rulesVersion":"n3","isNew":false,
+         "trustDeductions":["tz_ip_mismatch"],"shadowDeductions":["attest_key_reused",7],"rulesVersion":"n3","isNew":false,
          "attestation":"tok.en","proofStatus":"checked"}
         """.utf8)
         guard case .success(let s) = ResponseParser.parseIdentify(body, httpStatus: 200) else {
@@ -17,6 +17,7 @@ final class ResponseParserTests: XCTestCase {
         XCTAssertFalse(s.isNew)
         XCTAssertEqual(s.attestation, "tok.en")
         XCTAssertEqual(s.trustDeductions, ["tz_ip_mismatch"])
+        XCTAssertEqual(s.shadowDeductions, ["attest_key_reused"])
         XCTAssertEqual(s.proofStatus, "checked")
         XCTAssertEqual(s.raw, body)
     }

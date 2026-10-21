@@ -16,6 +16,10 @@ public sealed class FpResult {
         val isNew: Boolean,
         val attestation: String?,
         val trustDeductions: List<String>,
+        /** Rules that are scored but not yet weighted (shadow mode); for evaluation only. */
+        val shadowDeductions: List<String> = emptyList(),
+        /** `none`, `unconfigured`, `wrong_platform`, `unavailable`, `checked` or `unknown_key`; null from older servers. */
+        val proofStatus: String? = null,
         val rawJson: String,
     ) : FpResult()
 

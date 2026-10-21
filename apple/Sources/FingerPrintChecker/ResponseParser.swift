@@ -25,6 +25,7 @@ enum ResponseParser {
             isNew: (json["isNew"] as? Bool) ?? false,
             attestation: attestationString(json["attestation"]),
             trustDeductions: (json["trustDeductions"] as? [Any])?.compactMap { $0 as? String } ?? [],
+            shadowDeductions: (json["shadowDeductions"] as? [Any])?.compactMap { $0 as? String } ?? [],
             proofStatus: json["proofStatus"] as? String,
             raw: body))
     }

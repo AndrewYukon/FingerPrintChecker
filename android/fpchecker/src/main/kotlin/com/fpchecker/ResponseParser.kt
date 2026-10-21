@@ -24,8 +24,10 @@ internal object ResponseParser {
             val reason = json.optString("reason", "").ifEmpty { "bad_response" }
             return FpResult.Failure(reason, httpStatus)
         }
-        val deductions = json.optJSONArray("trustDeductions")
-        val list = if (deductions == null) emptyList() else List(deductions.length()) { deductions.optString(it) }
+        fun strings(key: String): List<String> {
+            val arr = json.optJSONArray(key) ?: return emptyList()
+            return List(arr.length()) { arr.opt(it) }.filterIsInstance<String>()
+        }
         val attestation = if (json.isNull("attestation")) null else json.opt("attestation")?.toString()
         return FpResult.Success(
             visitorId = visitorId,
@@ -33,7 +35,9 @@ internal object ResponseParser {
             identityConfidence = json.optInt("identityConfidence", 0),
             isNew = json.optBoolean("isNew", false),
             attestation = attestation,
-            trustDeductions = list,
+            trustDeductions = strings("trustDeductions"),
+            shadowDeductions = strings("shadowDeductions"),
+            proofStatus = json.opt("proofStatus") as? String,
             rawJson = body,
         )
     }
