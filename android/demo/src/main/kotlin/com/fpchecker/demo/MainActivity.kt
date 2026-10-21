@@ -26,7 +26,7 @@ class MainActivity : Activity() {
             )
         } catch (e: IllegalArgumentException) {
             button.isEnabled = false
-            output.text = getString(R.string.idle) + "\n\nConfiguration error: " + e.message
+            output.text = getString(R.string.config_error, getString(R.string.idle), e.message)
             return
         }
         val fp = FpChecker(this, config)
@@ -34,7 +34,7 @@ class MainActivity : Activity() {
 
         button.setOnClickListener {
             button.isEnabled = false
-            output.text = "..."
+            output.setText(R.string.working)
             fp.identify { result ->
                 button.isEnabled = true
                 output.text = render(result)
