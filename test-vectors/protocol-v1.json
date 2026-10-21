@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "description": "Conformance vectors for the fpchecker native protocol v1. seal = hex(HMAC-SHA256(key = UTF-8 bytes of sealKey, message = UTF-8 canonical)). requestHash (Play Integrity) = hex(SHA-256(canonical)); clientDataHash (App Attest) = the same 32 bytes. PoW: the smallest decimal counter c with SHA-256(nonce + \":\" + c) starting with `bits` zero bits.",
+  "sealKey": "f3c1e2d4b5a69788796a5b4c3d2e1f00112233445566778899aabbccddeeff00",
+  "nonce": "v2.prj_0123456789ab.1800000000000.1800000300.0123456789abcdef0123456789abcdef.abababababababababababababababababababababababababababababababab",
+  "cases": [
+    {
+      "name": "android-full",
+      "platform": "android",
+      "components": [
+        {
+          "key": "android.id",
+          "value": "1a2b3c4d5e6f7081"
+        },
+        {
+          "key": "android.mediaDrmId",
+          "value": "4773d12e2371bb935b9a0f5439b4a1c3ad3f2414b86980f8418d1cfabdfadfef"
+        },
+        {
+          "key": "android.simCountry",
+          "value": ""
+        },
+        {
+          "key": "android.networkCountry",
+          "value": "de"
+        },
+        {
+          "key": "android.timezone",
+          "value": "Europe/Berlin"
+        },
+        {
+          "key": "android.buildFingerprint",
+          "value": "google/panther/panther:14/AP1A.240305.019/11228894:user/release-keys"
+        },
+        {
+          "key": "android.hardware",
+          "value": "panther"
+        },
+        {
+          "key": "android.sdkInt",
+          "value": "34"
+        },
+        {
+          "key": "android.model",
+          "value": "Pixel 7"
+        }
+      ],
+      "canonical": "v2.prj_0123456789ab.1800000000000.1800000300.0123456789abcdef0123456789abcdef.abababababababababababababababababababababababababababababababab|android.buildFingerprint=google/panther/panther:14/AP1A.240305.019/11228894:user/release-keys|android.hardware=panther|android.id=1a2b3c4d5e6f7081|android.mediaDrmId=4773d12e2371bb935b9a0f5439b4a1c3ad3f2414b86980f8418d1cfabdfadfef|android.model=Pixel 7|android.networkCountry=de|android.sdkInt=34|android.simCountry=|android.timezone=Europe/Berlin",
+      "sig": "80cf009118c0a0e6c82306a2e123522713cfa38c6ea9dced75b6566dd44115eb",
+      "requestHashHex": "fece6223416a4e9a5b23a26250e49d2206eb7e4a1571cb3e7d65e92474ba0a76",
+      "clientDataHashBase64": "/s5iI0FqTppbI6JiUOSdIgbrfkoVccs+fWXpJHS6CnY="
+    },
+    {
+      "name": "ios",
+      "platform": "ios",
+      "components": [
+        {
+          "key": "ios.keychainId",
+          "value": "A1B2C3D4-E5F6-4711-8899-AABBCCDDEEFF"
+        },
+        {
+          "key": "ios.idfv",
+          "value": "0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e"
+        },
+        {
+          "key": "ios.model",
+          "value": "iPhone17,1"
+        },
+        {
+          "key": "ios.osVersion",
+          "value": "26.1"
+        },
+        {
+          "key": "ios.timezone",
+          "value": "America/Sao_Paulo"
+        },
+        {
+          "key": "ios.simulator",
+          "value": "false"
+        }
+      ],
+      "canonical": "v2.prj_0123456789ab.1800000000000.1800000300.0123456789abcdef0123456789abcdef.abababababababababababababababababababababababababababababababab|ios.idfv=0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e|ios.keychainId=A1B2C3D4-E5F6-4711-8899-AABBCCDDEEFF|ios.model=iPhone17,1|ios.osVersion=26.1|ios.simulator=false|ios.timezone=America/Sao_Paulo",
+      "sig": "f1801d0585cdd822a4199076106dfc1a7a2b091a10dde819b81c0e18f63bb94f",
+      "requestHashHex": "fe594d10fa6ec39c5db9c37fbaea0c96c0eb01c922df1915375cbb96d98c3b49",
+      "clientDataHashBase64": "/llNEPpuw5xducN/uuoMlsDrAcki3xkVN1y7ltmMO0k="
+    },
+    {
+      "name": "macos",
+      "platform": "macos",
+      "components": [
+        {
+          "key": "macos.platformUuid",
+          "value": "5F2A9C1E-3B4D-4E6F-8A7B-9C0D1E2F3A4B"
+        },
+        {
+          "key": "macos.keychainId",
+          "value": "11111111-2222-4333-8444-555555555555"
+        },
+        {
+          "key": "macos.model",
+          "value": "Mac15,3"
+        },
+        {
+          "key": "macos.osVersion",
+          "value": "26.0.1"
+        },
+        {
+          "key": "macos.timezone",
+          "value": "Asia/Tokyo"
+        }
+      ],
+      "canonical": "v2.prj_0123456789ab.1800000000000.1800000300.0123456789abcdef0123456789abcdef.abababababababababababababababababababababababababababababababab|macos.keychainId=11111111-2222-4333-8444-555555555555|macos.model=Mac15,3|macos.osVersion=26.0.1|macos.platformUuid=5F2A9C1E-3B4D-4E6F-8A7B-9C0D1E2F3A4B|macos.timezone=Asia/Tokyo",
+      "sig": "f90d7c8122dfd0d92ea67b6d2487bf17e3c9d05436721271736b4f6b1d7a7e81",
+      "requestHashHex": "b81cc464f4efd635b453ab323a67267b6eed28ccc6dc931f39b021f0c7d0c0fc",
+      "clientDataHashBase64": "uBzEZPTv1jW0U6syOmcme27tKMzG3JMfObAh8MfQwPw="
+    },
+    {
+      "name": "cli-minimal",
+      "platform": "cli",
+      "components": [
+        {
+          "key": "cli.randomId",
+          "value": "99999999-8888-4777-8666-555555555555"
+        }
+      ],
+      "canonical": "v2.prj_0123456789ab.1800000000000.1800000300.0123456789abcdef0123456789abcdef.abababababababababababababababababababababababababababababababab|cli.randomId=99999999-8888-4777-8666-555555555555",
+      "sig": "e31491c693edf598c379935ac7704ee9d880ae922d8f643f89b13ddd43628c32",
+      "requestHashHex": "5ab7c8619d145cad79925b7cfba639b686e040118cecf31a7f4638354491dc15",
+      "clientDataHashBase64": "WrfIYZ0UXK15klt8+6Y5tobgQBGM7PMaf0Y4NUSR3BU="
+    }
+  ],
+  "pow": {
+    "nonce": "v3.prj_0123456789ab.1800000000000.1800000300.0123456789abcdef0123456789abcdef.12.cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+    "bits": 12,
+    "solution": "1904"
+  }
+}
