@@ -96,8 +96,9 @@ Concurrent `identify()` calls are serialised. `swift build && swift test` at the
   first request and sends assertions afterwards. Add the App Attest capability to your app. In fpchecker configure the
   Team ID and Bundle ID of your app (and the environment, `development` vs `production`), otherwise the proof is not checked
   and the device is scored as unattested. If App Attest is unavailable or fails, identify still succeeds without a proof.
-  A key is remembered only after the server confirmed its attestation; if the server forgets a key, the SDK transparently
-  attests a new one on the next call.
+  A key is remembered only after the server confirmed its attestation; if the server forgets a key, or Apple reports it
+  invalid (for example after a restore), the SDK attests a new one within the same `identify()` call (one extra request
+  when the server forgot it), so the caller never sees an unattested result for it.
 - **DeviceCheck**: the SDK sends a DeviceCheck token so fpchecker can remember per device whether a claim was already made.
   For this, create a DeviceCheck key in your Apple Developer account and upload it to your fpchecker project; without it
   the token is ignored.

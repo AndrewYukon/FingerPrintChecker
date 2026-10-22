@@ -113,13 +113,24 @@ final class AppAttestTests: XCTestCase {
         XCTAssertNil(store.keyId)
     }
 
-    func testInvalidKeyOnAssertionDropsKeyWithoutLooping() async {
+    func testInvalidKeyOnAssertionAttestsANewKeyInTheSameCall() async {
         store.keyId = "old"
         service.assertionResult = .failure(AppAttestFailure.invalidKey)
         let proof = await coordinator.makeProof(clientDataHash: cdHash)
+        XCTAssertEqual(proof?.kind, .attestation)
+        XCTAssertEqual(proof?.keyId, "key-1")
+        XCTAssertNil(store.keyId, "stored only once the server says checked")
+        XCTAssertEqual(service.generatedKeys, 1)
+    }
+
+    func testInvalidKeyThenFailedAttestationDoesNotLoop() async {
+        store.keyId = "old"
+        service.assertionResult = .failure(AppAttestFailure.invalidKey)
+        service.attestResult = .failure(AppAttestFailure.failed)
+        let proof = await coordinator.makeProof(clientDataHash: cdHash)
         XCTAssertNil(proof)
         XCTAssertNil(store.keyId)
-        XCTAssertEqual(service.generatedKeys, 0, "no new key within the same call")
+        XCTAssertEqual(service.generatedKeys, 1)
     }
 
     func testOtherAssertionErrorKeepsKeyAndSendsNoProof() async {

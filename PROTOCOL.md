@@ -77,8 +77,9 @@ seal and send the same text).
 - Key present: `generateAssertion(keyId, clientDataHash)`, send `"proof": {"type":"app_attest","keyId":"...","assertion":"<base64>"}`.
 - Persist a key only after the response said `proofStatus: "checked"` for its attestation request. If that request failed
   (network or otherwise), the next call must attest again with a NEW key; Apple allows `attestKey` once per key.
-- `proofStatus: "unknown_key"` or Apple's `DCError.invalidKey`: delete the stored key so the next call attests a new one
-  (never loop within one call).
+- Apple's `DCError.invalidKey` on an assertion: delete the stored key and attest a new one for this same request.
+- `proofStatus: "unknown_key"` (the server has no record of an asserted key): delete the stored key and repeat the whole
+  call once (new challenge, since a nonce is single-use) so it attests a new key. Retry at most once per call, never loop.
 - `proofStatus: "unconfigured"` or `"wrong_platform"`: the project cannot verify App Attest. Do not store the key and skip App Attest for 24 hours (persisted), then try once again.
 - Any App Attest error, or no support (simulators, unsupported devices): send no `proof`. It never fails identify.
 - Serialise identify calls; assertion counters must reach the server in order.

@@ -62,8 +62,9 @@ struct AppAttestProof: Equatable, Sendable {
 /// - no stored key: generate a key and attest it; the key is stored only once the server answered
 ///   `proofStatus == "checked"` (Apple allows `attestKey` once per key, so an attestation whose outcome
 ///   is unknown is never retried with the same key);
-/// - stored key: send an assertion; `unknown_key` from the server or `invalidKey` from Apple drops the key
-///   so the NEXT call attests a new one (never looped within one call);
+/// - stored key: send an assertion; `invalidKey` from Apple drops the key and attests a new one in the
+///   same call; `unknown_key` from the server drops it and identify retries once with a new key
+///   (at most one new key per call, never a loop);
 /// - any other error: no proof, identify itself is never failed by App Attest.
 final class AppAttestCoordinator: @unchecked Sendable {
     private let service: AppAttestService
@@ -90,8 +91,8 @@ final class AppAttestCoordinator: @unchecked Sendable {
                 let assertion = try await service.generateAssertion(keyId, clientDataHash: clientDataHash)
                 return AppAttestProof(keyId: keyId, kind: .assertion, payload: assertion.base64EncodedString())
             } catch AppAttestFailure.invalidKey {
+                // Gone on this device (reinstall, restore): attest a new key below, in this same call.
                 store.clear()
-                return nil
             } catch {
                 return nil
             }

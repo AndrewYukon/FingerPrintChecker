@@ -3,17 +3,23 @@ import XCTest
 
 private final class FakeTransport: HTTPTransport, @unchecked Sendable {
     var identifyBody = Data(#"{"ok":true,"visitorId":"i4_x","trustScore":55,"proofStatus":"checked","attestation":"a"}"#.utf8)
+    /// Answers for the next identify calls, in order; `identifyBody` once they run out.
+    var queuedIdentifyBodies = [Data]()
     var failIdentify = false
     private(set) var requests = [URLRequest]()
+    private var challenges = 0
 
     func send(_ request: URLRequest) async throws -> (data: Data, status: Int) {
         requests.append(request)
         if request.url?.path == "/v1/challenge" {
-            return (Data(#"{"nonce":"nonce-1","expiresIn":300}"#.utf8), 200)
+            challenges += 1
+            return (Data(#"{"nonce":"nonce-\#(challenges)","expiresIn":300}"#.utf8), 200)
         }
         if failIdentify { throw URLError(.notConnectedToInternet) }
-        return (identifyBody, 200)
+        return (queuedIdentifyBodies.isEmpty ? identifyBody : queuedIdentifyBodies.removeFirst(), 200)
     }
+
+    var identifyRequests: [URLRequest] { requests.filter { $0.url?.path == "/v1/identify" } }
 }
 
 private struct FakeCollector: SignalCollecting {
@@ -51,7 +57,7 @@ final class IdentifyFlowTests: XCTestCase {
         XCTAssertEqual(identify.timeoutInterval, 10)
         let json = try body(transport)
         XCTAssertEqual(json["platform"] as? String, "ios")
-        XCTAssertEqual(json["agentVersion"] as? String, "ios-0.1.0")
+        XCTAssertEqual(json["agentVersion"] as? String, "ios-0.1.1")
         let comps = FakeCollector().components
         let canonical = Canonical.payload(nonce: "nonce-1", components: comps)
         XCTAssertEqual(json["sig"] as? String, Canonical.seal(sealKey: "seal", canonical: canonical))
@@ -131,5 +137,56 @@ final class IdentifyFlowTests: XCTestCase {
             transport, coordinator: AppAttestCoordinator(service: service, store: MemoryKeyStore())).identify()
         guard case .success = result else { return XCTFail("\(result)") }
         XCTAssertNil(try body(transport)["proof"])
+    }
+
+    private static func answer(proofStatus: String, trust: Int) -> Data {
+        Data(#"{"ok":true,"visitorId":"i4_x","trustScore":\#(trust),"proofStatus":"\#(proofStatus)","attestation":"a"}"#.utf8)
+    }
+
+    private func proof(_ request: URLRequest) throws -> [String: Any] {
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+        return try XCTUnwrap(json["proof"] as? [String: Any])
+    }
+
+    func testUnknownKeyIsRetriedOnceInTheSameCallWithAFreshNonceAndANewKey() async throws {
+        let transport = FakeTransport()
+        transport.queuedIdentifyBodies = [Self.answer(proofStatus: "unknown_key", trust: 45)]
+        transport.identifyBody = Self.answer(proofStatus: "checked", trust: 90)
+        let service = FakeAppAttestService()
+        let store = MemoryKeyStore()
+        store.keyId = "forgotten"
+        let result = await makeChecker(transport, coordinator: AppAttestCoordinator(service: service, store: store)).identify()
+
+        guard case .success(let success) = result else { return XCTFail("\(result)") }
+        XCTAssertEqual(success.trustScore, 90, "the caller sees the retried, attested result")
+        XCTAssertEqual(success.proofStatus, "checked")
+        let posts = transport.identifyRequests
+        XCTAssertEqual(posts.count, 2)
+        XCTAssertNotNil(try proof(posts[0])["assertion"])
+        XCTAssertEqual(try proof(posts[1])["keyId"] as? String, "key-1")
+        XCTAssertNotNil(try proof(posts[1])["attestation"])
+        let nonces = try posts.map { try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap($0.httpBody)) as? [String: Any])["nonce"] as? String }
+        XCTAssertEqual(nonces, ["nonce-1", "nonce-2"], "a nonce is single-use")
+        XCTAssertEqual(store.keyId, "key-1")
+    }
+
+    func testUnknownKeyIsRetriedAtMostOnce() async throws {
+        let transport = FakeTransport()
+        transport.identifyBody = Self.answer(proofStatus: "unknown_key", trust: 45)
+        let store = MemoryKeyStore()
+        store.keyId = "forgotten"
+        let result = await makeChecker(
+            transport, coordinator: AppAttestCoordinator(service: FakeAppAttestService(), store: store)).identify()
+        guard case .success(let success) = result else { return XCTFail("\(result)") }
+        XCTAssertEqual(success.proofStatus, "unknown_key")
+        XCTAssertEqual(transport.identifyRequests.count, 2)
+    }
+
+    func testNoRetryWhenTheProofWasNotAnAssertion() async throws {
+        let transport = FakeTransport()
+        transport.identifyBody = Self.answer(proofStatus: "unknown_key", trust: 45)
+        _ = await makeChecker(
+            transport, coordinator: AppAttestCoordinator(service: FakeAppAttestService(), store: MemoryKeyStore())).identify()
+        XCTAssertEqual(transport.identifyRequests.count, 1, "an attestation cannot be unknown; nothing to retry")
     }
 }

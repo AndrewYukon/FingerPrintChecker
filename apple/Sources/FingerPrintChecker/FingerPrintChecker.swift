@@ -78,7 +78,10 @@ public final class FingerPrintChecker: Sendable {
         return result
     }
 
-    private func run() async -> FPResult {
+    /// `retryUnknownKey`: an assertion the server does not know (it lost or never kept the key) is retried
+    /// once with a fresh nonce, so the coordinator attests a new key and the caller never sees an
+    /// unattested score for it.
+    private func run(retryUnknownKey: Bool = true) async -> FPResult {
         if let difficulty = config.powDifficulty, !ProofOfWork.validBits.contains(difficulty) {
             return .failure(reason: "bad_config", httpStatus: 0)
         }
@@ -121,6 +124,9 @@ public final class FingerPrintChecker: Sendable {
             var status: String?
             if case .success(let success) = result { status = success.proofStatus }
             appAttest.recordOutcome(proof: proof, proofStatus: status)
+            if retryUnknownKey, proof.kind == .assertion, status == "unknown_key" {
+                return await run(retryUnknownKey: false)
+            }
         }
         return result
     }
