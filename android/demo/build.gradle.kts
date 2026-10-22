@@ -12,14 +12,15 @@ kotlin { jvmToolchain(17) }
 
 android {
     namespace = "com.fpchecker.demo"
-    compileSdk = 35
+    // 36 for the demo only: Play requires targetSdk 36 for new releases. The library stays on 35.
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.fpchecker.demo"
         // 24, not the library's 23: Play automatic protection refuses bundles below 24.
         minSdk = 24
-        targetSdk = 35
-        versionCode = 1
+        targetSdk = 36
+        versionCode = 2
         versionName = "0.1.0"
 
         // Populated from gradle properties (-P or ~/.gradle/gradle.properties). Never commit real values.
