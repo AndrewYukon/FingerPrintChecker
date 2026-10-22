@@ -35,6 +35,9 @@ targets:
         FPCheckerBaseURL: $(FPCHECKER_BASE_URL)
     entitlements:
       path: Demo.entitlements
+      # xcodegen rewrites the file from these properties on every `generate`.
+      properties:
+        com.apple.developer.devicecheck.appattest-environment: $(APPATTEST_ENVIRONMENT)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.fpchecker.demo
