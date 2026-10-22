@@ -16,7 +16,8 @@ android {
 
     defaultConfig {
         applicationId = "com.fpchecker.demo"
-        minSdk = 23
+        // 24, not the library's 23: Play automatic protection refuses bundles below 24.
+        minSdk = 24
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
