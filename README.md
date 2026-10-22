@@ -101,6 +101,13 @@ Concurrent `identify()` calls are serialised. `swift build && swift test` at the
 - **DeviceCheck**: the SDK sends a DeviceCheck token so fpchecker can remember per device whether a claim was already made.
   For this, create a DeviceCheck key in your Apple Developer account and upload it to your fpchecker project; without it
   the token is ignored.
+- **The claimed bit is shared by every app of your Apple team.** Apple keeps only two DeviceCheck bits per device per
+  developer team, so fpchecker uses bit 0 to mean "this device already claimed a free trial (default kind) in one of
+  this team's apps". The trade-off: a device that claimed the trial in one of your apps is refused the trial in your
+  other apps on the same team. Word the refusal accordingly ("this device has already used a free trial"), since the
+  user may have claimed it elsewhere. Bit 1 is reserved. The only way to keep two apps independent is to publish them
+  under separate Apple developer teams. Android's Play Integrity Device Recall works the same way: its bits are shared
+  by all apps of one Play developer account.
 - Simulators have neither feature and report `ios.simulator=true`.
 
 ## Command-line tools
