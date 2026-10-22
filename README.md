@@ -1,27 +1,80 @@
-# FingerPrintChecker
+# FingerPrint Checker
 
-Open-source client SDKs for the [fpchecker](https://fpchecker.com) native device-identification protocol.
-A client collects a small set of device signals, seals them with an HMAC, optionally attaches a platform
-attestation, and receives a stable `visitorId`, a trust score, and an `attestation` token that your own backend verifies.
+**English** | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [Español](README.es.md) | [Français](README.fr.md)
 
-| Platform | Status |
-|---|---|
-| Android (Kotlin / Java) | Available: [`android/`](android) |
-| iOS, macOS (Swift Package) | Available: [`apple/`](apple) |
-| CLI | Protocol + examples in [`cli/`](cli/README.md) |
+Device identity and free-trial abuse protection for **web apps, iOS apps and Android apps** (plus macOS apps and
+command-line tools), from [FingerPrint Checker](https://fpchecker.com).
 
-The wire format is specified in [PROTOCOL.md](PROTOCOL.md); conformance vectors live in
-[`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) and every SDK must reproduce them.
+Your client collects a small set of device signals, seals them with an HMAC, optionally attaches a platform attestation
+(Play Integrity on Android, App Attest and DeviceCheck on Apple devices), and receives a stable `visitorId`, a trust
+score, and an `attestation` token. Your own backend sends that token to the FingerPrint Checker API and gets back
+`allow`, a human check, or `deny` for free trials, coupons, sign-up bonuses, invite rewards and anonymous usage limits.
+
+This repository holds the open-source native SDKs and the protocol they speak.
+
+## Supported platforms
+
+| Platform | How to integrate | Status |
+|---|---|---|
+| **Web apps** (any browser) | The FingerPrint Checker browser agent `fp-agent.min.js`, served from your own domain; see [Web apps](#web-apps) | Available |
+| **Android apps** (Kotlin / Java) | `com.fpchecker:fpchecker-android` on Maven Central, source in [`android/`](android) | Available, 0.1.0 |
+| **iOS apps** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, source in [`apple/`](apple) | Available, 0.1.1 |
+| macOS apps (Swift Package) | Same package as iOS | Available, 0.1.1 |
+| Command-line tools | Protocol + examples in [`cli/`](cli/README.md) | Examples |
+
+Every platform ends the same way: the client gets an `attestation`, and only your backend, holding your secret key,
+asks for a decision. The wire format of the native SDKs is specified in [PROTOCOL.md](PROTOCOL.md); conformance vectors
+live in [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) and every SDK must reproduce them.
+
+## Web apps
+
+The browser agent is not part of this repository. Download `fp-agent.min.js` from
+`https://fpchecker.com/static/fp-agent.min.js` and serve it from **your own domain** (ad blockers often block
+third-party fingerprinting scripts, and the agent's first-party id only works on your origin). Your project page in
+the fpchecker.com console shows these snippets with your keys filled in:
+
+```html
+<script src="/static/fp-agent.min.js"></script>
+<script>
+  async function identifyBrowser() {
+    const { attestation } = await window.FpGuardAgent.identify({
+      baseUrl: 'https://api.fpchecker.com',
+      publishableKey: 'pk_...',   // from your project
+      sealKey: '...',             // from your project
+    });
+    return attestation; // send it to your backend unchanged
+  }
+</script>
+```
+
+```js
+// Server side only. Keep the secret key in an environment variable.
+const response = await fetch('https://api.fpchecker.com/v1/eligibility', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json', 'X-Secret-Key': process.env.FPCHECKER_SECRET_KEY },
+  body: JSON.stringify({ attestation, email, claim: true, kind: 'trial', clientIp }),
+});
+const decision = await response.json(); // { ok, eligible, action, reason }
+```
+
+Add your site's origin to the project's allowed origins, or the browser call is refused.
 
 ## Android quick start
+
+```kotlin
+// build.gradle.kts (Maven Central)
+dependencies {
+    implementation("com.fpchecker:fpchecker-android:0.1.0")
+}
+```
 
 ```kotlin
 val checker = FpChecker(
     context,
     FpCheckerConfig(
         baseUrl = "https://api.fpchecker.com",
-        publishableKey = "pk_...",          // from your fpchecker project
-        sealKey = "...",                    // from your fpchecker project
+        publishableKey = "pk_...",          // from your FingerPrint Checker project
+        sealKey = "...",                    // from your FingerPrint Checker project
         cloudProjectNumber = 123456789012L, // optional: enables the Play Integrity proof
         powDifficulty = null,               // optional: 8..28 when your project uses proof-of-work
     ),
@@ -68,15 +121,15 @@ Swift Package Manager: add `https://github.com/AndrewYukon/FingerPrintChecker` (
 iOS 14+, macOS 11+), or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.1.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.1.1")
 ```
 
 ```swift
 import FingerPrintChecker
 
 let checker = FingerPrintChecker(config: FPConfig(
-    publishableKey: "pk_...",   // from your fpchecker project
-    sealKey: "...",             // from your fpchecker project
+    publishableKey: "pk_...",   // from your FingerPrint Checker project
+    sealKey: "...",             // from your FingerPrint Checker project
     powDifficulty: nil          // optional: 8...28 when your project uses proof-of-work
 ))
 
@@ -93,17 +146,17 @@ Concurrent `identify()` calls are serialised. `swift build && swift test` at the
 ### App Attest and DeviceCheck
 
 - **App Attest** (real devices only; iOS 14+, supported macOS versions): the SDK creates one key per install, attests it on the
-  first request and sends assertions afterwards. Add the App Attest capability to your app. In fpchecker configure the
+  first request and sends assertions afterwards. Add the App Attest capability to your app. In your FingerPrint Checker project configure the
   Team ID and Bundle ID of your app (and the environment, `development` vs `production`), otherwise the proof is not checked
   and the device is scored as unattested. If App Attest is unavailable or fails, identify still succeeds without a proof.
   A key is remembered only after the server confirmed its attestation; if the server forgets a key, or Apple reports it
   invalid (for example after a restore), the SDK attests a new one within the same `identify()` call (one extra request
   when the server forgot it), so the caller never sees an unattested result for it.
-- **DeviceCheck**: the SDK sends a DeviceCheck token so fpchecker can remember per device whether a claim was already made.
-  For this, create a DeviceCheck key in your Apple Developer account and upload it to your fpchecker project; without it
+- **DeviceCheck**: the SDK sends a DeviceCheck token so FingerPrint Checker can remember per device whether a claim was already made.
+  For this, create a DeviceCheck key in your Apple Developer account and upload it to your FingerPrint Checker project; without it
   the token is ignored.
 - **The claimed bit is shared by every app of your Apple team.** Apple keeps only two DeviceCheck bits per device per
-  developer team, so fpchecker uses bit 0 to mean "this device already claimed a free trial (default kind) in one of
+  developer team, so FingerPrint Checker uses bit 0 to mean "this device already claimed a free trial (default kind) in one of
   this team's apps". The trade-off: a device that claimed the trial in one of your apps is refused the trial in your
   other apps on the same team. Word the refusal accordingly ("this device has already used a free trial"), since the
   user may have claimed it elsewhere. Bit 1 is reserved. The only way to keep two apps independent is to publish them
@@ -121,7 +174,7 @@ PoW human verification for the project.
 
 The seal key ships inside your app, so anything computed on the device can be forged by a determined attacker.
 The `attestation` in a successful result is the only value you should trust: send it to your backend and verify it there
-with the fpchecker API (for example `/v1/eligibility`, `/v1/quota`) using your secret key. Do not gate entitlements on
+with the FingerPrint Checker API (for example `/v1/eligibility`, `/v1/quota`) using your secret key. Do not gate entitlements on
 `trustScore` or `visitorId` as reported to the client.
 
 ## Privacy
