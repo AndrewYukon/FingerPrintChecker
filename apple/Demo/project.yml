@@ -33,6 +33,9 @@ targets:
         FPCheckerPublishableKey: $(FPCHECKER_PUBLISHABLE_KEY)
         FPCheckerSealKey: $(FPCHECKER_SEAL_KEY)
         FPCheckerBaseURL: $(FPCHECKER_BASE_URL)
+        FPCheckerIntentURL: $(FPCHECKER_INTENT_URL)
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
     entitlements:
       path: Demo.entitlements
       # xcodegen rewrites the file from these properties on every `generate`.

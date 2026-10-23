@@ -5,6 +5,12 @@
     <string name="identify_v2">Identify v2</string>
     <string name="idle">Press Identify. Configure keys with gradle properties (see README).</string>
     <string name="intent_failed">Intent request failed: %1$s (http %2$d)</string>
+    <string name="claim_test">Claim test</string>
+    <string name="round_hint">round</string>
+    <string name="round_default" translatable="false">r1</string>
+    <string name="claim_line">CLAIM %1$s: %2$s · %3$s</string>
+    <string name="claim_error">CLAIM %1$s: ERROR %2$s (http %3$d)</string>
+    <string name="two_blocks" translatable="false">%1$s\n\n%2$s</string>
     <string name="working">Working…</string>
     <string name="config_error">%1$s\n\nConfiguration error: %2$s</string>
 </resources>

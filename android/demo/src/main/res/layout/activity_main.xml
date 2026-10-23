@@ -29,6 +29,33 @@
             android:visibility="gone" />
     </LinearLayout>
 
+    <LinearLayout
+        android:id="@+id/claimRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        style="?android:attr/buttonBarStyle">
+
+        <EditText
+            android:id="@+id/roundInput"
+            android:layout_width="96dp"
+            android:layout_height="wrap_content"
+            android:autofillHints=""
+            android:hint="@string/round_hint"
+            android:inputType="text"
+            android:text="@string/round_default" />
+
+        <Button
+            android:id="@+id/claimButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            style="?android:attr/buttonBarButtonStyle"
+            android:enabled="false"
+            android:text="@string/claim_test" />
+    </LinearLayout>
+
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
