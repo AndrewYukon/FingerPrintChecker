@@ -13,8 +13,6 @@ import com.fpchecker.FpResult
 
 class MainActivity : Activity() {
     private var checker: FpChecker? = null
-    /** Last v2 attestation, for the internal claim test (MatrixClaim.kt); one claim uses it up. */
-    private var attestation: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,12 +51,13 @@ class MainActivity : Activity() {
         if (intentUrl.isNotEmpty()) {
             findViewById<View>(R.id.claimRow).visibility = View.VISIBLE
             claimButton.setOnClickListener {
-                val token = attestation ?: return@setOnClickListener
                 val round = roundInput.text.toString().trim()
                 if (!isRound(round)) return@setOnClickListener
-                attestation = null
                 claimButton.isEnabled = false
-                matrixClaim(config, intentUrl, token, round) { line -> output.text = getString(R.string.two_blocks, line, output.text) }
+                matrixClaim(config, intentUrl, round) { line ->
+                    claimButton.isEnabled = true
+                    output.text = getString(R.string.two_blocks, line, output.text)
+                }
             }
             buttonV2.visibility = View.VISIBLE
             buttonV2.setOnClickListener {
@@ -72,8 +71,6 @@ class MainActivity : Activity() {
                         }
                         is IntentResult.Token -> fp.identify(intent.intentToken) { result ->
                             buttonV2.isEnabled = true
-                            attestation = (result as? FpIdentifyResult.Success)?.attestation
-                            claimButton.isEnabled = attestation != null
                             output.text = renderV2(result)
                         }
                     }
@@ -83,10 +80,11 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Internal test: one real claim of [round]. A first claim asks for proof of work: identify again
-     * with that many bits (a second checker, closed afterwards) and claim once more. [show] runs on the main thread.
+     * Internal test: one real claim of [round]. Identifies with an intent minted for that round,
+     * claims, and when the claim asks for proof of work identifies again with that many bits and
+     * claims once more. [show] runs on the main thread.
      */
-    private fun matrixClaim(config: FpCheckerConfig, intentUrl: String, token: String, round: String, show: (String) -> Unit) {
+    private fun matrixClaim(config: FpCheckerConfig, intentUrl: String, round: String, show: (String) -> Unit) {
         val claimUrl = claimUrlFor(intentUrl)
         val describe = { answer: ClaimAnswer ->
             when (answer) {
@@ -94,26 +92,48 @@ class MainActivity : Activity() {
                 is ClaimAnswer.Failure -> getString(R.string.claim_error, round, answer.reason, answer.httpStatus)
             }
         }
+        val claim = { attestation: String, next: (ClaimAnswer) -> Unit ->
+            Thread { postClaim(claimUrl, attestation, round).let { runOnUiThread { next(it) } } }.start()
+        }
+        roundAttestation(config, intentUrl, round, null) { first ->
+            when (first) {
+                is RoundAttestation.Failure -> show(describe(first.answer))
+                is RoundAttestation.Token -> claim(first.attestation) { answer ->
+                    val bits = (answer as? ClaimAnswer.Decision)?.takeIf { it.action == "pow" }?.powDifficulty
+                    if (bits == null) {
+                        show(describe(answer))
+                    } else {
+                        roundAttestation(config, intentUrl, round, bits) { proven ->
+                            when (proven) {
+                                is RoundAttestation.Failure -> show(describe(proven.answer))
+                                is RoundAttestation.Token -> claim(proven.attestation) { show(describe(it)) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Identify v2 (a checker of its own, closed afterwards) with an intent minted for [round]'s claim.
+     * [done] runs on the main thread.
+     */
+    private fun roundAttestation(config: FpCheckerConfig, intentUrl: String, round: String, powBits: Int?, done: (RoundAttestation) -> Unit) {
         Thread {
-            val first = postClaim(claimUrl, token, round)
-            val bits = (first as? ClaimAnswer.Decision)?.takeIf { it.action == "pow" }?.powDifficulty
-            if (bits == null) {
-                runOnUiThread { show(describe(first)) }
-                return@Thread
-            }
-            val intent = fetchIntent(intentUrl)
-            if (intent !is IntentResult.Token) {
-                runOnUiThread { show(describe(ClaimAnswer.Failure("pow_intent_failed", 0))) }
-                return@Thread
-            }
-            val proving = FpChecker(this, config.copy(powDifficulty = bits))
-            proving.identify(intent.intentToken) { result ->
-                proving.close()
-                val proven = (result as? FpIdentifyResult.Success)?.attestation
-                if (proven == null) {
-                    show(describe(ClaimAnswer.Failure("pow_identify_failed", 0)))
-                } else {
-                    Thread { postClaim(claimUrl, proven, round).let { runOnUiThread { show(describe(it)) } } }.start()
+            when (val intent = fetchIntent(intentUrl, round)) {
+                is IntentResult.Failure -> runOnUiThread { done(RoundAttestation.Failure(ClaimAnswer.Failure("intent_${intent.reason}", intent.httpStatus))) }
+                is IntentResult.Token -> {
+                    val proving = FpChecker(this, if (powBits == null) config else config.copy(powDifficulty = powBits))
+                    proving.identify(intent.intentToken) { result ->
+                        proving.close()
+                        done(
+                            when (result) {
+                                is FpIdentifyResult.Success -> RoundAttestation.Token(result.attestation)
+                                is FpIdentifyResult.Failure -> RoundAttestation.Failure(ClaimAnswer.Failure("identify_${result.reason}", result.httpStatus))
+                            },
+                        )
+                    }
                 }
             }
         }.start()

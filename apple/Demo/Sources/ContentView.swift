@@ -7,7 +7,6 @@ struct ContentView: View {
     private let checker = DemoConfig.load().map(FingerPrintChecker.init(config:))
     private let intentURL = DemoConfig.intentURL()
     private let config = DemoConfig.load()
-    @State private var attestation: String?
     @State private var round = "r1"
 
     var body: some View {
@@ -27,7 +26,7 @@ struct ContentView: View {
                         .autocorrectionDisabled()
                         .frame(maxWidth: 80)
                     Button("Claim test") { claim(intentURL, config) }
-                        .disabled(busy || attestation == nil || !MatrixClaim.isRound(round))
+                        .disabled(busy || !MatrixClaim.isRound(round))
                 }
             }
             if checker == nil {
@@ -63,21 +62,17 @@ struct ContentView: View {
             case .failure(let e):
                 output = "INTENT FAILURE\nreason: \(e.reason)\nhttpStatus: \(e.httpStatus)"
             case .success(let token):
-                let result = await checker.identify(intentToken: token)
-                if case .success(let success) = result { attestation = success.attestation } else { attestation = nil }
-                output = Self.describe(result)
+                output = Self.describe(await checker.identify(intentToken: token))
             }
             busy = false
         }
     }
 
-    /// Internal test (MatrixClaim): one real claim with the last v2 attestation, which it uses up.
+    /// Internal test (MatrixClaim): one real claim of the round in the field.
     private func claim(_ url: URL, _ config: FPConfig) {
-        guard let token = attestation else { return }
         busy = true
-        attestation = nil
         Task {
-            let line = await MatrixClaim.run(attestation: token, round: round, intentURL: url, config: config)
+            let line = await MatrixClaim.run(round: round, intentURL: url, config: config)
             output = line + "\n\n" + output
             busy = false
         }

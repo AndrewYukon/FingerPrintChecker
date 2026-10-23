@@ -11,8 +11,12 @@ sealed class IntentResult {
     data class Failure(val reason: String, val httpStatus: Int) : IntentResult()
 }
 
-/** POST {} to [url]; blocking, call off the main thread. */
-fun fetchIntent(url: String): IntentResult {
+/**
+ * POST to [url]; blocking, call off the main thread. With a matrix [round] the intent is minted for
+ * that round's claim (`claim:matrix_<round>`): fp-guard refuses a claim whose attestation was
+ * minted for another purpose.
+ */
+fun fetchIntent(url: String, round: String? = null): IntentResult {
     val connection = try {
         URL(url).openConnection() as HttpURLConnection
     } catch (_: IOException) {
@@ -24,7 +28,8 @@ fun fetchIntent(url: String): IntentResult {
         connection.readTimeout = 10_000
         connection.doOutput = true
         connection.setRequestProperty("Content-Type", "application/json")
-        connection.outputStream.use { it.write("{}".toByteArray()) }
+        val request = JSONObject().apply { if (round != null) put("round", round) }.toString()
+        connection.outputStream.use { it.write(request.toByteArray()) }
         val status = connection.responseCode
         val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
             ?.bufferedReader()?.use { it.readText() }.orEmpty()

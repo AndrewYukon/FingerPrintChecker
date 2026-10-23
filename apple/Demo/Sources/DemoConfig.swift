@@ -19,12 +19,14 @@ enum DemoConfig {
             .flatMap { $0.isEmpty ? nil : URL(string: $0) }
     }
 
-    /// POST {} to the intent endpoint; the token, or a failure reason for display.
-    static func fetchIntent(from url: URL) async -> Result<String, IntentError> {
+    /// POST to the intent endpoint; the token, or a failure reason for display. With a matrix
+    /// `round` the intent is minted for that round's claim (`claim:matrix_<round>`); fp-guard
+    /// refuses a claim whose attestation was minted for another purpose.
+    static func fetchIntent(from url: URL, round: String? = nil) async -> Result<String, IntentError> {
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = Data("{}".utf8)
+        request.httpBody = try? JSONSerialization.data(withJSONObject: round.map { ["round": $0] } ?? [:])
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0

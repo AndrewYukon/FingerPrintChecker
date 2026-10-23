@@ -11,6 +11,12 @@ sealed class ClaimAnswer {
     data class Failure(val reason: String, val httpStatus: Int) : ClaimAnswer()
 }
 
+/** An identify for one round's claim: the attestation to claim with, or why there is none. */
+sealed class RoundAttestation {
+    data class Token(val attestation: String) : RoundAttestation()
+    data class Failure(val answer: ClaimAnswer.Failure) : RoundAttestation()
+}
+
 private val ROUND = Regex("^r[0-9]{1,3}$")
 
 fun isRound(round: String): Boolean = ROUND.matches(round)

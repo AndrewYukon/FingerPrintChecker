@@ -2,8 +2,8 @@ import FingerPrintChecker
 import Foundation
 
 /// Internal device/network test: one real claim for round `r<N>` through the demo backend
-/// (`<intent URL>/../claim`). A first claim asks for proof of work: re-identify with that many
-/// bits and claim once more.
+/// (`<intent URL>/../claim`). It identifies with an intent minted for that round, claims, and when
+/// the claim asks for proof of work identifies again with that many bits and claims once more.
 enum MatrixClaim {
     struct Answer {
         let action: String
@@ -15,25 +15,37 @@ enum MatrixClaim {
         round.range(of: #"^r[0-9]{1,3}$"#, options: .regularExpression) != nil
     }
 
-    static func run(attestation: String, round: String, intentURL: URL, config: FPConfig) async -> String {
+    static func run(round: String, intentURL: URL, config: FPConfig) async -> String {
         let claimURL = intentURL.deletingLastPathComponent().appendingPathComponent("claim")
-        var answer = await claim(claimURL, attestation: attestation, round: round)
+        var answer: Result<Answer, IntentError>
+        switch await attestation(round: round, intentURL: intentURL, config: config) {
+        case .failure(let e): return "CLAIM \(round): ERROR \(e.reason) (http \(e.httpStatus))"
+        case .success(let token): answer = await claim(claimURL, attestation: token, round: round)
+        }
         if case .success(let first) = answer, first.action == "pow", let bits = first.powDifficulty {
             var proving = config
             proving.powDifficulty = bits
-            switch await DemoConfig.fetchIntent(from: intentURL) {
-            case .failure(let e):
-                return "CLAIM \(round): ERROR intent \(e.reason) (http \(e.httpStatus))"
-            case .success(let token):
-                guard case .success(let s) = await FingerPrintChecker(config: proving).identify(intentToken: token) else {
-                    return "CLAIM \(round): ERROR pow_identify_failed"
-                }
-                answer = await claim(claimURL, attestation: s.attestation, round: round)
+            switch await attestation(round: round, intentURL: intentURL, config: proving) {
+            case .failure(let e): return "CLAIM \(round): ERROR pow \(e.reason) (http \(e.httpStatus))"
+            case .success(let token): answer = await claim(claimURL, attestation: token, round: round)
             }
         }
         switch answer {
         case .success(let a): return "CLAIM \(round): \(a.action.uppercased()) · \(a.reason)"
         case .failure(let e): return "CLAIM \(round): ERROR \(e.reason) (http \(e.httpStatus))"
+        }
+    }
+
+    /// Identify v2 with an intent minted for this round's claim: the attestation to claim with.
+    private static func attestation(round: String, intentURL: URL, config: FPConfig) async -> Result<String, IntentError> {
+        switch await DemoConfig.fetchIntent(from: intentURL, round: round) {
+        case .failure(let e):
+            return .failure(IntentError(reason: "intent \(e.reason)", httpStatus: e.httpStatus))
+        case .success(let token):
+            switch await FingerPrintChecker(config: config).identify(intentToken: token) {
+            case .success(let s): return .success(s.attestation)
+            case .failure(let reason, let status): return .failure(IntentError(reason: "identify \(reason)", httpStatus: status))
+            }
         }
     }
 
