@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FpChecker Demo</string>
-    <string name="identify">Identify</string>
+    <string name="identify">Identify v1</string>
+    <string name="identify_v2">Identify v2</string>
     <string name="idle">Press Identify. Configure keys with gradle properties (see README).</string>
-    <string name="working">Working...</string>
+    <string name="intent_failed">Intent request failed: %1$s (http %2$d)</string>
+    <string name="working">Working…</string>
     <string name="config_error">%1$s\n\nConfiguration error: %2$s</string>
 </resources>

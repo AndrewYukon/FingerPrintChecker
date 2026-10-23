@@ -28,6 +28,8 @@ android {
         buildConfigField("String", "FP_SEAL_KEY", buildConfigString(prop("fpcheckerSealKey")))
         buildConfigField("String", "FP_BASE_URL", buildConfigString(prop("fpcheckerBaseUrl")))
         buildConfigField("String", "FP_CLOUD_PROJECT", buildConfigString(prop("fpcheckerCloudProject")))
+        // Optional, enables "Identify v2": backend endpoint answering POST {} with {"intentToken": "..."}.
+        buildConfigField("String", "FP_INTENT_URL", buildConfigString(prop("fpcheckerIntentUrl")))
     }
 
     buildFeatures { buildConfig = true }

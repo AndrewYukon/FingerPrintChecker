@@ -5,11 +5,18 @@ struct ContentView: View {
     @State private var output = "Press Identify."
     @State private var busy = false
     private let checker = DemoConfig.load().map(FingerPrintChecker.init(config:))
+    private let intentURL = DemoConfig.intentURL()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button(busy ? "Working..." : "Identify") { run() }
-                .disabled(busy || checker == nil)
+            HStack {
+                Button(busy ? "Working..." : "Identify v1") { run() }
+                    .disabled(busy || checker == nil)
+                if let intentURL {
+                    Button("Identify v2") { runV2(intentURL) }
+                        .disabled(busy || checker == nil)
+                }
+            }
             if checker == nil {
                 Text("Missing keys: copy Config.example.xcconfig to Config.xcconfig, fill it in and regenerate the project.")
                     .foregroundColor(.red)
@@ -32,6 +39,40 @@ struct ContentView: View {
             let result = await checker.identify()
             output = Self.describe(result)
             busy = false
+        }
+    }
+
+    private func runV2(_ url: URL) {
+        guard let checker else { return }
+        busy = true
+        Task {
+            switch await DemoConfig.fetchIntent(from: url) {
+            case .failure(let e):
+                output = "INTENT FAILURE\nreason: \(e.reason)\nhttpStatus: \(e.httpStatus)"
+            case .success(let token):
+                output = Self.describe(await checker.identify(intentToken: token))
+            }
+            busy = false
+        }
+    }
+
+    private static func describe(_ result: FPResultV2) -> String {
+        switch result {
+        case .failure(let reason, let status):
+            return "V2 FAILURE\nreason: \(reason)\nhttpStatus: \(status)"
+        case .success(let s):
+            return """
+            V2 SUCCESS
+            attestation: \(s.attestation.prefix(24))…
+            visitorId: \(s.visitorId ?? "hidden (scoreDetails)")
+            trustScore: \(s.trustScore.map(String.init) ?? "hidden (scoreDetails)")
+            identityConfidence: \(s.identityConfidence.map(String.init) ?? "hidden (scoreDetails)")
+            isNew: \(s.isNew.map(String.init) ?? "-")
+            proofStatus: \(s.proofStatus ?? "-")
+            deductions: \(s.trustDeductions.map { $0.isEmpty ? "-" : $0.joined(separator: ", ") } ?? "-")
+
+            \(prettyJSON(s.raw))
+            """
         }
     }
 

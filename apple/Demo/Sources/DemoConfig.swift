@@ -12,4 +12,32 @@ enum DemoConfig {
         let baseURL = value("FPCheckerBaseURL").flatMap(URL.init(string:)) ?? FPConfig.defaultBaseURL
         return FPConfig(baseURL: baseURL, publishableKey: pk, sealKey: seal)
     }
+
+    /// Backend endpoint that mints a protocol v2 intent; nil hides "Identify v2".
+    static func intentURL() -> URL? {
+        (Bundle.main.object(forInfoDictionaryKey: "FPCheckerIntentURL") as? String)
+            .flatMap { $0.isEmpty ? nil : URL(string: $0) }
+    }
+
+    /// POST {} to the intent endpoint; the token, or a failure reason for display.
+    static func fetchIntent(from url: URL) async -> Result<String, IntentError> {
+        var request = URLRequest(url: url, timeoutInterval: 10)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data("{}".utf8)
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+            if status == 200, let token = body?["intentToken"] as? String, !token.isEmpty { return .success(token) }
+            return .failure(IntentError(reason: body?["error"] as? String ?? "bad_response", httpStatus: status))
+        } catch {
+            return .failure(IntentError(reason: "network", httpStatus: 0))
+        }
+    }
+}
+
+struct IntentError: Error {
+    let reason: String
+    let httpStatus: Int
 }

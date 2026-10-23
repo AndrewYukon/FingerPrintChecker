@@ -22,10 +22,26 @@
 	<string>1</string>
 	<key>FPCheckerBaseURL</key>
 	<string>$(FPCHECKER_BASE_URL)</string>
+	<key>FPCheckerIntentURL</key>
+	<string>$(FPCHECKER_INTENT_URL)</string>
 	<key>FPCheckerPublishableKey</key>
 	<string>$(FPCHECKER_PUBLISHABLE_KEY)</string>
 	<key>FPCheckerSealKey</key>
 	<string>$(FPCHECKER_SEAL_KEY)</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>
