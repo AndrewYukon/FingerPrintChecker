@@ -112,4 +112,12 @@ class ComponentRulesTest {
         assertTrue(errs(Component("ios.model", "x")).isNotEmpty())
         assertTrue(ComponentRules.validate(listOf(Component("android.id", "9774d56d682e549c"))).isNotEmpty())
     }
+
+    @Test
+    fun freeTextNeverCarriesTheV1Separator() {
+        val comps = ComponentRules.build(raw(fp = "a|b", hw = "h|w", model = "Pixel|7")).associate { it.key to it.value }
+        assertEquals("a/b", comps["android.buildFingerprint"])
+        assertEquals("h/w", comps["android.hardware"])
+        assertEquals("Pixel/7", comps["android.model"])
+    }
 }

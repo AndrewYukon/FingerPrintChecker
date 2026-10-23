@@ -4,7 +4,7 @@ plugins {
     id("com.vanniktech.maven.publish")
 }
 
-val sdkVersion = "0.1.0"
+val sdkVersion = "0.2.0"
 
 kotlin {
     jvmToolchain(17)
@@ -47,6 +47,7 @@ android {
 
 tasks.withType<Test>().configureEach {
     systemProperty("fpchecker.vectors", rootProject.projectDir.resolve("../test-vectors/protocol-v1.json").canonicalPath)
+    systemProperty("fpchecker.vectors.v2", rootProject.projectDir.resolve("../test-vectors/protocol-v2.json").canonicalPath)
 }
 
 dependencies {

@@ -57,6 +57,13 @@ final class ComponentRulesTests: XCTestCase {
         XCTAssertEqual(built.first { $0.key == "ios.osVersion" }?.value.count, 32)
     }
 
+    func testBuildReplacesTheV1SeparatorInFreeText() {
+        let raw = RawSignals(idfv: "0F1E2D3C-4B5A-4968-8778-695A4B3C2D1E", model: "a|b", osVersion: "26|1")
+        let built = ComponentRules.build(platform: .ios, raw: raw)
+        XCTAssertEqual(built.first { $0.key == "ios.model" }?.value, "a/b")
+        XCTAssertEqual(built.first { $0.key == "ios.osVersion" }?.value, "26/1")
+    }
+
     func testDeviceCheckComponentIsHashOfBase64String() {
         let token = "dGVzdC10b2tlbg=="
         // sha256 of the UTF-8 bytes of the base64 string itself (not of the decoded token), computed independently.

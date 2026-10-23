@@ -17,14 +17,75 @@ This repository holds the open-source native SDKs and the protocol they speak.
 | Platform | How to integrate | Status |
 |---|---|---|
 | **Web apps** (any browser) | The FingerPrint Checker browser agent `fp-agent.min.js`, served from your own domain; see [Web apps](#web-apps) | Available |
-| **Android apps** (Kotlin / Java) | `com.fpchecker:fpchecker-android` on Maven Central, source in [`android/`](android) | Available, 0.1.0 |
-| **iOS apps** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, source in [`apple/`](apple) | Available, 0.1.1 |
-| macOS apps (Swift Package) | Same package as iOS | Available, 0.1.1 |
+| **Android apps** (Kotlin / Java) | `com.fpchecker:fpchecker-android` on Maven Central, source in [`android/`](android) | Available, 0.2.0 |
+| **iOS apps** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, source in [`apple/`](apple) | Available, 0.2.0 |
+| macOS apps (Swift Package) | Same package as iOS | Available, 0.2.0 |
 | Command-line tools | Protocol + examples in [`cli/`](cli/README.md) | Examples |
 
 Every platform ends the same way: the client gets an `attestation`, and only your backend, holding your secret key,
 asks for a decision. The wire format of the native SDKs is specified in [PROTOCOL.md](PROTOCOL.md); conformance vectors
 live in [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) and every SDK must reproduce them.
+The newer v2 protocol is described in [PROTOCOL-V2.md](PROTOCOL-V2.md).
+
+## v2 (recommended for new integrations)
+
+Protocol v2 removes the seal key from the client. Your **backend** creates a short-lived *intent* with its secret key and
+hands the opaque `intentToken` to the app; the SDK runs identify with it and returns an opaque `attestation`; the app sends
+that to your backend, which asks `/v1/eligibility` or `/v1/quota` for the decision.
+
+```
+backend  POST /v2/intents (secret key)      ->  intentToken
+app      sdk.identify(intentToken)          ->  attestation
+backend  POST /v1/eligibility (secret key)  ->  allow / human check / deny
+```
+
+SDK 0.2.0 adds `identify(intentToken)` next to the v1 `identify()`; `sealKey` is only needed for v1. The CLI examples take
+`--intent <token>` (or `FPC_INTENT`). Wire format: [PROTOCOL-V2.md](PROTOCOL-V2.md); vectors:
+[`test-vectors/protocol-v2.json`](test-vectors/protocol-v2.json).
+
+A backend as a Cloudflare Worker (secret key in `wrangler secret put FPC_SECRET_KEY`):
+
+```ts
+interface Env { FPC_SECRET_KEY: string }
+const API = 'https://api.fpchecker.com';
+
+async function fpc(env: Env, path: string, body: unknown): Promise<Response> {
+  return fetch(`${API}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'X-Secret-Key': env.FPC_SECRET_KEY },
+    body: JSON.stringify(body),
+  });
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    if (request.method !== 'POST') return new Response('not found', { status: 404 });
+
+    if (url.pathname === '/intent') { // the app calls this, then gives intentToken to the SDK
+      const clientIp = request.headers.get('CF-Connecting-IP') ?? undefined;
+      const res = await fpc(env, '/v2/intents', { purpose: 'claim:trial', clientIp });
+      const { ok, intentToken } = (await res.json()) as { ok: boolean; intentToken?: string };
+      return Response.json(ok ? { intentToken } : { error: 'intent_failed' }, { status: ok ? 200 : 502 });
+    }
+
+    if (url.pathname === '/claim') { // the app posts the SDK's attestation here
+      const { attestation } = (await request.json()) as { attestation: string };
+      const clientIp = request.headers.get('CF-Connecting-IP') ?? undefined;
+      const res = await fpc(env, '/v1/eligibility', { attestation, clientIp, claim: true });
+      const d = (await res.json()) as { eligible?: boolean; action?: string; reason?: string; powDifficulty?: number };
+      // Grant on your side when d.eligible is true. Return the decision only: visitorId and
+      // trustScore stay on your backend, so the client never learns what it is scored on.
+      return Response.json({ eligible: d.eligible === true, action: d.action, reason: d.reason, powDifficulty: d.powDifficulty });
+    }
+    return new Response('not found', { status: 404 });
+  },
+};
+```
+
+To bind the result to one of your users, add `subject` (your user or session id, taken from your own session, never
+from the request body) to both the `/v2/intents` and the `/v1/eligibility` call; a mismatch is denied (`attestation_subject`).
+For a counted free allowance instead of a one-time trial, mint the intent with `purpose: 'quota:<name>'` and call `/v1/quota`.
 
 ## Web apps
 
@@ -64,7 +125,7 @@ Add your site's origin to the project's allowed origins, or the browser call is 
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.1.0")
+    implementation("com.fpchecker:fpchecker-android:0.2.0")
 }
 ```
 
@@ -121,7 +182,7 @@ Swift Package Manager: add `https://github.com/AndrewYukon/FingerPrintChecker` (
 iOS 14+, macOS 11+), or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.1.1")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.2.0")
 ```
 
 ```swift
@@ -167,7 +228,7 @@ Concurrent `identify()` calls are serialised. `swift build && swift test` at the
 ## Command-line tools
 
 No library: a CLI can be written in any language. [`cli/`](cli/README.md) has dependency-free
-examples for Node, Python and Go (under 100 lines each). CLI devices are never attested; enable
+examples for Node, Python and Go. CLI devices are never attested; enable
 PoW human verification for the project.
 
 ## Verify the attestation on YOUR backend

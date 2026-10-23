@@ -57,7 +57,7 @@ final class IdentifyFlowTests: XCTestCase {
         XCTAssertEqual(identify.timeoutInterval, 10)
         let json = try body(transport)
         XCTAssertEqual(json["platform"] as? String, "ios")
-        XCTAssertEqual(json["agentVersion"] as? String, "ios-0.1.1")
+        XCTAssertEqual(json["agentVersion"] as? String, "ios-0.2.0")
         let comps = FakeCollector().components
         let canonical = Canonical.payload(nonce: "nonce-1", components: comps)
         XCTAssertEqual(json["sig"] as? String, Canonical.seal(sealKey: "seal", canonical: canonical))
@@ -188,5 +188,17 @@ final class IdentifyFlowTests: XCTestCase {
         _ = await makeChecker(
             transport, coordinator: AppAttestCoordinator(service: FakeAppAttestService(), store: MemoryKeyStore())).identify()
         XCTAssertEqual(transport.identifyRequests.count, 1, "an attestation cannot be unknown; nothing to retry")
+    }
+
+    // MARK: v1 without a seal key
+
+    func testV1WithoutSealKeyFailsClearlyWithoutRequests() async {
+        let transport = FakeTransport()
+        let checker = FingerPrintChecker(
+            config: FPConfig(publishableKey: "pk_test"), platform: .ios, transport: transport,
+            collector: FakeCollector(), appAttest: nil)
+        let result = await checker.identify()
+        XCTAssertEqual(result, .failure(reason: "seal_key_missing", httpStatus: 0))
+        XCTAssertTrue(transport.requests.isEmpty)
     }
 }

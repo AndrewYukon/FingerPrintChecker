@@ -26,6 +26,16 @@ internal class ApiClient(
     /** POST /v1/identify; throws [IOException] on transport errors. */
     fun identify(body: String): Response = request("POST", "$root/v1/identify", body)
 
+    /** GET /v2/challenge for an intent token; throws [IOException] on transport errors. */
+    fun challengeV2(intentToken: String, powDifficulty: Int?): Response {
+        val intent = java.net.URLEncoder.encode(intentToken, "UTF-8")
+        val query = if (powDifficulty != null) "&difficulty=$powDifficulty" else ""
+        return request("GET", "$root/v2/challenge?intent=$intent$query", null)
+    }
+
+    /** POST /v2/identify; throws [IOException] on transport errors. */
+    fun identifyV2(body: String): Response = request("POST", "$root/v2/identify", body)
+
     private fun request(method: String, url: String, body: String?): Response {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
@@ -82,6 +92,31 @@ internal object RequestBody {
             .put("platform", "android")
             .put("nonce", nonce)
             .put("sig", sig)
+            .put("components", comps)
+            .put("agentVersion", agentVersion)
+        if (pow != null) json.put("pow", pow)
+        if (integrityToken != null) {
+            json.put("proof", JSONObject().put("type", "play_integrity").put("token", integrityToken))
+        }
+        return json.toString()
+    }
+
+    /** Builds the v2 identify JSON (no seal). [pow] is sent as a JSON string, never a number. */
+    fun buildV2(
+        intentToken: String,
+        challenge: String,
+        components: List<Component>,
+        agentVersion: String,
+        pow: String?,
+        integrityToken: String?,
+    ): String {
+        val comps = JSONArray()
+        for (c in components) comps.put(JSONObject().put("key", c.key).put("value", c.value))
+        val json = JSONObject()
+            .put("protocolVersion", 2)
+            .put("platform", "android")
+            .put("intentToken", intentToken)
+            .put("challenge", challenge)
             .put("components", comps)
             .put("agentVersion", agentVersion)
         if (pow != null) json.put("pow", pow)

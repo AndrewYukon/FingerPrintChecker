@@ -30,22 +30,24 @@ private enum NonceOutcome {
 /// fpchecker client for iOS and macOS.
 ///
 /// ```swift
-/// let checker = FingerPrintChecker(config: FPConfig(publishableKey: "pk_...", sealKey: "..."))
-/// switch await checker.identify() {
-/// case .success(let result): sendToBackend(result.attestation)   // verify server-side!
+/// let checker = FingerPrintChecker(config: FPConfig(publishableKey: "pk_..."))
+/// // Protocol v2: your backend mints `intentToken` with POST /v2/intents (secret key).
+/// switch await checker.identify(intentToken: intentToken) {
+/// case .success(let result): sendToBackend(result.attestation)   // opaque, forward unchanged
 /// case .failure(let reason, _): print("identify failed: \(reason)")
 /// }
+/// // Protocol v1 (needs `sealKey`): `await checker.identify()` returns an ``FPResult``.
 /// ```
 public final class FingerPrintChecker: Sendable {
     static let requestTimeout: TimeInterval = 10
     static let appAttestTimeout: Double = 20
 
-    private let config: FPConfig
-    private let platform: FPPlatform
-    private let transport: HTTPTransport
-    private let collector: SignalCollecting
-    private let appAttest: AppAttestCoordinator?
-    private let lock = AsyncLock()
+    let config: FPConfig
+    let platform: FPPlatform
+    let transport: HTTPTransport
+    let collector: SignalCollecting
+    let appAttest: AppAttestCoordinator?
+    let lock = AsyncLock()
 
     public convenience init(config: FPConfig) {
         self.init(
@@ -85,6 +87,9 @@ public final class FingerPrintChecker: Sendable {
         if let difficulty = config.powDifficulty, !ProofOfWork.validBits.contains(difficulty) {
             return .failure(reason: "bad_config", httpStatus: 0)
         }
+        guard let sealKey = config.sealKey, !sealKey.isEmpty else {
+            return .failure(reason: "seal_key_missing", httpStatus: 0)
+        }
         let nonce: String
         switch await fetchNonce() {
         case .nonce(let value): nonce = value
@@ -100,7 +105,7 @@ public final class FingerPrintChecker: Sendable {
         var body: [String: Any] = [
             "platform": platform.rawValue,
             "nonce": nonce,
-            "sig": Canonical.seal(sealKey: config.sealKey, canonical: canonical),
+            "sig": Canonical.seal(sealKey: sealKey, canonical: canonical),
             "components": signals.components.map { ["key": $0.key, "value": $0.value] },
             "agentVersion": platform.agentVersion,
         ]
@@ -131,15 +136,25 @@ public final class FingerPrintChecker: Sendable {
         return result
     }
 
-    private func request(path: String, query: [URLQueryItem] = []) -> URLRequest? {
+    func request(path: String, query: [URLQueryItem] = []) -> URLRequest? {
         guard var components = URLComponents(
             url: config.baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)
         else { return nil }
-        if !query.isEmpty { components.queryItems = query }
+        if !query.isEmpty {
+            // Strict encoding: URLComponents leaves '+' and '&' in values alone, which would corrupt a token.
+            components.percentEncodedQueryItems = query.map {
+                URLQueryItem(name: $0.name, value: $0.value.map(Self.encodeQueryValue))
+            }
+        }
         guard let url = components.url else { return nil }
         var request = URLRequest(url: url, timeoutInterval: Self.requestTimeout)
         request.setValue(config.publishableKey, forHTTPHeaderField: "X-Publishable-Key")
         return request
+    }
+
+    private static func encodeQueryValue(_ value: String) -> String {
+        value.addingPercentEncoding(withAllowedCharacters: CharacterSet(charactersIn:
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")) ?? value
     }
 
     private func fetchNonce() async -> NonceOutcome {

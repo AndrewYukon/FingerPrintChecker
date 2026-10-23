@@ -1,0 +1,282 @@
+{
+  "domain": "fpchecker.identify.v2",
+  "accept": [
+    {
+      "name": "web basic",
+      "input": {
+        "platform": "web",
+        "agentVersion": "0.3.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "fpjs.platform",
+            "value": "MacIntel"
+          },
+          {
+            "key": "custom.userAgent",
+            "value": "Mozilla/5.0"
+          }
+        ]
+      },
+      "canonical": "{\"agentVersion\":\"0.3.0\",\"challenge\":\"v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0\",\"components\":[{\"key\":\"custom.userAgent\",\"value\":\"Mozilla/5.0\"},{\"key\":\"fpjs.platform\",\"value\":\"MacIntel\"}],\"domain\":\"fpchecker.identify.v2\",\"platform\":\"web\",\"protocolVersion\":2}",
+      "requestBindingHex": "24600afaec99b2b209a8fb923963a48533f73aeaa61bdb6f34218f0b8de0c8c1",
+      "clientDataHashBase64": "JGAK+uyZsrIJqPuSOWOkhTP3OuqmG9tvNCGPC43gyME="
+    },
+    {
+      "name": "web with hash",
+      "input": {
+        "platform": "web",
+        "agentVersion": "0.3.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "fpjs.canvas",
+            "value": "xxxxxxxxxx",
+            "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "key": "fpjs.audio",
+            "value": "124.04"
+          }
+        ]
+      },
+      "canonical": "{\"agentVersion\":\"0.3.0\",\"challenge\":\"v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0\",\"components\":[{\"key\":\"fpjs.audio\",\"value\":\"124.04\"},{\"hash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"key\":\"fpjs.canvas\",\"value\":\"xxxxxxxxxx\"}],\"domain\":\"fpchecker.identify.v2\",\"platform\":\"web\",\"protocolVersion\":2}",
+      "requestBindingHex": "07b8e0ceff80ff586e55598ef3a1ab8271ef801b84ba2c356715c6588b6bdf7b",
+      "clientDataHashBase64": "B7jgzv+A/1huVVmO86GrgnHvgBuEuiw1ZxXGWItr33s="
+    },
+    {
+      "name": "reordered input, same bytes as web basic",
+      "input": {
+        "platform": "web",
+        "agentVersion": "0.3.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "custom.userAgent",
+            "value": "Mozilla/5.0"
+          },
+          {
+            "key": "fpjs.platform",
+            "value": "MacIntel"
+          }
+        ]
+      },
+      "canonical": "{\"agentVersion\":\"0.3.0\",\"challenge\":\"v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0\",\"components\":[{\"key\":\"custom.userAgent\",\"value\":\"Mozilla/5.0\"},{\"key\":\"fpjs.platform\",\"value\":\"MacIntel\"}],\"domain\":\"fpchecker.identify.v2\",\"platform\":\"web\",\"protocolVersion\":2}",
+      "requestBindingHex": "24600afaec99b2b209a8fb923963a48533f73aeaa61bdb6f34218f0b8de0c8c1",
+      "clientDataHashBase64": "JGAK+uyZsrIJqPuSOWOkhTP3OuqmG9tvNCGPC43gyME="
+    },
+    {
+      "name": "v1 separators in values",
+      "input": {
+        "platform": "ios",
+        "agentVersion": "ios-0.2.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "ios.model",
+            "value": "a|b=c"
+          },
+          {
+            "key": "ios.name",
+            "value": "|=|"
+          }
+        ]
+      },
+      "canonical": "{\"agentVersion\":\"ios-0.2.0\",\"challenge\":\"v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0\",\"components\":[{\"key\":\"ios.model\",\"value\":\"a|b=c\"},{\"key\":\"ios.name\",\"value\":\"|=|\"}],\"domain\":\"fpchecker.identify.v2\",\"platform\":\"ios\",\"protocolVersion\":2}",
+      "requestBindingHex": "018dd0d708a7cc29f01064f7951c02b2a91c8bd04d508c0f66ffed9676032458",
+      "clientDataHashBase64": "AY3Q1winzCnwEGT3lRwCsqkci9BNUIwPZv/tlnYDJFg="
+    },
+    {
+      "name": "quotes, backslash, controls",
+      "input": {
+        "platform": "android",
+        "agentVersion": "android-0.2.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "android.x",
+            "value": "q\"b\\s\b\f\n\r\t\u0000\u001f"
+          }
+        ]
+      },
+      "canonical": "{\"agentVersion\":\"android-0.2.0\",\"challenge\":\"v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0\",\"components\":[{\"key\":\"android.x\",\"value\":\"q\\\"b\\\\s\\b\\f\\n\\r\\t\\u0000\\u001f\"}],\"domain\":\"fpchecker.identify.v2\",\"platform\":\"android\",\"protocolVersion\":2}",
+      "requestBindingHex": "84a5de3e780256cd9b24b3978f1051577cd7481d24a70742bf95a146ec5296e6",
+      "clientDataHashBase64": "hKXePngCVs2bJLOXjxBRV3zXSB0kpwdCv5WhRuxSluY="
+    },
+    {
+      "name": "CJK, emoji, U+2028/2029",
+      "input": {
+        "platform": "macos",
+        "agentVersion": "macos-0.2.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "macos.locale",
+            "value": "中文 日本語 😀   "
+          }
+        ]
+      },
+      "canonical": "{\"agentVersion\":\"macos-0.2.0\",\"challenge\":\"v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0\",\"components\":[{\"key\":\"macos.locale\",\"value\":\"中文 日本語 😀   \"}],\"domain\":\"fpchecker.identify.v2\",\"platform\":\"macos\",\"protocolVersion\":2}",
+      "requestBindingHex": "2cd446d4d8a3c596e22fdb4807cb9bc71ee64c0335225309c444817a4c6fd2ad",
+      "clientDataHashBase64": "LNRG1NijxZbiL9tIB8ubxx7mTAM1IlMJxESBekxv0q0="
+    },
+    {
+      "name": "empty value",
+      "input": {
+        "platform": "cli",
+        "agentVersion": "cli-node-0.2.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "cli.hostname",
+            "value": ""
+          }
+        ]
+      },
+      "canonical": "{\"agentVersion\":\"cli-node-0.2.0\",\"challenge\":\"v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0\",\"components\":[{\"key\":\"cli.hostname\",\"value\":\"\"}],\"domain\":\"fpchecker.identify.v2\",\"platform\":\"cli\",\"protocolVersion\":2}",
+      "requestBindingHex": "04a9ff91643daf2a2212bb006b274ef7710b77074dfe347f89d28f8ede38ef90",
+      "clientDataHashBase64": "BKn/kWQ9ryoiErsAaydO93ELdwdN/jR/idKPjt4475A="
+    },
+    {
+      "name": "key sort is by code unit (upper before lower, digits first)",
+      "input": {
+        "platform": "cli",
+        "agentVersion": "cli-go-0.2.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "b",
+            "value": "1"
+          },
+          {
+            "key": "B",
+            "value": "2"
+          },
+          {
+            "key": "_",
+            "value": "3"
+          },
+          {
+            "key": "9",
+            "value": "4"
+          },
+          {
+            "key": "-",
+            "value": "5"
+          },
+          {
+            "key": ".",
+            "value": "6"
+          }
+        ]
+      },
+      "canonical": "{\"agentVersion\":\"cli-go-0.2.0\",\"challenge\":\"v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0\",\"components\":[{\"key\":\"-\",\"value\":\"5\"},{\"key\":\".\",\"value\":\"6\"},{\"key\":\"9\",\"value\":\"4\"},{\"key\":\"B\",\"value\":\"2\"},{\"key\":\"_\",\"value\":\"3\"},{\"key\":\"b\",\"value\":\"1\"}],\"domain\":\"fpchecker.identify.v2\",\"platform\":\"cli\",\"protocolVersion\":2}",
+      "requestBindingHex": "c93c41d503a737146cdf0351889f866de1a15ac8a6518bf961a034df19eaf906",
+      "clientDataHashBase64": "yTxB1QOnNxRs3wNRiJ+GbeGhWsimUYv5YaA03xnq+QY="
+    }
+  ],
+  "reject": [
+    {
+      "name": "duplicate key",
+      "input": {
+        "platform": "web",
+        "agentVersion": "0.3.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "a",
+            "value": "1"
+          },
+          {
+            "key": "a",
+            "value": "2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "key with a space",
+      "input": {
+        "platform": "web",
+        "agentVersion": "0.3.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "a b",
+            "value": "1"
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty key",
+      "input": {
+        "platform": "web",
+        "agentVersion": "0.3.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "",
+            "value": "1"
+          }
+        ]
+      }
+    },
+    {
+      "name": "key of 65 characters",
+      "input": {
+        "platform": "web",
+        "agentVersion": "0.3.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
+            "value": "1"
+          }
+        ]
+      }
+    },
+    {
+      "name": "lone high surrogate",
+      "input": {
+        "platform": "web",
+        "agentVersion": "0.3.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "a",
+            "value": "x\ud800"
+          }
+        ]
+      }
+    },
+    {
+      "name": "lone low surrogate",
+      "input": {
+        "platform": "web",
+        "agentVersion": "0.3.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "a",
+            "value": "\udc00x"
+          }
+        ]
+      }
+    },
+    {
+      "name": "agentVersion of 65 characters",
+      "input": {
+        "platform": "web",
+        "agentVersion": "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "a",
+            "value": "1"
+          }
+        ]
+      }
+    }
+  ]
+}

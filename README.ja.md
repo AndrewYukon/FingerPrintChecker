@@ -13,9 +13,9 @@
 | プラットフォーム | 統合方法 | ステータス |
 |---|---|---|
 | **Web アプリ**（任意のブラウザ） | FingerPrint Checker ブラウザエージェント `fp-agent.min.js` を自社ドメインから配信します。[Web アプリ](#web-アプリ)を参照 | 利用可能 |
-| **Android アプリ**（Kotlin / Java） | Maven Central の `com.fpchecker:fpchecker-android`、ソースは [`android/`](android) | 利用可能、0.1.0 |
-| **iOS アプリ**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`、ソースは [`apple/`](apple) | 利用可能、0.1.1 |
-| macOS アプリ（Swift Package） | iOS と同じパッケージ | 利用可能、0.1.1 |
+| **Android アプリ**（Kotlin / Java） | Maven Central の `com.fpchecker:fpchecker-android`、ソースは [`android/`](android) | 利用可能、0.2.0 |
+| **iOS アプリ**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`、ソースは [`apple/`](apple) | 利用可能、0.2.0 |
+| macOS アプリ（Swift Package） | iOS と同じパッケージ | 利用可能、0.2.0 |
 | コマンドラインツール | プロトコルとサンプルは [`cli/`](cli/README.md) | サンプル |
 
 どのプラットフォームでも最終的な流れは同じです。クライアントは `attestation` を受け取り、シークレットキーを持つ自社のバックエンドだけが判定を要求します。ネイティブ SDK のワイヤーフォーマットは [PROTOCOL.md](PROTOCOL.md) に定められており、適合性テストベクターは [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) にあります。すべての SDK はこれらを再現できなければなりません。
@@ -55,7 +55,7 @@ const decision = await response.json(); // { ok, eligible, action, reason }
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.1.0")
+    implementation("com.fpchecker:fpchecker-android:0.2.0")
 }
 ```
 
@@ -108,7 +108,7 @@ cd android
 Swift Package Manager：`https://github.com/AndrewYukon/FingerPrintChecker`（プロダクト `FingerPrintChecker`、iOS 14+、macOS 11+）を追加するか、`Package.swift` に次のように記述します。
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.1.1")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.2.0")
 ```
 
 ```swift

@@ -101,8 +101,9 @@ internal object ComponentRules {
         return out
     }
 
+    /** `|` becomes `/`: the server refuses free text containing the v1 separator. */
     private fun optionalText(raw: String?, max: Int): String? {
-        val v = raw?.let { truncateSafe(it, max) }.orEmpty()
+        val v = raw?.let { truncateSafe(it.replace('|', '/'), max) }.orEmpty()
         return v.ifEmpty { null }
     }
 }

@@ -10,10 +10,32 @@ dependency-free examples that produce the same `c4_` device id on the same machi
 | [`python/identify.py`](python/identify.py) | Python 3.8+ |
 | [`go/identify.go`](go/identify.go) | Go 1.21+ (`go run identify.go`) |
 
+**Protocol v2 (recommended).** Your backend mints an intent with its secret key (`POST /v2/intents`, see
+[PROTOCOL-V2.md](../PROTOCOL-V2.md)) and gives the CLI the token. No seal key is needed and nothing is bound or sealed:
+
+```sh
+export FPC_PK=pk_...          # publishable key
+export FPC_TENANT=yourapp     # the random id is kept in ~/.config/$FPC_TENANT/device-id
+node cli/node/identify.mjs --intent "$INTENT_TOKEN"     # or export FPC_INTENT=...
+python3 cli/python/identify.py --intent "$INTENT_TOKEN"
+(cd cli/go && go run identify.go --intent "$INTENT_TOKEN")
+```
+
+The answer is `{ ok, protocolVersion: 2, attestation }`; send `attestation` to your backend. The CLIs exit non-zero when
+the answer is a failure or has no `attestation`. Each one has its own JCS serializer and a self-test that checks every
+case in [`test-vectors/protocol-v2.json`](../test-vectors/protocol-v2.json):
+
+```sh
+node cli/node/identify.mjs --self-test
+python3 cli/python/identify.py --self-test
+(cd cli/go && go run identify.go --self-test)
+```
+
+**Protocol v1** (when `--intent` and `FPC_INTENT` are absent): needs the seal key.
+
 ```sh
 export FPC_PK=pk_...          # publishable key
 export FPC_SEAL=...           # seal key (console → project)
-export FPC_TENANT=yourapp     # the random id is kept in ~/.config/$FPC_TENANT/device-id
 node cli/node/identify.mjs    # prints the identify answer; send `attestation` to your backend
 ```
 

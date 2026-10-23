@@ -6,9 +6,9 @@ public struct FPConfig: Sendable {
     public var baseURL: URL
     /// Publishable key of your fpchecker project (public by design).
     public var publishableKey: String
-    /// Seal key of your fpchecker project. It ships inside the app, so treat everything the
-    /// device computes as forgeable and verify the returned `attestation` on your backend.
-    public var sealKey: String
+    /// Seal key of your fpchecker project; only protocol v1 (`identify()`) needs it. It ships inside the
+    /// app, so treat everything the device computes as forgeable. `identify(intentToken:)` needs no secret.
+    public var sealKey: String?
     /// Proof-of-work difficulty (8...28) when your project requires it; `nil` otherwise.
     public var powDifficulty: Int?
     /// Attach an App Attest proof when the device supports it.
@@ -21,7 +21,7 @@ public struct FPConfig: Sendable {
     public init(
         baseURL: URL = FPConfig.defaultBaseURL,
         publishableKey: String,
-        sealKey: String,
+        sealKey: String? = nil,
         powDifficulty: Int? = nil,
         useAppAttest: Bool = true,
         useDeviceCheck: Bool = true

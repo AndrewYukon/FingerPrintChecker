@@ -9,6 +9,7 @@ final class FakeAppAttestService: AppAttestService, @unchecked Sendable {
     private(set) var generatedKeys = 0
     private(set) var attested = [String]()
     private(set) var asserted = [String]()
+    private(set) var lastClientDataHash: Data?
 
     func generateKey() async throws -> String {
         generatedKeys += 1
@@ -17,11 +18,13 @@ final class FakeAppAttestService: AppAttestService, @unchecked Sendable {
 
     func attestKey(_ keyId: String, clientDataHash: Data) async throws -> Data {
         attested.append(keyId)
+        lastClientDataHash = clientDataHash
         return try attestResult.get()
     }
 
     func generateAssertion(_ keyId: String, clientDataHash: Data) async throws -> Data {
         asserted.append(keyId)
+        lastClientDataHash = clientDataHash
         return try assertionResult.get()
     }
 }

@@ -16,8 +16,9 @@ import java.io.IOException
 
 /**
  * Entry point. Create one instance per process (it caches the Play Integrity provider) and call
- * [identify]. The seal key is embedded in your app and therefore only raises the bar for forged
- * requests; trust decisions belong to the attestation verified by your backend.
+ * [identify]. Prefer the intent-token flow (v2): no secret is embedded in the app. The v1 seal key
+ * is embedded in your app and therefore only raises the bar for forged requests; trust decisions
+ * belong to the attestation verified by your backend.
  */
 public class FpChecker(context: Context, private val config: FpCheckerConfig) {
     private val appContext = context.applicationContext
@@ -50,7 +51,55 @@ public class FpChecker(context: Context, private val config: FpCheckerConfig) {
         scope.cancel()
     }
 
+    /**
+     * Protocol v2: [intentToken] is the opaque string your backend got from `POST /v2/intents`.
+     * Runs challenge -> collect -> identify and returns an opaque attestation for your backend.
+     * Never throws except on cancellation.
+     */
+    public suspend fun identify(intentToken: String): FpIdentifyResult = withContext(Dispatchers.IO) {
+        try {
+            runV2(intentToken)
+        } catch (_: IOException) {
+            FpIdentifyResult.Failure("network", 0)
+        }
+    }
+
+    /** Callback variant of [identify] with an intent token; [callback] is invoked on the main thread. */
+    public fun identify(intentToken: String, callback: FpIdentifyCallback) {
+        scope.launch {
+            val result = identify(intentToken)
+            mainHandler.post { callback.onResult(result) }
+        }
+    }
+
+    private suspend fun runV2(intentToken: String): FpIdentifyResult {
+        if (intentToken.isBlank()) return FpIdentifyResult.Failure("bad_intent_token", 0)
+        val response = api.challengeV2(intentToken, config.powDifficulty)
+        val challenge = if (response.status == 200) ResponseParser.parseChallengeV2(response.body) else null
+        if (challenge == null) {
+            val reason = ResponseParser.parseErrorV2(response.body) ?: "challenge_failed"
+            return FpIdentifyResult.Failure(reason, response.status)
+        }
+
+        val components = ComponentRules.build(DeviceSignals.read(appContext))
+        if (ComponentRules.validate(components).isNotEmpty()) return FpIdentifyResult.Failure("no_device_id", 0)
+
+        val agentVersion = "android-${BuildConfig.SDK_VERSION}"
+        val bytes = try {
+            Jcs.identifyBytes("android", agentVersion, challenge, components.map { JcsComponent(it.key, it.value) })
+        } catch (_: IllegalArgumentException) {
+            return FpIdentifyResult.Failure("bad_canonical", 0)
+        }
+        val pow = config.powDifficulty?.let { bits -> solvePow(challenge, bits) }
+        val token = integrity?.token(Jcs.requestHashHex(bytes))
+
+        val body = RequestBody.buildV2(intentToken, challenge, components, agentVersion, pow, token)
+        val answer = api.identifyV2(body)
+        return ResponseParser.parseIdentifyV2(answer.body, answer.status)
+    }
+
     private suspend fun run(): FpResult {
+        val sealKey = config.sealKey ?: return FpResult.Failure("seal_key_missing", 0)
         val challenge = api.challenge(config.powDifficulty)
         val nonce = if (challenge.status == 200) ResponseParser.parseNonce(challenge.body) else null
         if (nonce == null) {
@@ -64,7 +113,7 @@ public class FpChecker(context: Context, private val config: FpCheckerConfig) {
         }
 
         val canonical = Canonical.payload(nonce, components)
-        val sig = Canonical.seal(config.sealKey, canonical)
+        val sig = Canonical.seal(sealKey, canonical)
         val pow = config.powDifficulty?.let { bits -> solvePow(nonce, bits) }
         val token = integrity?.token(Canonical.requestHash(canonical))
 

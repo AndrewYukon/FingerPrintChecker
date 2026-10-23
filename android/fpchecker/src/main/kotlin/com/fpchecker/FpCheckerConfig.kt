@@ -3,7 +3,7 @@ package com.fpchecker
 /**
  * @property baseUrl API origin, e.g. `https://api.fpchecker.com` (no trailing path).
  * @property publishableKey the project's public key, sent as `X-Publishable-Key`.
- * @property sealKey the project's seal key used to sign each request.
+ * @property sealKey the project's seal key; only the v1 flow ([FpChecker.identify] without an intent) needs it.
  * @property cloudProjectNumber your Google Cloud project number; enables the Play Integrity proof.
  * @property powDifficulty proof-of-work difficulty in leading zero bits (8..28), or null for none.
  * @property integrityTimeoutMillis maximum time to wait for a Play Integrity token.
@@ -11,7 +11,7 @@ package com.fpchecker
 public data class FpCheckerConfig @JvmOverloads constructor(
     val baseUrl: String = DEFAULT_BASE_URL,
     val publishableKey: String,
-    val sealKey: String,
+    val sealKey: String? = null,
     val cloudProjectNumber: Long? = null,
     val powDifficulty: Int? = null,
     val integrityTimeoutMillis: Long = 5_000L,
@@ -19,7 +19,7 @@ public data class FpCheckerConfig @JvmOverloads constructor(
     init {
         require(baseUrl.startsWith("https://") || baseUrl.startsWith("http://")) { "baseUrl must be http(s)" }
         require(publishableKey.isNotBlank()) { "publishableKey is required" }
-        require(sealKey.isNotEmpty()) { "sealKey is required" }
+        require(sealKey == null || sealKey.isNotEmpty()) { "sealKey must not be empty" }
         require(powDifficulty == null || powDifficulty in Pow.MIN_BITS..Pow.MAX_BITS) {
             "powDifficulty must be in ${Pow.MIN_BITS}..${Pow.MAX_BITS}"
         }

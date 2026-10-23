@@ -54,11 +54,12 @@ enum ComponentRules {
     }
 
     /// Truncates without cutting a surrogate pair or grapheme; `nil` for empty input.
+    /// `|` becomes `/`: the server refuses free text containing the v1 separator.
     static func optionalText(_ raw: String?, max: Int) -> String? {
         guard let raw, !raw.isEmpty else { return nil }
         var out = ""
         var count = 0
-        for character in raw {
+        for character in raw.replacingOccurrences(of: "|", with: "/") {
             let length = String(character).utf16.count
             if count + length > max { break }
             out.append(character)
