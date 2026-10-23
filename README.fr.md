@@ -13,9 +13,9 @@ Ce dépôt contient les SDK natifs open source et le protocole qu'ils utilisent.
 | Plateforme | Comment l'intégrer | Statut |
 |---|---|---|
 | **Applications web** (tout navigateur) | L'agent navigateur FingerPrint Checker `fp-agent.min.js`, servi depuis votre propre domaine ; voir [Applications web](#applications-web) | Disponible |
-| **Applications Android** (Kotlin / Java) | `com.fpchecker:fpchecker-android` sur Maven Central, sources dans [`android/`](android) | Disponible, 0.2.0 |
-| **Applications iOS** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, sources dans [`apple/`](apple) | Disponible, 0.2.0 |
-| Applications macOS (Swift Package) | Même paquet qu'iOS | Disponible, 0.2.0 |
+| **Applications Android** (Kotlin / Java) | `com.fpchecker:fpchecker-android` sur Maven Central, sources dans [`android/`](android) | Disponible, 0.3.0 |
+| **Applications iOS** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, sources dans [`apple/`](apple) | Disponible, 0.3.0 |
+| Applications macOS (Swift Package) | Même paquet qu'iOS | Disponible, 0.3.0 |
 | Outils en ligne de commande | Protocole + exemples dans [`cli/`](cli/README.md) | Exemples |
 
 Toutes les plateformes se terminent de la même façon : le client obtient un `attestation`, et seul votre backend, qui détient votre clé secrète, demande une décision. Le format d'échange des SDK natifs est spécifié dans [PROTOCOL.md](PROTOCOL.md) ; les vecteurs de conformité se trouvent dans [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) et chaque SDK doit les reproduire.
@@ -55,7 +55,7 @@ Ajoutez l'origine de votre site aux origines autorisées du projet, sinon l'appe
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.2.0")
+    implementation("com.fpchecker:fpchecker-android:0.3.0")
 }
 ```
 
@@ -108,7 +108,7 @@ L'APK de release n'est pas signé, sauf si `fpcheckerStoreFile`, `fpcheckerStore
 Swift Package Manager : ajoutez `https://github.com/AndrewYukon/FingerPrintChecker` (produit `FingerPrintChecker`, iOS 14+, macOS 11+), ou dans `Package.swift` :
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.2.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.3.0")
 ```
 
 ```swift
@@ -142,6 +142,8 @@ Pas de bibliothèque : une CLI peut être écrite dans n'importe quel langage. [
 ## Vérifiez l'attestation sur VOTRE backend
 
 La seal key est embarquée dans votre application, donc tout ce qui est calculé sur l'appareil peut être falsifié par un attaquant déterminé. L'`attestation` d'un résultat réussi est la seule valeur à laquelle vous devez faire confiance : envoyez-la à votre backend et vérifiez-la là-bas avec l'API FingerPrint Checker (par exemple `/v1/eligibility`, `/v1/quota`) en utilisant votre secret key. Ne conditionnez pas les droits d'accès à `trustScore` ou `visitorId` tels que rapportés au client.
+
+Les serveurs à partir de la 0.35 répondent à `identify()` v1 par un `attestation` scellé (`{ "token": "fpa1.…" }`) que le client ne peut pas lire, et omettent `trustScore`, `identityConfidence`, `breakdown` et les autres champs de score, sauf si la politique `scoreDetails` du projet vaut `live` ou `all` (`none` par défaut). C'est pourquoi, depuis le SDK 0.3.0, `trustScore` et `identityConfidence` de v1 sont optionnels (`Int?` / `null`). Transmettez l'attestation telle quelle à votre backend et lisez-y `visitorId`, `isNew`, `trustScore` et `identityConfidence` dans la réponse de `/v1/eligibility`.
 
 ## Confidentialité
 

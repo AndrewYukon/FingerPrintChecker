@@ -13,9 +13,9 @@
 | 平台 | 集成方式 | 状态 |
 |---|---|---|
 | **Web 应用**（任意浏览器） | FingerPrint Checker 浏览器 agent `fp-agent.min.js`，部署在你自己的域名下；见 [Web 应用](#web-应用) | 可用 |
-| **Android 应用**（Kotlin / Java） | Maven Central 上的 `com.fpchecker:fpchecker-android`，源码在 [`android/`](android) | 可用，0.2.0 |
-| **iOS 应用**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`，源码在 [`apple/`](apple) | 可用，0.2.0 |
-| macOS 应用（Swift Package） | 与 iOS 使用同一个包 | 可用，0.2.0 |
+| **Android 应用**（Kotlin / Java） | Maven Central 上的 `com.fpchecker:fpchecker-android`，源码在 [`android/`](android) | 可用，0.3.0 |
+| **iOS 应用**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`，源码在 [`apple/`](apple) | 可用，0.3.0 |
+| macOS 应用（Swift Package） | 与 iOS 使用同一个包 | 可用，0.3.0 |
 | 命令行工具 | 协议 + 示例见 [`cli/`](cli/README.md) | 示例 |
 
 所有平台的终点都一样：客户端拿到 `attestation`，只有持有密钥（secret key）的你的后端才去请求决策。原生 SDK 的传输格式在 [PROTOCOL.md](PROTOCOL.md) 中规定；一致性测试向量在 [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json)，每个 SDK 都必须能复现这些向量。
@@ -55,7 +55,7 @@ const decision = await response.json(); // { ok, eligible, action, reason }
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.2.0")
+    implementation("com.fpchecker:fpchecker-android:0.3.0")
 }
 ```
 
@@ -108,7 +108,7 @@ cd android
 Swift Package Manager：添加 `https://github.com/AndrewYukon/FingerPrintChecker`（product 为 `FingerPrintChecker`，iOS 14+、macOS 11+），或在 `Package.swift` 中：
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.2.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.3.0")
 ```
 
 ```swift
@@ -142,6 +142,8 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 ## 在你自己的后端验证 attestation
 
 seal key 随你的应用一起分发，因此任何在设备上计算出的内容都可能被有决心的攻击者伪造。成功结果中的 `attestation` 是你唯一应该信任的值：把它发送到你的后端，并在那里使用你的 secret key 通过 FingerPrint Checker API（例如 `/v1/eligibility`、`/v1/quota`）进行验证。不要依据客户端上报的 `trustScore` 或 `visitorId` 来控制权益。
+
+0.35 及以上版本的服务器对 v1 `identify()` 返回密封的 `attestation`（`{ "token": "fpa1.…" }`），客户端无法读取；除非项目的 `scoreDetails` 策略为 `live` 或 `all`（默认 `none`），否则不会返回 `trustScore`、`identityConfidence`、`breakdown` 等分数字段，因此 SDK 0.3.0 起 v1 的 `trustScore` 和 `identityConfidence` 为可选值（`Int?` / `null`）。请原样把 attestation 转发给你的后端，并在后端从 `/v1/eligibility` 的响应中读取 `visitorId`、`isNew`、`trustScore` 和 `identityConfidence`。
 
 ## 隐私
 

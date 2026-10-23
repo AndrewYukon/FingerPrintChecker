@@ -53,6 +53,21 @@ class WireFormatTest {
     }
 
     @Test
+    fun sealedAttestationAndHiddenScoresParseToNullNotZero() {
+        val r = ResponseParser.parseIdentify("""{"ok":true,"visitorId":"a4_abc","isNew":true,"attestation":{"token":"fpa1.x"}}""", 200) as FpResult.Success
+        assertNull(r.trustScore)
+        assertNull(r.identityConfidence)
+        assertEquals("""{"token":"fpa1.x"}""", r.attestation)
+    }
+
+    @Test
+    fun scoreZeroIsKeptAsZero() {
+        val r = ResponseParser.parseIdentify("""{"ok":true,"visitorId":"a4_abc","trustScore":0,"identityConfidence":0}""", 200) as FpResult.Success
+        assertEquals(0, r.trustScore)
+        assertEquals(0, r.identityConfidence)
+    }
+
+    @Test
     fun olderServerWithoutShadowOrProofStatus() {
         val r = ResponseParser.parseIdentify("""{"ok":true,"visitorId":"a4_abc","trustScore":55}""", 200) as FpResult.Success
         assertEquals(emptyList<String>(), r.shadowDeductions)

@@ -131,6 +131,14 @@ Success:
 
 Pass `attestation` to your backend, which verifies it with the fpchecker API (`/v1/eligibility`, `/v1/quota`).
 
+Servers from 0.35 answer differently: `attestation` is a sealed object `{ "token": "fpa1.…" }` that the client cannot read, and
+`trustScore`, `identityConfidence`, `confidence`, `breakdown`, `drifted`, `hwLinked`, `trustDeductions`, `rulesVersion` and
+`shadowDeductions` are present only when the project's `scoreDetails` policy allows it: `none` (default) omits all of them,
+`live` returns the scores plus `trustDeductions`, `rulesVersion` and `breakdown`, `all` adds `shadowDeductions`. A client must
+treat every score field as optional. Forward the attestation unchanged (the `{token}` object, the bare token string and older
+readable objects are all accepted), and read `visitorId`, `isNew`, `trustScore` and `identityConfidence` from the
+`/v1/eligibility` answer on your backend. Refusals are unchanged (`trustScore: 0`).
+
 Failure is always fail-closed: `{ "ok": false, "visitorId": null, "trustScore": 0, "reason": "..." }`, with `reason` one of
 `bad_request`, `bad_nonce`, `seal_invalid`, `platform_not_enabled`, `nonce_reused`, `project_write_budget`,
 `identify_daily_limit`, `internal_error`.

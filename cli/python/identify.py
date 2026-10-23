@@ -74,7 +74,7 @@ def main():
     if intent:  # v2: nothing is sealed or bound; the answer carries an opaque attestation
         ch = call(f"/v2/challenge?intent={urllib.parse.quote(intent, safe='')}&difficulty={bits}")
         if not ch.get("ok") or not isinstance(ch.get("challenge"), str): print(json.dumps(ch, indent=2)); sys.exit(1)
-        agent = "cli-python-0.2.0"
+        agent = "cli-python-0.3.0"
         identify_canonical("cli", agent, ch["challenge"], components)  # refuse locally what the server refuses
         out = call("/v2/identify", {"protocolVersion": 2, "platform": "cli", "intentToken": intent, "challenge": ch["challenge"], "agentVersion": agent, "components": components, "pow": solve(ch["challenge"])})
         print(json.dumps(out, indent=2))  # hand `attestation` to your backend for /v1/eligibility

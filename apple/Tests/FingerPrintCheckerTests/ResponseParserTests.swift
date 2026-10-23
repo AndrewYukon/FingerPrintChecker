@@ -22,6 +22,22 @@ final class ResponseParserTests: XCTestCase {
         XCTAssertEqual(s.raw, body)
     }
 
+    func testSealedAttestationAndHiddenScoresParseToNilNotZero() {
+        let body = Data(#"{"ok":true,"visitorId":"i4_abc","isNew":true,"attestation":{"token":"fpa1.x"}}"#.utf8)
+        guard case .success(let s) = ResponseParser.parseIdentify(body, httpStatus: 200) else { return XCTFail() }
+        XCTAssertNil(s.trustScore)
+        XCTAssertNil(s.identityConfidence)
+        XCTAssertEqual(s.attestation, #"{"token":"fpa1.x"}"#)
+        XCTAssertEqual(s.trustDeductions, [])
+    }
+
+    func testScoreZeroIsKeptAsZero() {
+        let body = Data(#"{"ok":true,"visitorId":"v","trustScore":0,"identityConfidence":0}"#.utf8)
+        guard case .success(let s) = ResponseParser.parseIdentify(body, httpStatus: 200) else { return XCTFail() }
+        XCTAssertEqual(s.trustScore, 0)
+        XCTAssertEqual(s.identityConfidence, 0)
+    }
+
     func testObjectAttestationIsReserialisedAndNullIsNil() {
         let object = Data(#"{"ok":true,"visitorId":"v","attestation":{"a":1}}"#.utf8)
         guard case .success(let s) = ResponseParser.parseIdentify(object, httpStatus: 200) else { return XCTFail() }

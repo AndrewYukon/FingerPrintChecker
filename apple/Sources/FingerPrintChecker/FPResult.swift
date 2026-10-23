@@ -3,8 +3,8 @@ import Foundation
 /// Data returned by a successful identify call.
 public struct FPSuccess: Sendable, Equatable {
     public let visitorId: String
-    public let trustScore: Int
-    public let identityConfidence: Int
+    public let trustScore: Int?
+    public let identityConfidence: Int?
     public let isNew: Bool
     /// Opaque token to forward to YOUR backend, which must verify it with the fpchecker API.
     /// Never make entitlement decisions from the other fields on the device.
@@ -18,7 +18,7 @@ public struct FPSuccess: Sendable, Equatable {
     public let raw: Data
 
     public init(
-        visitorId: String, trustScore: Int, identityConfidence: Int, isNew: Bool,
+        visitorId: String, trustScore: Int?, identityConfidence: Int?, isNew: Bool,
         attestation: String?, trustDeductions: [String], shadowDeductions: [String] = [],
         proofStatus: String?, raw: Data
     ) {

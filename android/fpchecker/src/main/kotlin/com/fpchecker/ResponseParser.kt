@@ -31,8 +31,8 @@ internal object ResponseParser {
         val attestation = if (json.isNull("attestation")) null else json.opt("attestation")?.toString()
         return FpResult.Success(
             visitorId = visitorId,
-            trustScore = json.optInt("trustScore", 0),
-            identityConfidence = json.optInt("identityConfidence", 0),
+            trustScore = if (json.has("trustScore")) json.optInt("trustScore") else null,
+            identityConfidence = if (json.has("identityConfidence")) json.optInt("identityConfidence") else null,
             isNew = json.optBoolean("isNew", false),
             attestation = attestation,
             trustDeductions = strings("trustDeductions"),

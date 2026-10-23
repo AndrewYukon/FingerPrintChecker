@@ -50,8 +50,8 @@ class MainActivity : Activity() {
     private fun render(result: FpResult): String = when (result) {
         is FpResult.Success -> buildString {
             appendLine("visitorId: ${result.visitorId}")
-            appendLine("trustScore: ${result.trustScore}")
-            appendLine("identityConfidence: ${result.identityConfidence}")
+            appendLine("trustScore: ${result.trustScore ?: "hidden (scoreDetails)"}")
+            appendLine("identityConfidence: ${result.identityConfidence ?: "hidden (scoreDetails)"}")
             appendLine("isNew: ${result.isNew}")
             appendLine("deductions: ${result.trustDeductions.joinToString().ifEmpty { "(none)" }}")
             appendLine()

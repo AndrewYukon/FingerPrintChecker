@@ -97,7 +97,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, ch)
 			os.Exit(1)
 		}
-		const agent = "cli-go-0.2.0"
+		const agent = "cli-go-0.3.0"
 		if _, err := identifyCanonical("cli", agent, challenge, comps); err != nil { // refuse locally what the server refuses
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)

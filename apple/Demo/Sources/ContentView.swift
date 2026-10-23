@@ -44,8 +44,8 @@ struct ContentView: View {
             return """
             SUCCESS
             visitorId: \(s.visitorId)
-            trustScore: \(s.trustScore)
-            identityConfidence: \(s.identityConfidence)
+            trustScore: \(s.trustScore.map(String.init) ?? "hidden (scoreDetails)")
+            identityConfidence: \(s.identityConfidence.map(String.init) ?? "hidden (scoreDetails)")
             isNew: \(s.isNew)
             proofStatus: \(s.proofStatus ?? "-")
             deductions: \(s.trustDeductions.isEmpty ? "-" : s.trustDeductions.joined(separator: ", "))

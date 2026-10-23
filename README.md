@@ -7,7 +7,7 @@ command-line tools), from [FingerPrint Checker](https://fpchecker.com).
 
 Your client collects a small set of device signals, seals them with an HMAC, optionally attaches a platform attestation
 (Play Integrity on Android, App Attest and DeviceCheck on Apple devices), and receives a stable `visitorId`, a trust
-score, and an `attestation` token. Your own backend sends that token to the FingerPrint Checker API and gets back
+score (only if the project's `scoreDetails` policy allows it), and an `attestation` token. Your own backend sends that token to the FingerPrint Checker API and gets back
 `allow`, a human check, or `deny` for free trials, coupons, sign-up bonuses, invite rewards and anonymous usage limits.
 
 This repository holds the open-source native SDKs and the protocol they speak.
@@ -17,9 +17,9 @@ This repository holds the open-source native SDKs and the protocol they speak.
 | Platform | How to integrate | Status |
 |---|---|---|
 | **Web apps** (any browser) | The FingerPrint Checker browser agent `fp-agent.min.js`, served from your own domain; see [Web apps](#web-apps) | Available |
-| **Android apps** (Kotlin / Java) | `com.fpchecker:fpchecker-android` on Maven Central, source in [`android/`](android) | Available, 0.2.0 |
-| **iOS apps** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, source in [`apple/`](apple) | Available, 0.2.0 |
-| macOS apps (Swift Package) | Same package as iOS | Available, 0.2.0 |
+| **Android apps** (Kotlin / Java) | `com.fpchecker:fpchecker-android` on Maven Central, source in [`android/`](android) | Available, 0.3.0 |
+| **iOS apps** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, source in [`apple/`](apple) | Available, 0.3.0 |
+| macOS apps (Swift Package) | Same package as iOS | Available, 0.3.0 |
 | Command-line tools | Protocol + examples in [`cli/`](cli/README.md) | Examples |
 
 Every platform ends the same way: the client gets an `attestation`, and only your backend, holding your secret key,
@@ -39,7 +39,8 @@ app      sdk.identify(intentToken)          ->  attestation
 backend  POST /v1/eligibility (secret key)  ->  allow / human check / deny
 ```
 
-SDK 0.2.0 adds `identify(intentToken)` next to the v1 `identify()`; `sealKey` is only needed for v1. The CLI examples take
+SDK 0.2.0 adds `identify(intentToken)` next to the v1 `identify()`; `sealKey` is only needed for v1.
+SDK 0.3.0: the v1 `trustScore` and `identityConfidence` are now optional (`Int?` / `null`), because servers from 0.35 omit them by default. The CLI examples take
 `--intent <token>` (or `FPC_INTENT`). Wire format: [PROTOCOL-V2.md](PROTOCOL-V2.md); vectors:
 [`test-vectors/protocol-v2.json`](test-vectors/protocol-v2.json).
 
@@ -125,7 +126,7 @@ Add your site's origin to the project's allowed origins, or the browser call is 
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.2.0")
+    implementation("com.fpchecker:fpchecker-android:0.3.0")
 }
 ```
 
@@ -182,7 +183,7 @@ Swift Package Manager: add `https://github.com/AndrewYukon/FingerPrintChecker` (
 iOS 14+, macOS 11+), or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.2.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.3.0")
 ```
 
 ```swift
@@ -237,6 +238,11 @@ The seal key ships inside your app, so anything computed on the device can be fo
 The `attestation` in a successful result is the only value you should trust: send it to your backend and verify it there
 with the FingerPrint Checker API (for example `/v1/eligibility`, `/v1/quota`) using your secret key. Do not gate entitlements on
 `trustScore` or `visitorId` as reported to the client.
+
+Servers from 0.35 answer v1 `identify()` with a sealed `attestation` (`{ "token": "fpa1.…" }`) that the client cannot read, and leave
+out `trustScore`, `identityConfidence`, `breakdown` and the other score fields unless the project's `scoreDetails` policy is
+`live` or `all` (default `none`). Forward the attestation to your backend unchanged, and read `visitorId`, `isNew`,
+`trustScore` and `identityConfidence` from the `/v1/eligibility` answer there.
 
 ## Privacy
 

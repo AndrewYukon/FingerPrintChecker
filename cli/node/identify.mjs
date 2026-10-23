@@ -69,7 +69,7 @@ const solve = (challenge) => { let pow = 0; while (zeroBits(createHash('sha256')
 if (intent) { // v2: nothing is sealed or bound; the answer carries an opaque attestation
   const ch = await (await fetch(`${base}/v2/challenge?intent=${encodeURIComponent(intent)}&difficulty=${bits}`, { headers })).json();
   if (!ch.ok || typeof ch.challenge !== 'string') { console.error(JSON.stringify(ch)); process.exit(1); }
-  const agentVersion = 'cli-node-0.2.0';
+  const agentVersion = 'cli-node-0.3.0';
   identifyCanonical({ platform: 'cli', agentVersion, challenge: ch.challenge, components }); // refuse locally what the server refuses
   const res = await fetch(`${base}/v2/identify`, { method: 'POST', headers, body: JSON.stringify({ protocolVersion: 2, platform: 'cli', intentToken: intent, challenge: ch.challenge, agentVersion, components, pow: solve(ch.challenge) }) });
   const out = await res.json();

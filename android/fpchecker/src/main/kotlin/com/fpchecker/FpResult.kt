@@ -11,8 +11,8 @@ public sealed class FpResult {
      */
     public data class Success(
         val visitorId: String,
-        val trustScore: Int,
-        val identityConfidence: Int,
+        val trustScore: Int?,
+        val identityConfidence: Int?,
         val isNew: Boolean,
         val attestation: String?,
         val trustDeductions: List<String>,

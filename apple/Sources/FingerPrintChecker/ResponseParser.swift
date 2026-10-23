@@ -20,8 +20,8 @@ enum ResponseParser {
         }
         return .success(FPSuccess(
             visitorId: visitorId,
-            trustScore: (json["trustScore"] as? NSNumber)?.intValue ?? 0,
-            identityConfidence: (json["identityConfidence"] as? NSNumber)?.intValue ?? 0,
+            trustScore: (json["trustScore"] as? NSNumber)?.intValue,
+            identityConfidence: (json["identityConfidence"] as? NSNumber)?.intValue,
             isNew: (json["isNew"] as? Bool) ?? false,
             attestation: attestationString(json["attestation"]),
             trustDeductions: (json["trustDeductions"] as? [Any])?.compactMap { $0 as? String } ?? [],

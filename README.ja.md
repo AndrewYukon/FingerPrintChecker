@@ -13,9 +13,9 @@
 | プラットフォーム | 統合方法 | ステータス |
 |---|---|---|
 | **Web アプリ**（任意のブラウザ） | FingerPrint Checker ブラウザエージェント `fp-agent.min.js` を自社ドメインから配信します。[Web アプリ](#web-アプリ)を参照 | 利用可能 |
-| **Android アプリ**（Kotlin / Java） | Maven Central の `com.fpchecker:fpchecker-android`、ソースは [`android/`](android) | 利用可能、0.2.0 |
-| **iOS アプリ**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`、ソースは [`apple/`](apple) | 利用可能、0.2.0 |
-| macOS アプリ（Swift Package） | iOS と同じパッケージ | 利用可能、0.2.0 |
+| **Android アプリ**（Kotlin / Java） | Maven Central の `com.fpchecker:fpchecker-android`、ソースは [`android/`](android) | 利用可能、0.3.0 |
+| **iOS アプリ**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`、ソースは [`apple/`](apple) | 利用可能、0.3.0 |
+| macOS アプリ（Swift Package） | iOS と同じパッケージ | 利用可能、0.3.0 |
 | コマンドラインツール | プロトコルとサンプルは [`cli/`](cli/README.md) | サンプル |
 
 どのプラットフォームでも最終的な流れは同じです。クライアントは `attestation` を受け取り、シークレットキーを持つ自社のバックエンドだけが判定を要求します。ネイティブ SDK のワイヤーフォーマットは [PROTOCOL.md](PROTOCOL.md) に定められており、適合性テストベクターは [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) にあります。すべての SDK はこれらを再現できなければなりません。
@@ -55,7 +55,7 @@ const decision = await response.json(); // { ok, eligible, action, reason }
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.2.0")
+    implementation("com.fpchecker:fpchecker-android:0.3.0")
 }
 ```
 
@@ -108,7 +108,7 @@ cd android
 Swift Package Manager：`https://github.com/AndrewYukon/FingerPrintChecker`（プロダクト `FingerPrintChecker`、iOS 14+、macOS 11+）を追加するか、`Package.swift` に次のように記述します。
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.2.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.3.0")
 ```
 
 ```swift
@@ -142,6 +142,8 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 ## 自社バックエンドで attestation を検証する
 
 シールキーはアプリの中に同梱されるため、デバイス上で計算されるものはすべて、決意の固い攻撃者に偽造され得ます。成功した結果に含まれる `attestation` が、信頼すべき唯一の値です。これをバックエンドに送り、そこでシークレットキーを使って FingerPrint Checker API（たとえば `/v1/eligibility`、`/v1/quota`）で検証してください。クライアントに報告された `trustScore` や `visitorId` を根拠に権利を付与してはいけません。
+
+サーバー 0.35 以降は、v1 の `identify()` に対してクライアントが読めない封印済みの `attestation`（`{ "token": "fpa1.…" }`）を返し、プロジェクトの `scoreDetails` ポリシーが `live` または `all`（デフォルトは `none`）でない限り、`trustScore`、`identityConfidence`、`breakdown` などのスコア項目を含めません。そのため SDK 0.3.0 から、v1 の `trustScore` と `identityConfidence` は省略可能（`Int?` / `null`）になりました。attestation はそのままバックエンドへ転送し、`visitorId`、`isNew`、`trustScore`、`identityConfidence` はバックエンドで `/v1/eligibility` の応答から読み取ってください。
 
 ## プライバシー
 
