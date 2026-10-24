@@ -8,6 +8,24 @@ Votre client collecte un petit ensemble de signaux de l'appareil, les scelle ave
 
 Ce dépôt contient les SDK natifs open source et le protocole qu'ils utilisent.
 
+## Un foyer, un essai gratuit
+
+Ceux qui abusent des essais gratuits ne s'arrêtent pas à un navigateur. Ils essaient un autre navigateur, puis
+l'ordinateur portable, puis le téléphone, puis votre app. FingerPrint Checker les refuse tous dès que l'un d'eux a
+réclamé. Chaque cas a été testé sur de vrais appareils (un Mac avec trois navigateurs, un iPhone, deux téléphones Android
+et un même Wi-Fi domestique) :
+
+- **Tous les navigateurs d'un ordinateur sont un seul appareil.** Des navigateurs différents sur le même ordinateur
+  et le même réseau reçoivent le même `visitorId`.
+- **Tous les appareils d'un Wi-Fi comptent comme un foyer.** Dès qu'un ordinateur, portable, tablette ou téléphone a
+  réclamé sur le réseau de la maison, les autres appareils de ce réseau sont refusés, même après être passés en données
+  mobiles, car chaque appareil se souvient des réseaux où il a été vu.
+- **Votre site et vos apps partagent une limite.** Placez le projet web et les projets des apps iOS et Android dans un
+  même *groupe de réclamations* dans la [console](https://fpchecker.com/console). Un foyer qui a réclamé sur le site
+  est refusé dans l'app, et inversement.
+- **Repéré après coup aussi.** Un téléphone qui a réclamé en données mobiles puis rejoint le même Wi-Fi domestique est
+  signalé. Votre backend liste ces réclamations avec `GET /v1/claims/flags`. Rien n'est révoqué automatiquement.
+
 ## Plateformes prises en charge
 
 | Plateforme | Comment l'intégrer | Statut |

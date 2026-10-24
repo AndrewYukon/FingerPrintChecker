@@ -12,6 +12,22 @@ score (only if the project's `scoreDetails` policy allows it), and an `attestati
 
 This repository holds the open-source native SDKs and the protocol they speak.
 
+## One household, one free trial
+
+People who abuse free trials don't stop at one browser. They try a second browser, then the laptop, then the phone,
+then your app. FingerPrint Checker refuses all of them once one has claimed. Every case below was tested on real
+devices (a Mac with three browsers, an iPhone, two Android phones, one home Wi-Fi):
+
+- **Every browser on one computer is one device.** Different browsers on the same computer and network get the same `visitorId`.
+- **Every device on one Wi-Fi counts as one household.** Once a desktop, laptop, tablet or phone has claimed on a home
+  network, the others on that network are refused. This also holds after they switch to mobile data, because each device
+  remembers the networks it was seen on.
+- **Your website and your apps share one limit.** Put your web project and your iOS and Android app projects in one
+  *claim group* in the [console](https://fpchecker.com/console). A household that claimed on the website is then
+  refused in the app, and the other way round.
+- **Caught later, too.** A phone that claimed on mobile data and later joins the same home Wi-Fi is flagged. Your
+  backend lists those claims with `GET /v1/claims/flags`. Nothing is revoked automatically.
+
 ## Supported platforms
 
 | Platform | How to integrate | Status |

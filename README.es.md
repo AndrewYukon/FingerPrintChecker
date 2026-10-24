@@ -8,6 +8,23 @@ Tu cliente recopila un pequeño conjunto de señales del dispositivo, las sella 
 
 Este repositorio contiene los SDK nativos de código abierto y el protocolo que utilizan.
 
+## Un hogar, una prueba gratuita
+
+Quien abusa de las pruebas gratuitas no se queda en un navegador. Prueba otro navegador, luego el portátil, luego el
+móvil y luego tu app. FingerPrint Checker los rechaza a todos en cuanto uno ha reclamado. Cada caso se probó en
+dispositivos reales (un Mac con tres navegadores, un iPhone, dos teléfonos Android y una misma Wi-Fi doméstica):
+
+- **Todos los navegadores de un ordenador son un solo dispositivo.** Distintos navegadores en el mismo ordenador y la
+  misma red reciben el mismo `visitorId`.
+- **Todos los dispositivos de una Wi-Fi cuentan como un hogar.** Cuando un ordenador, portátil, tableta o teléfono ha
+  reclamado en la red de casa, los demás de esa red se rechazan, también después de pasar a datos móviles, porque cada
+  dispositivo recuerda las redes en las que se vio.
+- **Tu web y tus apps comparten un límite.** Pon el proyecto web y los proyectos de las apps de iOS y Android en un mismo
+  *grupo de reclamaciones* en la [consola](https://fpchecker.com/console). Un hogar que reclamó en la web se rechaza en
+  la app, y al revés.
+- **También se detecta después.** Un teléfono que reclamó con datos móviles y luego se conecta a la misma Wi-Fi de casa
+  queda marcado. Tu backend obtiene esas reclamaciones con `GET /v1/claims/flags`. Nada se revoca automáticamente.
+
 ## Plataformas compatibles
 
 | Plataforma | Cómo integrarla | Estado |
