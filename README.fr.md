@@ -163,7 +163,7 @@ l'ouvre avec la clé du projet (jamais sur l'appareil).
 | Paquet | Où | Installation |
 |---|---|---|
 | SDK serveur Node.js, `@fpchecker/node` | [`server/node`](server/node) | `npm install @fpchecker/node` |
-| SDK serveur Python, `fpchecker` | [`server/python`](server/python) | `pip install fpchecker` |
+| SDK serveur Python, `fpchecker` | [`server/python`](server/python) | `pip install fingerprintchecker` |
 | SDK serveur Go | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
 | Chargeur de l'agent navigateur, `@fpchecker/agent` | [`web/agent`](web/agent) | `npm install @fpchecker/agent` |
 | Wrapper React, `@fpchecker/react` | [`web/react`](web/react) | `npm install @fpchecker/react` |

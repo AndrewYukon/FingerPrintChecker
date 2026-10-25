@@ -1,4 +1,6 @@
-# fpchecker (Python)
+# fingerprintchecker (Python)
+
+Install with `pip install fingerprintchecker`; import it as `fpchecker`.
 
 Server SDK for [FingerPrintChecker](https://fpchecker.com). Python 3.9+, standard-library HTTP, one runtime dependency (`cryptography`, for sealed results).
 

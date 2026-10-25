@@ -18,7 +18,7 @@ Rules for every step below:
 | React wrapper | npm | `@fpchecker/react` | 0.1.0 | `web/react` |
 | Vue wrapper | npm | `@fpchecker/vue` | 0.1.0 | `web/vue` |
 | Node.js server SDK | npm | `@fpchecker/node` | 0.1.0 | `server/node` |
-| Python server SDK | PyPI | `fpchecker` | 0.1.0 | `server/python` |
+| Python server SDK | PyPI | `fingerprintchecker` (import `fpchecker`) | 0.1.0 | `server/python` |
 | Go server SDK | Go proxy (git tag) | `github.com/AndrewYukon/FingerPrintChecker/server/go` | v0.1.0 | `server/go` |
 | Android SDK | Maven Central | `com.fpchecker:fpchecker-android` | 0.5.0 | `android/fpchecker` |
 | Apple SDK | Swift Package Manager (git tag) | `https://github.com/AndrewYukon/FingerPrintChecker` | 0.5.0 | `apple/`, `Package.swift` |
@@ -101,7 +101,9 @@ Verify: `npm view @fpchecker/agent version` (and react, vue, node) prints `0.1.0
 Bump `version` in the package's `package.json` (and the agent range in react and vue if the agent had a breaking change),
 commit, wait for CI, then repeat the checks and the publish for the changed packages only, still agent first.
 
-## PyPI (`fpchecker`)
+## PyPI (`fingerprintchecker`)
+
+PyPI refused `fpchecker` as too similar to the existing `fp-checker`; the distribution is `fingerprintchecker`, the import name stays `fpchecker`.
 
 ### One-time setup
 
@@ -123,14 +125,14 @@ python3 -m venv /tmp/pypi-venv && . /tmp/pypi-venv/bin/activate
 python -m pip install -q build twine pytest "cryptography>=41" && python -m pip install -q -e . && python -m pytest -q
 rm -rf dist && python -m build                        # writes dist/*.tar.gz and dist/*.whl
 python -m twine check dist/*
-tar tzf dist/fpchecker-*.tar.gz | head -30            # sources, README.md, LICENSE; no .env
+tar tzf dist/fingerprintchecker-*.tar.gz | head -30            # sources, README.md, LICENSE; no .env
 
 TWINE_USERNAME=__token__ TWINE_PASSWORD="$(cat ~/.config/fpchecker/pypi-token)" python -m twine upload dist/*
 ```
 
 (`TWINE_PASSWORD="$(cat ...)"` sets an environment variable for that one process; it is not an argument of `twine`.)
 
-Verify in a fresh venv: `pip install fpchecker==0.1.0 && python -c "import fpchecker; print(fpchecker)"`.
+Verify in a fresh venv: `pip install fingerprintchecker==0.1.0 && python -c "import fpchecker; print(fpchecker)"`.
 
 ## Go (`server/go`)
 

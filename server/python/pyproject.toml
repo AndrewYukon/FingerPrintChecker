@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "fpchecker"
+name = "fingerprintchecker"
 version = "0.1.0"
 description = "Server SDK for FingerPrintChecker (fpchecker.com)"
 readme = "README.md"

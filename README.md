@@ -282,7 +282,7 @@ When your project has a sealing key, identify answers carry an optional `sealedR
 | Package | Where | Install |
 |---|---|---|
 | Server SDK for Node.js, `@fpchecker/node` | [`server/node`](server/node) | `npm install @fpchecker/node` |
-| Server SDK for Python, `fpchecker` | [`server/python`](server/python) | `pip install fpchecker` |
+| Server SDK for Python, `fpchecker` | [`server/python`](server/python) | `pip install fingerprintchecker` |
 | Server SDK for Go | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
 | Browser agent loader, `@fpchecker/agent` | [`web/agent`](web/agent) | `npm install @fpchecker/agent` |
 | React wrapper, `@fpchecker/react` | [`web/react`](web/react) | `npm install @fpchecker/react` |

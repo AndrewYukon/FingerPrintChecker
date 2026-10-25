@@ -162,7 +162,7 @@ clave del proyecto (nunca en el dispositivo).
 | Paquete | Dónde | Instalación |
 |---|---|---|
 | SDK de servidor para Node.js, `@fpchecker/node` | [`server/node`](server/node) | `npm install @fpchecker/node` |
-| SDK de servidor para Python, `fpchecker` | [`server/python`](server/python) | `pip install fpchecker` |
+| SDK de servidor para Python, `fpchecker` | [`server/python`](server/python) | `pip install fingerprintchecker` |
 | SDK de servidor para Go | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
 | Cargador del agente de navegador, `@fpchecker/agent` | [`web/agent`](web/agent) | `npm install @fpchecker/agent` |
 | Wrapper de React, `@fpchecker/react` | [`web/react`](web/react) | `npm install @fpchecker/react` |

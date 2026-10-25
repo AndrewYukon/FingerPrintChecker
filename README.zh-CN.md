@@ -157,7 +157,7 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 | 包 | 位置 | 安装 |
 |---|---|---|
 | Node.js 服务端 SDK，`@fpchecker/node` | [`server/node`](server/node) | `npm install @fpchecker/node` |
-| Python 服务端 SDK，`fpchecker` | [`server/python`](server/python) | `pip install fpchecker` |
+| Python 服务端 SDK，`fpchecker` | [`server/python`](server/python) | `pip install fingerprintchecker` |
 | Go 服务端 SDK | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
 | 浏览器 agent 加载器，`@fpchecker/agent` | [`web/agent`](web/agent) | `npm install @fpchecker/agent` |
 | React 封装，`@fpchecker/react` | [`web/react`](web/react) | `npm install @fpchecker/react` |
