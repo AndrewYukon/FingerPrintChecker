@@ -121,12 +121,19 @@ Header `X-Publishable-Key`.
 challenge string (`SHA-256(challenge + ":" + counter)` with the required number of leading zero bits). There is no `sig`.
 The challenge must have been issued for this intent.
 
+Optional event fields (SDK 0.4.0, servers with events): the body may also carry top-level `linkedId` (a string of 1 to 256
+characters, no control characters U+0000 to U+001F or U+007F) and `tags` (a JSON object of at most 4096 bytes in UTF-8,
+nested at most 3 levels, an array counting as a level). `null` or absent means "not set". They sit beside the signed fields:
+they are **not** part of the canonical bytes or the seal, and no platform proof covers them. A value that breaks a rule is
+refused with `400` and `reason` `invalid_linked_id` or `invalid_tags`; clients validate first and send nothing.
+
 Success:
 
 ```json
-{ "ok": true, "protocolVersion": 2, "attestation": "fpa1....", "expiresIn": 600, "proofStatus": "checked" }
+{ "ok": true, "protocolVersion": 2, "attestation": "fpa1....", "expiresIn": 600, "eventId": "ev_0123456789ABCDEFGHJK", "proofStatus": "checked" }
 ```
 
+- `eventId` identifies the event this identify wrote; absent from servers that predate events.
 - `proofStatus` appears for native platforms, with the v1 values. `unknown_key` keeps its v1 meaning: re-attest
   the App Attest key and retry once.
 - There is no `visitorId` or score unless the project enabled score details, in which case `visitorId`,

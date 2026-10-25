@@ -105,6 +105,34 @@ To bind the result to one of your users, add `subject` (your user or session id,
 from the request body) to both the `/v2/intents` and the `/v1/eligibility` call; a mismatch is denied (`attestation_subject`).
 For a counted free allowance instead of a one-time trial, mint the intent with `purpose: 'quota:<name>'` and call `/v1/quota`.
 
+## Event fields: `linkedId`, `tags`, `eventId` (SDK 0.4.0)
+
+Identify can attach your own identifier and free-form tags to the event it writes, and returns the event's id, as the web
+agent 0.9.0 does. Both are optional; `null` / absent sends nothing, and existing calls are unchanged.
+
+- `linkedId`: a string of 1 to 256 characters, no control characters (U+0000 to U+001F, U+007F).
+- `tags`: a JSON object of at most 4096 bytes (UTF-8), nested at most 3 levels (an array counts as a level).
+- A value that breaks a rule fails **before any network call**, with `invalid_linked_id` or `invalid_tags`.
+- They are client-supplied and sit beside the signed fields: they are not part of the seal, the canonical bytes or any
+  platform proof. Read the stored event with your secret key (`GET /v1/events/:eventId`) or in a webhook.
+- `eventId` on the success result is `null` / `nil` when the server predates events (v1 and v2).
+
+```kotlin
+// Android
+val r = checker.identify(intentToken, FpEventOptions(linkedId = "order_42", tags = mapOf("page" to "checkout")))
+if (r is FpIdentifyResult.Success) log(r.eventId)      // "ev_..."
+// v1: checker.identify(FpEventOptions(linkedId = "order_42")); Java: new FpEventOptions("order_42", null)
+```
+
+```swift
+// iOS / macOS
+let result = await checker.identify(intentToken: token, linkedId: "order_42", tags: ["page": "checkout"])
+if case .success(let r) = result { print(r.eventId ?? "-") }   // "ev_..."
+// v1: await checker.identify(linkedId: "order_42")
+```
+
+CLI: `--linked-id order_42 --tags '{"page":"checkout"}'` (see [`cli/`](cli/README.md)).
+
 ## Web apps
 
 The browser agent is not part of this repository. Download `fp-agent.min.js` from
@@ -137,34 +165,6 @@ const decision = await response.json(); // { ok, eligible, action, reason }
 ```
 
 Add your site's origin to the project's allowed origins, or the browser call is refused.
-
-### Event fields: `linkedId`, `tags`, `eventId` (SDK 0.4.0)
-
-Identify can attach your own identifier and free-form tags to the event it writes, and returns the event's id, as the web
-agent 0.9.0 does. Both are optional; `null` / absent sends nothing, and existing calls are unchanged.
-
-- `linkedId`: a string of 1 to 256 characters, no control characters (U+0000 to U+001F, U+007F).
-- `tags`: a JSON object of at most 4096 bytes (UTF-8), nested at most 3 levels (an array counts as a level).
-- A value that breaks a rule fails **before any network call**, with `invalid_linked_id` or `invalid_tags`.
-- They are client-supplied and sit beside the signed fields: they are not part of the seal, the canonical bytes or any
-  platform proof. Read the stored event with your secret key (`GET /v1/events/:eventId`) or in a webhook.
-- `eventId` on the success result is `null` / `nil` when the server predates events (v1 and v2).
-
-```kotlin
-// Android
-val r = checker.identify(intentToken, FpEventOptions(linkedId = "order_42", tags = mapOf("page" to "checkout")))
-if (r is FpIdentifyResult.Success) log(r.eventId)      // "ev_..."
-// v1: checker.identify(FpEventOptions(linkedId = "order_42")); Java: new FpEventOptions("order_42", null)
-```
-
-```swift
-// iOS / macOS
-let result = await checker.identify(intentToken: token, linkedId: "order_42", tags: ["page": "checkout"])
-if case .success(let r) = result { print(r.eventId ?? "-") }   // "ev_..."
-// v1: await checker.identify(linkedId: "order_42")
-```
-
-CLI: `--linked-id order_42 --tags '{"page":"checkout"}'` (see [`cli/`](cli/README.md)).
 
 ## Android quick start
 

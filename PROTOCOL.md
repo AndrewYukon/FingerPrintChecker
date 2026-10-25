@@ -31,6 +31,12 @@ otherwise the server answers `platform_not_enabled`.
 `pow` and `proof` are optional. `pow` is a decimal **string**; a JSON number is treated as "no proof of work".
 `Content-Type: application/json`.
 
+Optional event fields (SDK 0.4.0, servers with events): the body may also carry top-level `linkedId` (a string of 1 to 256
+characters, no control characters U+0000 to U+001F or U+007F) and `tags` (a JSON object of at most 4096 bytes in UTF-8,
+nested at most 3 levels, an array counting as a level). `null` or absent means "not set". They sit beside the signed fields:
+they are **not** part of the canonical bytes or the seal, and no platform proof covers them. A value that breaks a rule is
+refused with `400` and `reason` `invalid_linked_id` or `invalid_tags`; clients validate first and send nothing.
+
 Only keys from the table for the declared platform are accepted. Unknown keys, duplicate keys, values longer than 256
 characters or values with a wrong format reject the whole request with `bad_request`, so clients validate locally and
 **omit** any key they cannot obtain. Never send placeholders, all-zero ids or `9774d56d682e549c`.
@@ -130,6 +136,7 @@ Success:
 ```
 
 Pass `attestation` to your backend, which verifies it with the fpchecker API (`/v1/eligibility`, `/v1/quota`).
+Servers with events also return `eventId` (`ev_...`), the id of the event this identify wrote; absent from older servers.
 
 Servers from 0.35 answer differently: `attestation` is a sealed object `{ "token": "fpa1.…" }` that the client cannot read, and
 `trustScore`, `identityConfidence`, `confidence`, `breakdown`, `drifted`, `hwLinked`, `trustDeductions`, `rulesVersion` and

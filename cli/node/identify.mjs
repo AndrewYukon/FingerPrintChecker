@@ -55,6 +55,9 @@ export function eventFields(linkedId, tagsJson) {
 }
 const sha256 = (s) => createHash('sha256').update(s, 'utf8').digest();
 
+/** The first value-taking flag that has no value after it, if any. */
+export const missingValue = (argv) => ['--intent', '--linked-id', '--tags'].find((f) => argv.includes(f) && argv.indexOf(f) === argv.length - 1);
+
 function selfTest() {
   const v = JSON.parse(readFileSync(new URL('../../test-vectors/protocol-v2.json', import.meta.url), 'utf8'));
   let fail = 0;
@@ -73,6 +76,7 @@ function selfTest() {
   check(eventFields('a'.repeat(256)).linkedId.length === 256, 'event fields: 256 chars');
   for (const bad of ['', 'a'.repeat(257), 'a\nb', 'a\u007fb']) check(throws(bad, undefined), `event fields: linkedId ${JSON.stringify(bad).slice(0, 12)} refused`);
   for (const bad of ['[]', '"x"', 'nope', '{"a":{"b":{"c":{"d":1}}}}', '{"a":{"b":[1]}}', JSON.stringify({ k: 'a'.repeat(4096) }), JSON.stringify({ k: '\u20ac'.repeat(1366) })]) check(throws(undefined, bad), `event fields: tags ${bad.slice(0, 20)} refused`);
+  check(missingValue(['--tags']) === '--tags' && missingValue(['--intent', 'i', '--linked-id']) === '--linked-id' && missingValue(['--tags', '{}']) === undefined && missingValue([]) === undefined, 'flags without a value are refused');
   check(!throws(undefined, JSON.stringify({ k: 'a'.repeat(4088) })), 'event fields: 4096 bytes accepted');
   console.log(`${v.accept.length} accept + ${v.reject.length} reject cases, event-field cases, ${fail} failed`);
   process.exit(fail ? 1 : 0);
@@ -80,6 +84,8 @@ function selfTest() {
 
 const args = process.argv.slice(2);
 if (args.includes('--self-test')) selfTest();
+const missing = missingValue(args);
+if (missing) { console.error(`${missing} needs a value`); process.exit(2); }
 const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
 const { FPC_PK: pk, FPC_SEAL: seal, FPC_TENANT: tenant = 'fpchecker', FPC_BASE: base = 'https://api.fpchecker.com', FPC_POW: bits = '16' } = process.env;
 const intent = flag('--intent') ?? process.env.FPC_INTENT;

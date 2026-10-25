@@ -3,7 +3,7 @@ v2 (recommended): python3 identify.py --intent <intentToken>   (your backend min
 Optional event fields: --linked-id <id> (1-256 chars, no control chars) and --tags '<json object>' (<= 4096 bytes, nested <= 3 levels, an array counts as a level).
 They sit beside the signed fields; the answer's eventId identifies the event. Bad values exit 2 before any request.
 Self-test: python3 identify.py --self-test   (checks ../../test-vectors/protocol-v2.json and the event-field rules)"""
-import base64, hashlib, hmac, json, os, pathlib, platform, re, subprocess, sys, urllib.error, urllib.parse, urllib.request, uuid
+import base64, math, hashlib, hmac, json, os, pathlib, platform, re, subprocess, sys, urllib.error, urllib.parse, urllib.request, uuid
 
 KEY_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 ESCAPES = {'"': '\\"', "\\": "\\\\", "\b": "\\b", "\f": "\\f", "\n": "\\n", "\r": "\\r", "\t": "\\t"}
@@ -31,6 +31,12 @@ def _within_depth(v, depth):
     if isinstance(v, dict): return depth <= 3 and all(_within_depth(x, depth + 1) for x in v.values())
     return True
 
+def _finite(v):  # 1e400 parses to inf, which JSON.parse on the server never sees as a number
+    if isinstance(v, float): return math.isfinite(v)
+    if isinstance(v, list): return all(_finite(x) for x in v)
+    if isinstance(v, dict): return all(_finite(x) for x in v.values())
+    return True
+
 def event_fields(linked_id=None, tags_json=None):
     """The body fragment for the optional event fields ({} when neither is given); raises ValueError on a bad value. Never part of the signed bytes."""
     out = {}
@@ -42,10 +48,17 @@ def event_fields(linked_id=None, tags_json=None):
         try: tags = json.loads(tags_json, parse_constant=no_const)
         except ValueError: raise ValueError("invalid tags: not valid JSON") from None
         if tags is not None:  # null means "not set", as on the server
-            if not isinstance(tags, dict) or not _within_depth(tags, 1) or len(json.dumps(tags, separators=(",", ":"), ensure_ascii=False).encode("utf-8")) > 4096:
+            if not isinstance(tags, dict) or not _finite(tags) or not _within_depth(tags, 1) or len(json.dumps(tags, separators=(",", ":"), ensure_ascii=False).encode("utf-8")) > 4096:
                 raise ValueError("invalid tags: a JSON object of at most 4096 bytes, nested at most 3 levels (an array counts as a level)")
             out["tags"] = tags
     return out
+
+def flag_value(args, name):
+    """The value after `name`, None when the flag is absent; a flag with no value is a usage error (ValueError)."""
+    if name not in args: return None
+    i = args.index(name) + 1
+    if i >= len(args): raise ValueError(f"{name} needs a value")
+    return args[i]
 
 def self_test():
     v = json.loads((pathlib.Path(__file__).resolve().parents[2] / "test-vectors" / "protocol-v2.json").read_text(encoding="utf-8"))
@@ -74,15 +87,21 @@ def self_test():
     for bad in ["", "a" * 257, "a\nb", "a\x7fb"]: check(refused(bad, None), f"event fields: linkedId {bad[:8]!r} refused")
     for bad in ["[]", '"x"', "nope", '{"x":NaN}', '{"a":{"b":{"c":{"d":1}}}}', '{"a":{"b":[1]}}', json.dumps({"k": "a" * 4096}), json.dumps({"k": "\u20ac" * 1366}, ensure_ascii=False)]:
         check(refused(None, bad), f"event fields: tags {bad[:20]} refused")
+    check(refused(None, '{"x":1e400}') and refused(None, '{"x":[-1e400]}'), "event fields: non-finite numbers refused")
     check(not refused(None, json.dumps({"k": "a" * 4088})), "event fields: 4096 bytes accepted")
+    for flag in ("--linked-id", "--tags"):
+        try: flag_value(["--intent", "i", flag], flag); check(False, f"{flag} without a value must be refused")
+        except ValueError: pass
+    check(flag_value(["--tags", "{}"], "--tags") == "{}" and flag_value([], "--tags") is None, "flag_value")
     print(f"{len(v['accept'])} accept + {len(v['reject'])} reject cases, event-field cases, {fail} failed")
     sys.exit(1 if fail else 0)
 
 def main():
     env, args = os.environ.get, sys.argv[1:]
     base, pk, bits = env("FPC_BASE", "https://api.fpchecker.com"), env("FPC_PK"), int(env("FPC_POW", "16"))
-    intent = args[args.index("--intent") + 1] if "--intent" in args else env("FPC_INTENT")
-    try: fields = event_fields(args[args.index("--linked-id") + 1] if "--linked-id" in args else None, args[args.index("--tags") + 1] if "--tags" in args else None)
+    try: intent = flag_value(args, "--intent") or env("FPC_INTENT")
+    except ValueError as e: print(e, file=sys.stderr); sys.exit(2)
+    try: fields = event_fields(flag_value(args, "--linked-id"), flag_value(args, "--tags"))
     except ValueError as e: print(e, file=sys.stderr); sys.exit(2)  # before any request
     if not pk: sys.exit("FPC_PK is not set")
     if not intent and not env("FPC_SEAL"): sys.exit("give --intent <intentToken> (or FPC_INTENT) for v2, or FPC_SEAL for v1")

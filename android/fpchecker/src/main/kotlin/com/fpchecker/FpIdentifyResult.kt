@@ -22,9 +22,9 @@ public sealed class FpIdentifyResult {
         val trustDeductions: List<String> = emptyList(),
         val shadowDeductions: List<String> = emptyList(),
         val rulesVersion: String? = null,
+        val rawJson: String,
         /** Id of the event this identify wrote (read it with your secret key); null from servers that predate events. */
         val eventId: String? = null,
-        val rawJson: String,
     ) : FpIdentifyResult()
 
     /**

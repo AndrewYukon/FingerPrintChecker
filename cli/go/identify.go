@@ -43,6 +43,10 @@ func main() {
 		os.Exit(selfTest())
 	}
 	intent := os.Getenv("FPC_INTENT")
+	if f := missingValue(args); f != "" {
+		fmt.Fprintln(os.Stderr, f+" needs a value")
+		os.Exit(2)
+	}
 	var linkedID, tagsJSON *string
 	for i, a := range args {
 		if i+1 >= len(args) {
@@ -136,6 +140,18 @@ func main() {
 	mac.Write([]byte(nonce + "|" + strings.Join(parts, "|")))
 	out, _ := json.MarshalIndent(call("POST", "/v1/identify", withFields(map[string]any{"platform": "cli", "nonce": nonce, "sig": hex.EncodeToString(mac.Sum(nil)), "components": comps, "agentVersion": "cli-go-1", "pow": solve(nonce, need)}, fields)), "", "  ")
 	fmt.Println(string(out))
+}
+
+// missingValue returns the first value-taking flag that has no value after it, or "".
+func missingValue(args []string) string {
+	if n := len(args); n > 0 {
+		for _, f := range []string{"--intent", "--linked-id", "--tags"} {
+			if args[n-1] == f {
+				return f
+			}
+		}
+	}
+	return ""
 }
 
 // withFields merges the event fields (linkedId, tags) into a request body, beside the signed fields.
@@ -413,6 +429,8 @@ func selfTest() int {
 	amp, _ := json.Marshal(map[string]string{"k": strings.Repeat("&", 4088)})
 	_, err = eventFields(nil, str(string(amp)))
 	check(err == nil, "event fields: & is not counted as an escape")
+	check(missingValue([]string{"--tags"}) == "--tags" && missingValue([]string{"--intent", "i", "--linked-id"}) == "--linked-id" &&
+		missingValue([]string{"--tags", "{}"}) == "" && missingValue(nil) == "", "flags without a value are refused")
 	fmt.Printf("%d accept + %d reject cases, event-field cases, %d failed\n", len(v.Accept), len(v.Reject), fail)
 	if fail > 0 {
 		return 1

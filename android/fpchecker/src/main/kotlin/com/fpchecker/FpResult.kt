@@ -20,9 +20,9 @@ public sealed class FpResult {
         val shadowDeductions: List<String> = emptyList(),
         /** `none`, `unconfigured`, `wrong_platform`, `unavailable`, `checked` or `unknown_key`; null from older servers. */
         val proofStatus: String? = null,
+        val rawJson: String,
         /** Id of the event this identify wrote (read it with your secret key); null from servers that predate events. */
         val eventId: String? = null,
-        val rawJson: String,
     ) : FpResult()
 
     /**
