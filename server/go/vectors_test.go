@@ -31,8 +31,8 @@ func TestSealedVectors(t *testing.T) {
 		} `json:"cases"`
 	}
 	loadJSON(t, "sealed-result-v1.json", &f)
-	if len(f.Cases) != 16 {
-		t.Fatalf("want 16 sealed cases, got %d", len(f.Cases))
+	if len(f.Cases) != 17 {
+		t.Fatalf("want 17 sealed cases, got %d", len(f.Cases))
 	}
 	ran := 0
 	for _, c := range f.Cases {
@@ -72,13 +72,13 @@ func TestSealedVectors(t *testing.T) {
 			if !reflect.DeepEqual(res.Raw, want) {
 				t.Fatalf("payload mismatch:\n got %v\nwant %v", res.Raw, want)
 			}
-			if res.EventID != "evt_0123456789abcdef" || res.Timestamp != 1761400000000 || res.Tags["plan"] != "pro" || res.Version != 1 {
+			if res.EventID != "ev_0123456789ABCDEFGHJK" || res.Timestamp != 1761400000000 || res.Tags["plan"] != "pro" || res.Version != 1 {
 				t.Fatalf("typed fields wrong: %+v", res)
 			}
 		})
 	}
-	if ran != 16 {
-		t.Fatalf("ran %d of 16", ran)
+	if ran != 17 {
+		t.Fatalf("ran %d of 17", ran)
 	}
 }
 

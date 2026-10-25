@@ -1,7 +1,7 @@
 {
   "version": 1,
   "generatedBy": "fp-guard scripts/gen-test-vectors.mjs",
-  "notes": "Format: base64(\"fps1\" | keyId(4) | nonce(12) | AES-256-GCM ciphertext+tag(16)); AAD = first 8 bytes; keyId = first 4 bytes of SHA-256(key). `keys` in a case names entries of the top-level `keys` map (base64) handed to unseal; `short` is deliberately 16 bytes. SDKs must compare the parsed payload object to `expect`, not raw JSON text. Error codes are language-neutral: bad_format | unknown_key | decrypt_failed | invalid_key | unsupported_version. Check order: invalid_key (any provided key not exactly 32 bytes, raised before the blob is looked at) -> strict base64 -> decoded length >= 36 (4+4+12+16) -> magic \"fps1\" -> keyId lookup among given keys (unknown_key) -> AES-GCM decrypt -> JSON parse (failure = decrypt_failed) -> version === 1 (unsupported_version). Strict base64 recipe (any language): input must match ^[A-Za-z0-9+/]*={0,2}$ and have length % 4 == 0; decode it, re-encode the bytes with the standard alphabet and padding, and the result must equal the input byte-for-byte, otherwise bad_format. This rejects whitespace/newlines, URL-safe characters, missing padding and non-zero unused trailing bits. Go StdEncoding.Strict() alone and Python base64.b64decode(validate=True) alone are insufficient (each misses some of these cases); do the regex + length check and the re-encode comparison.",
+  "notes": "Format: base64(\"fps1\" | keyId(4) | nonce(12) | AES-256-GCM ciphertext+tag(16)); AAD = first 8 bytes; keyId = first 4 bytes of SHA-256(key). `keys` in a case names entries of the top-level `keys` map (base64) handed to unseal; `short` is deliberately 16 bytes. SDKs must compare the parsed payload object to `expect`, not raw JSON text. Error codes are language-neutral: bad_format | unknown_key | decrypt_failed | invalid_key | unsupported_version. Check order: invalid_key (any provided key not exactly 32 bytes, raised before the blob is looked at) -> strict base64 -> decoded length >= 36 (4+4+12+16) -> magic \"fps1\" -> keyId lookup among given keys (unknown_key) -> AES-GCM decrypt -> strict UTF-8 decode and JSON parse (either failing = decrypt_failed; invalid UTF-8 must never be repaired to U+FFFD) -> version === 1 (unsupported_version). Strict base64 recipe (any language): input must match ^[A-Za-z0-9+/]*={0,2}$ and have length % 4 == 0; decode it, re-encode the bytes with the standard alphabet and padding, and the result must equal the input byte-for-byte, otherwise bad_format. This rejects whitespace/newlines, URL-safe characters, missing padding and non-zero unused trailing bits. Go StdEncoding.Strict() alone and Python base64.b64decode(validate=True) alone are insufficient (each misses some of these cases); do the regex + length check and the re-encode comparison.",
   "keys": {
     "a": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
     "b": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8=",
@@ -17,12 +17,12 @@
       "keys": [
         "a"
       ],
-      "blob": "ZnBzMWMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrXOzrTjMApjjVHjerztRO0aSuRCJrAbiliF5IY3Ifd9MBkiYFu3maV0hj+Ed+A/WWHZmHckJlIzT7/oCrClsiWLhm4lQOsLnr1zkwdDOzJ6Vm+JhLll6WDvunZ02TUjAE5K2FWceZbLYrggPMS/WngvDrFCMDvzk66Cis6vawKx3Hze3D9NyJCKpJ9CpMIFROv5NCNdbZ0ONIR5F8O+MyEbnvfesq3gZQS6sbn9RiTWgBrGuQerGPZ/io4x8u38rbkPviLjnXCn40iAjGywEb7ljW8YpPg+QOHsjNA8nWsAqLmjCeFZWzUD1",
+      "blob": "ZnBzMWMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrVjcrDvNBZngVXff1xhwHGexmHrvxVKnxz5kPZb1do8/QBz9AP3rVVsmgeYXqFqBBXE0G44ThsmV5qkE/TwSiXjq28pHZq2k6BOy3tD+wp6bgIkpLg8xRiLhpuQzXhDQH9O2RHAGMqDAvkZKfTDSnTGFtBGMEeLh4PC1oOucnax3HzC5HdIze3uxdd+gO8AAd/tLRYhbZ0SLOQlV4azbmge16aPx9TldU2OwfDsI1HzxAryiRa6TfsX2qJo77i05clGvyvuqShbtxzI5GmMcd+1xTM1te0iEaGnoAgJ9v00/o5YSs7Rfe+o2/qPLK7x96AcoX7G5GpnnFhA=",
       "expect": {
         "version": 1,
-        "eventId": "evt_0123456789abcdef",
-        "visitorId": "v_4f9c2a7d81b3e605",
-        "projectId": "prj_vector_demo",
+        "eventId": "ev_0123456789ABCDEFGHJK",
+        "visitorId": "v4_4f9c2a7d81b3e6054f9c2a7d81b3e605",
+        "projectId": "prj_0a1b2c3d4e5f",
         "linkedId": "order-1042",
         "tags": {
           "plan": "pro",
@@ -30,7 +30,7 @@
         },
         "timestamp": 1761400000000,
         "platform": "web",
-        "proofStatus": "verified"
+        "proofStatus": "none"
       }
     },
     {
@@ -39,12 +39,12 @@
         "a",
         "b"
       ],
-      "blob": "ZnBzMQDpiGcCAgICAgICAgICAgLwbhTpLAktNfzGD7k7fIy9fw5y06GbiTjI4DjPxYb1bGRqyD17ukOeZKgca/tqMoYeega4/VaeHq5AeBCunEicnLak3ZplomAp3VJlDbftIVtGdB6nmu8WmEAgCUSZzPsE5O1t5/kWebJC0XgbMrxU3kH/eVNoX+ddG0VfsnhQwwIoiAiOaFofDsVEjwxKL4cnS8fUobzxQ/TYceGQQylAvSzgLm567NCRZwGZVUhKof3sa5a6h6FKdzc/JZeY93xFhBKy6u/7ioZvUsCberjtogFiuqzi8SyYrrCnrr7EjF0HBPvJo42739mqZpnUVttphZ4gd/cf6KLJhZCjlMRx30/N",
+      "blob": "ZnBzMQDpiGcCAgICAgICAgICAgLwbhTpLAktNfzGD7k7fIy9fw5y06GbiTjI4BOgxIX0a2VpyTJ6wmC/Q4k/SpEMW9JbKxml4U2jFf4zPkTLiliRoLCj051v8jV+gFU3C/D3Mx4AfU2hy/pomForSQeOkJRHo6I7+Pkmd7JMyhNTMuofwFjwQiptTL9NFwRf429IlBAwmEbLJEUbDf8Cl01KMJkiQJfDsvy3HvTYceaeUSgB4nX4fGFz55HAKgSfGBdKofrqc4GqluIdJXZtccPFqT0Bll+u+Kui188+Vs2Xfvy44Vt2sbqlpH6KsqLn7P2JmmISEenTosKjx424cZKQE5x91YzNBm/mPiGTm7hqKd0DYZvP0winLig0OBIZaBcr+47gjM8=",
       "expect": {
         "version": 1,
-        "eventId": "evt_0123456789abcdef",
-        "visitorId": "v_4f9c2a7d81b3e605",
-        "projectId": "prj_vector_demo",
+        "eventId": "ev_0123456789ABCDEFGHJK",
+        "visitorId": "v4_4f9c2a7d81b3e6054f9c2a7d81b3e605",
+        "projectId": "prj_0a1b2c3d4e5f",
         "linkedId": "order-1042",
         "tags": {
           "plan": "pro",
@@ -52,7 +52,7 @@
         },
         "timestamp": 1761400000000,
         "platform": "web",
-        "proofStatus": "verified"
+        "proofStatus": "none"
       }
     },
     {
@@ -60,7 +60,7 @@
       "keys": [
         "a"
       ],
-      "blob": "ZnBzMQDpiGcCAgICAgICAgICAgLwbhTpLAktNfzGD7k7fIy9fw5y06GbiTjI4DjPxYb1bGRqyD17ukOeZKgca/tqMoYeega4/VaeHq5AeBCunEicnLak3ZplomAp3VJlDbftIVtGdB6nmu8WmEAgCUSZzPsE5O1t5/kWebJC0XgbMrxU3kH/eVNoX+ddG0VfsnhQwwIoiAiOaFofDsVEjwxKL4cnS8fUobzxQ/TYceGQQylAvSzgLm567NCRZwGZVUhKof3sa5a6h6FKdzc/JZeY93xFhBKy6u/7ioZvUsCberjtogFiuqzi8SyYrrCnrr7EjF0HBPvJo42739mqZpnUVttphZ4gd/cf6KLJhZCjlMRx30/N",
+      "blob": "ZnBzMQDpiGcCAgICAgICAgICAgLwbhTpLAktNfzGD7k7fIy9fw5y06GbiTjI4BOgxIX0a2VpyTJ6wmC/Q4k/SpEMW9JbKxml4U2jFf4zPkTLiliRoLCj051v8jV+gFU3C/D3Mx4AfU2hy/pomForSQeOkJRHo6I7+Pkmd7JMyhNTMuofwFjwQiptTL9NFwRf429IlBAwmEbLJEUbDf8Cl01KMJkiQJfDsvy3HvTYceaeUSgB4nX4fGFz55HAKgSfGBdKofrqc4GqluIdJXZtccPFqT0Bll+u+Kui188+Vs2Xfvy44Vt2sbqlpH6KsqLn7P2JmmISEenTosKjx424cZKQE5x91YzNBm/mPiGTm7hqKd0DYZvP0winLig0OBIZaBcr+47gjM8=",
       "expect": {
         "error": "unknown_key"
       }
@@ -70,7 +70,7 @@
       "keys": [
         "a"
       ],
-      "blob": "ZnBzMWMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrXOzrTjMApjjVHjerztRO0aSuRCJrAbiliF5IY3Ifd9MBkiYFu3maV0hj+Ed+A/WWHZmHckJlIzT7/oCrClsiWLhm4lQOsLnr1zkwdDOzJ6Vm+JhLll6WDvunZ02TUjAE5K2FWceZbLYrggPMS/WngvDrFCMDvzk66Cis6vawKx3Hze3D9NyJCKpJ9CpMIFROv5NCNdbZ0ONIR5F8O+MyEbnvfesq3gZQS6sbn9RiTWgBrGuQerGPZ/io4x8u38rbkPviLjnXCn40iAjGywEb7ljW8YpPg+QOHsjNA8nWsAqLmjCeFZWzUD0",
+      "blob": "ZnBzMWMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrVjcrDvNBZngVXff1xhwHGexmHrvxVKnxz5kPZb1do8/QBz9AP3rVVsmgeYXqFqBBXE0G44ThsmV5qkE/TwSiXjq28pHZq2k6BOy3tD+wp6bgIkpLg8xRiLhpuQzXhDQH9O2RHAGMqDAvkZKfTDSnTGFtBGMEeLh4PC1oOucnax3HzC5HdIze3uxdd+gO8AAd/tLRYhbZ0SLOQlV4azbmge16aPx9TldU2OwfDsI1HzxAryiRa6TfsX2qJo77i05clGvyvuqShbtxzI5GmMcd+1xTM1te0iEaGnoAgJ9v00/o5YSs7Rfe+o2/qPLK7x96AcoX7G5GpnnFhE=",
       "expect": {
         "error": "decrypt_failed"
       }
@@ -80,7 +80,7 @@
       "keys": [
         "a"
       ],
-      "blob": "ZnBzMWMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrXOzrTjMApjjVHjerztRO0aSuRCJrAbiliF5IY3Ifd9MBkiYFu3maV0hj+Ed+A/WWHZmHckJlIzT7/oCrClsiWLhm4lQOsLnr1zkwdDOzJ6Vm+JhLll6WDvunZ02TUjAE5K2FWceZbLYrggPMS/WngvDrFCMDvzk66Cis6vawKx3Hze3D9NyJCKpJ9CpMIFROv5NCNdbZ0ONIR5F8O+MyEbnvfesq3gZQS6sbn9RiTWgBrGuQerGPZ/io4x8u38rbkPviLjnXCn40iAjGywEb7ljW8YpPg+QOHsjNA8nWsAqLmjCeFZWzUD1\n",
+      "blob": "ZnBzMWMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrVjcrDvNBZngVXff1xhwHGexmHrvxVKnxz5kPZb1do8/QBz9AP3rVVsmgeYXqFqBBXE0G44ThsmV5qkE/TwSiXjq28pHZq2k6BOy3tD+wp6bgIkpLg8xRiLhpuQzXhDQH9O2RHAGMqDAvkZKfTDSnTGFtBGMEeLh4PC1oOucnax3HzC5HdIze3uxdd+gO8AAd/tLRYhbZ0SLOQlV4azbmge16aPx9TldU2OwfDsI1HzxAryiRa6TfsX2qJo77i05clGvyvuqShbtxzI5GmMcd+1xTM1te0iEaGnoAgJ9v00/o5YSs7Rfe+o2/qPLK7x96AcoX7G5GpnnFhA=\n",
       "expect": {
         "error": "bad_format"
       }
@@ -90,7 +90,7 @@
       "keys": [
         "a"
       ],
-      "blob": "ZnBzMWMNzSkKCgoKCgoKCgoKCgrSACn1uF0enV6k4pRBmdxX9XzQQMwYeVy2FntYnQ3ziVtBGQd5S0S690n1p0XD44cNVEzFsoC_2QtwfhQ0h20zOajXHtmEHDWh9p6euLzYNLPh2IupQt1kw4iz8-rK834m6Pr6CSpgdkAJNiX7O-AfmPEJKOiLsyx_lrHQsASJjmUNVsI-CFFkz8kDi8bLXM6_kVWkjyC7FV1T4Hab0V6yHTJJPrWKxNowg0CnCvrSCCPyOD3ab9Fr0BfcyMMHgZf9YkBvmIv_E-QZQrUppK8Yf9pcffIuckg13gQlEs22P89-OUzA9C8Wy57KWrFsw5yI_zEfag2TErQTK0AKkcRQh9R47w==",
+      "blob": "ZnBzMWMNzSkKCgoKCgoKCgoKCgrSACn1uF0enV6k4pRBmdxX9XzQQMwYeVy2FlA3nA7yjlpCGAh4M2eb0GjWhi-litNIBVPYrpuC0lsDOEBRkX0-Ba7QEN6OTGD2q5nMvvvCJvan0divE8gaw5K4s6ndrxFlr7WsFipQeEAHLU6zO7ZUhugGE5GOoHRvmvDQ4ROR2XcVRtZ1Shh1yucUi8aSEcy3lUmrhDL_VRBd7iCJ2VjiRCxJdPuIwp1pyl-gEfqDBnLpJCLceYcwnwSWl5Fb2NO9cA1zis-mTrFGFKQotflEIZ8Hbvw8NR1nzBg3UpP7IMVMOUvb8zEWy57LWqEnided6XwNR1hWNZuCKxLD5Z6WRoodx3-hAkHEXFl0aDYSIhg4UUs=",
       "expect": {
         "error": "bad_format"
       }
@@ -100,7 +100,7 @@
       "keys": [
         "a"
       ],
-      "blob": "ZnBzMWMNzSkKCgoKCgoKCgoKCgrSACn1uF0enV6k4pRBmdxX9XzQQMwYeVy2FntYnQ3ziVtBGQd5S0S690n1p0XD44cNVEzFsoC/2QtwfhQ0h20zOajXHtmEHDWh9p6euLzYNLPh2IupQt1kw4iz8+rK834m6Pr6CSpgdkAJNiX7O+AfmPEJKOiLsyx/lrHQsASJjmUNVsI+CFFkz8kDi8bLXM6/kVWkjyC7FV1T4Hab0V6yHTJJPrWKxNowg0CnCvrSCCPyOD3ab9Fr0BfcyMMHgZf9YkBvmIv/E+QZQrUppK8Yf9pcffIuckg13gQlEs22P89+OUzA9C8Wy57KWrFsw5yI/zEfag2TErQTK0AKkcRQh9R47w",
+      "blob": "ZnBzMWMNzSkKCgoKCgoKCgoKCgrSACn1uF0enV6k4pRBmdxX9XzQQMwYeVy2FlA3nA7yjlpCGAh4M2eb0GjWhi+litNIBVPYrpuC0lsDOEBRkX0+Ba7QEN6OTGD2q5nMvvvCJvan0divE8gaw5K4s6ndrxFlr7WsFipQeEAHLU6zO7ZUhugGE5GOoHRvmvDQ4ROR2XcVRtZ1Shh1yucUi8aSEcy3lUmrhDL/VRBd7iCJ2VjiRCxJdPuIwp1pyl+gEfqDBnLpJCLceYcwnwSWl5Fb2NO9cA1zis+mTrFGFKQotflEIZ8Hbvw8NR1nzBg3UpP7IMVMOUvb8zEWy57LWqEnided6XwNR1hWNZuCKxLD5Z6WRoodx3+hAkHEXFl0aDYSIhg4UUs",
       "expect": {
         "error": "bad_format"
       }
@@ -110,7 +110,7 @@
       "keys": [
         "a"
       ],
-      "blob": "ZnBzMWMNzSkKCgoKCgoKCgoKCgrSACn1uF0enV6k4pRBmdxX9XzQQMwYeVy2FntYnQ3ziVtBGQd5S0S690n1p0XD44cNVEzFsoC/2QtwfhQ0h20zOajXHtmEHDWh9p6euLzYNLPh2IupQt1kw4iz8+rK834m6Pr6CSpgdkAJNiX7O+AfmPEJKOiLsyx/lrHQsASJjmUNVsI+CFFkz8kDi8bLXM6/kVWkjyC7FV1T4Hab0V6yHTJJPrWKxNowg0CnCvrSCCPyOD3ab9Fr0BfcyMMHgZf9YkBvmIv/E+QZQrUppK8Yf9pcffIuckg13gQlEs22P89+OUzA9C8Wy57KWrFsw5yI/zEfag2TErQTK0AKkcRQh9R47wundefined=",
+      "blob": "ZnBzMWMNzSkKCgoKCgoKCgoKCgrSACn1uF0enV6k4pRBmdxX9XzQQMwYeVy2FlA3nA7yjlpCGAh4M2eb0GjWhi+litNIBVPYrpuC0lsDOEBRkX0+Ba7QEN6OTGD2q5nMvvvCJvan0divE8gaw5K4s6ndrxFlr7WsFipQeEAHLU6zO7ZUhugGE5GOoHRvmvDQ4ROR2XcVRtZ1Shh1yucUi8aSEcy3lUmrhDL/VRBd7iCJ2VjiRCxJdPuIwp1pyl+gEfqDBnLpJCLceYcwnwSWl5Fb2NO9cA1zis+mTrFGFKQotflEIZ8Hbvw8NR1nzBg3UpP7IMVMOUvb8zEWy57LWqEnided6XwNR1hWNZuCKxLD5Z6WRoodx3+hAkHEXFl0aDYSIhg4UUt=",
       "expect": {
         "error": "bad_format"
       }
@@ -141,7 +141,7 @@
         "a",
         "short"
       ],
-      "blob": "ZnBzMWMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrXOzrTjMApjjVHjerztRO0aSuRCJrAbiliF5IY3Ifd9MBkiYFu3maV0hj+Ed+A/WWHZmHckJlIzT7/oCrClsiWLhm4lQOsLnr1zkwdDOzJ6Vm+JhLll6WDvunZ02TUjAE5K2FWceZbLYrggPMS/WngvDrFCMDvzk66Cis6vawKx3Hze3D9NyJCKpJ9CpMIFROv5NCNdbZ0ONIR5F8O+MyEbnvfesq3gZQS6sbn9RiTWgBrGuQerGPZ/io4x8u38rbkPviLjnXCn40iAjGywEb7ljW8YpPg+QOHsjNA8nWsAqLmjCeFZWzUD1",
+      "blob": "ZnBzMWMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrVjcrDvNBZngVXff1xhwHGexmHrvxVKnxz5kPZb1do8/QBz9AP3rVVsmgeYXqFqBBXE0G44ThsmV5qkE/TwSiXjq28pHZq2k6BOy3tD+wp6bgIkpLg8xRiLhpuQzXhDQH9O2RHAGMqDAvkZKfTDSnTGFtBGMEeLh4PC1oOucnax3HzC5HdIze3uxdd+gO8AAd/tLRYhbZ0SLOQlV4azbmge16aPx9TldU2OwfDsI1HzxAryiRa6TfsX2qJo77i05clGvyvuqShbtxzI5GmMcd+1xTM1te0iEaGnoAgJ9v00/o5YSs7Rfe+o2/qPLK7x96AcoX7G5GpnnFhA=",
       "expect": {
         "error": "invalid_key"
       }
@@ -151,7 +151,7 @@
       "keys": [
         "a"
       ],
-      "blob": "ZnBzMWMNzSkDAwMDAwMDAwMDAwOVaUqzeeE7ebB/PEzhiDFxfziCub7aBpPnyzJCNBObYa82CumdvhaHK88haElnH2yapR7YxNAPzhzHbmfY25pjJPjlnzDmFeBjrnJ//XpoRt6m3uo/7zf0alECU1O8VbnJgtrWxNWY52guawm4wKniHZyBUZ3FotOSEkB7nFVQ5uMtxNlBYKHoJQrx4nlLcJE/m62aMuOoDvZqLrtGKkyPA+BBqj2vYqRd+FBtshbggmdI2LnmT7sKY20g5atH0AlRV0yO0uWJs937MweC7sJYi5pJTV61PqIH1acus47luO4rjtzOr3xKFwwbcZ6264eQIkHRgOYUV40RMDZFUb+/IV3Z",
+      "blob": "ZnBzMWMNzSkDAwMDAwMDAwMDAwOVaUqzeeE7ebB/PEzhiDFxfziCub7aBpPnyxktNRCaZq41C+acxjWmDO4CSSMBdjjf9AHF2MsyxUy0KDO9zYpuGP7ikTfsRbU083Ut+z1yVJvg17k5viKKaksJExCrCdaKxZWA29Wo6WggcGLwwP+pA4WOauTAsYuCHgF7zUJIsfE11JcELL7sJjC3+jhLb486kP2NIaPuU/ZqLrxIOE3OXLlZ+DKmaeUMtVVr/0nggmBOwK72XvhdMSxysf8ajkgVRQGSwKHQ7pSqNwqO6oYNyMBdRkjya/AVybVu8c2ortE+m87UrjNSD1gJZpXyrsCEclModQusgsong0hDVXu1nwsCmatoZZcII6xttKpf+EK/CvQ=",
       "expect": {
         "error": "unsupported_version"
       }
@@ -171,7 +171,7 @@
       "keys": [
         "a"
       ],
-      "blob": "ZnBzMmMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrXOzrTjMApjjVHjerztRO0aSuRCJrAbiliF5IY3Ifd9MBkiYFu3maV0hj+Ed+A/WWHZmHckJlIzT7/oCrClsiWLhm4lQOsLnr1zkwdDOzJ6Vm+JhLll6WDvunZ02TUjAE5K2FWceZbLYrggPMS/WngvDrFCMDvzk66Cis6vawKx3Hze3D9NyJCKpJ9CpMIFROv5NCNdbZ0ONIR5F8O+MyEbnvfesq3gZQS6sbn9RiTWgBrGuQerGPZ/io4x8u38rbkPviLjnXCn40iAjGywEb7ljW8YpPg+QOHsjNA8nWsAqLmjCeFZWzUD1",
+      "blob": "ZnBzMmMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrVjcrDvNBZngVXff1xhwHGexmHrvxVKnxz5kPZb1do8/QBz9AP3rVVsmgeYXqFqBBXE0G44ThsmV5qkE/TwSiXjq28pHZq2k6BOy3tD+wp6bgIkpLg8xRiLhpuQzXhDQH9O2RHAGMqDAvkZKfTDSnTGFtBGMEeLh4PC1oOucnax3HzC5HdIze3uxdd+gO8AAd/tLRYhbZ0SLOQlV4azbmge16aPx9TldU2OwfDsI1HzxAryiRa6TfsX2qJo77i05clGvyvuqShbtxzI5GmMcd+1xTM1te0iEaGnoAgJ9v00/o5YSs7Rfe+o2/qPLK7x96AcoX7G5GpnnFhA=",
       "expect": {
         "error": "bad_format"
       }
@@ -192,7 +192,17 @@
         "a",
         "b"
       ],
-      "blob": "ZnBzMQDpiGcBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrXOzrTjMApjjVHjerztRO0aSuRCJrAbiliF5IY3Ifd9MBkiYFu3maV0hj+Ed+A/WWHZmHckJlIzT7/oCrClsiWLhm4lQOsLnr1zkwdDOzJ6Vm+JhLll6WDvunZ02TUjAE5K2FWceZbLYrggPMS/WngvDrFCMDvzk66Cis6vawKx3Hze3D9NyJCKpJ9CpMIFROv5NCNdbZ0ONIR5F8O+MyEbnvfesq3gZQS6sbn9RiTWgBrGuQerGPZ/io4x8u38rbkPviLjnXCn40iAjGywEb7ljW8YpPg+QOHsjNA8nWsAqLmjCeFZWzUD1",
+      "blob": "ZnBzMQDpiGcBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrVjcrDvNBZngVXff1xhwHGexmHrvxVKnxz5kPZb1do8/QBz9AP3rVVsmgeYXqFqBBXE0G44ThsmV5qkE/TwSiXjq28pHZq2k6BOy3tD+wp6bgIkpLg8xRiLhpuQzXhDQH9O2RHAGMqDAvkZKfTDSnTGFtBGMEeLh4PC1oOucnax3HzC5HdIze3uxdd+gO8AAd/tLRYhbZ0SLOQlV4azbmge16aPx9TldU2OwfDsI1HzxAryiRa6TfsX2qJo77i05clGvyvuqShbtxzI5GmMcd+1xTM1te0iEaGnoAgJ9v00/o5YSs7Rfe+o2/qPLK7x96AcoX7G5GpnnFhA=",
+      "expect": {
+        "error": "decrypt_failed"
+      }
+    },
+    {
+      "name": "invalid_utf8",
+      "keys": [
+        "a"
+      ],
+      "blob": "ZnBzMWMNzSkEBAQEBAQEBAQEBAQfpbjtWyb48qQnYVoJ38R28Td5LRarXc9yWWOQPCZYv4hDEVlqczto56RtWzWUFsMSxKP37sO+qMbuaeMq2aI5602dOT9VVC8VoyP5Gmr5iT34fJM94xBTR4l0wJfrVtooMUrfsITrn34qfK0mZmFyKJd8CJYWdrRqzY1xbwZ41Naxj9a4r9vPtouRptajQZK5x479neENQgzepYnQ5Asm1DP6iLTsQff5qxZCaeM71OrlgcMY8ilowOpS5F3yfHt27vQwn9+9mdiLE6dVI5vB5u+9NqQ2NZYwNR0LhlsOXXxvyZwTj/r8q/Wv0QRq3FI4pScAiqpvRaS5fLx4+fXjIGLhAcWFoavSZVpwkEJFgT0=",
       "expect": {
         "error": "decrypt_failed"
       }

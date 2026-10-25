@@ -1260,6 +1260,13 @@ components:
             `version` (1), `eventId`, `visitorId`, `projectId`, `linkedId` (or null), `tags` (or null), `timestamp`
             (Unix ms), `platform` and `proofStatus` (always `none` on web). There is no IP address, no signals, no
             score and no decision in it. Full format and a sample: docs/INTEGRATION.md, "Sealed results".
+
+            A sealed result is proof of origin, not a grant: it shows FPChecker produced this event for a project,
+            nothing more. It does not expire and anyone who holds the blob can replay it. Before you trust one,
+            check that `projectId` is yours, reject a `timestamp` older than a short window (5 minutes is a good
+            default; make it configurable), and treat `eventId` as single-use or require `linkedId` to match the
+            current session or user. Never grant a trial, coupon or credit from it: use `POST /v1/eligibility`
+            with the attestation for that.
       description: |
         Projects whose administrator enabled score details also get `visitorId`, `trustScore`, `identityConfidence`,
         `isNew` and rule diagnostics here. Do not branch on them.
