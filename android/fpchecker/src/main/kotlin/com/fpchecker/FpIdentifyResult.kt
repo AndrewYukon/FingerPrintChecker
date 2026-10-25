@@ -22,13 +22,15 @@ public sealed class FpIdentifyResult {
         val trustDeductions: List<String> = emptyList(),
         val shadowDeductions: List<String> = emptyList(),
         val rulesVersion: String? = null,
+        /** Id of the event this identify wrote (read it with your secret key); null from servers that predate events. */
+        val eventId: String? = null,
         val rawJson: String,
     ) : FpIdentifyResult()
 
     /**
      * The request failed. [reason] is a server reason or error code (`bad_intent`, `bad_request`, ...)
      * or a client-side code: `network`, `challenge_failed`, `bad_response`, `no_device_id`,
-     * `bad_intent_token`, `bad_canonical`. [httpStatus] is 0 when no HTTP response was received.
+     * `bad_intent_token`, `bad_canonical`, `invalid_linked_id`, `invalid_tags`. [httpStatus] is 0 when no HTTP response was received.
      */
     public data class Failure(val reason: String, val httpStatus: Int) : FpIdentifyResult()
 }

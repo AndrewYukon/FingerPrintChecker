@@ -77,6 +77,14 @@ internal class ApiClient(
 }
 
 internal object RequestBody {
+    private val NO_FIELDS = EventFields.Ok(null, null)
+
+    /** `linkedId` / `tags` sit beside the signed fields: they are never part of the seal or the canonical bytes. */
+    private fun putFields(json: JSONObject, fields: EventFields.Ok) {
+        if (fields.linkedId != null) json.put("linkedId", fields.linkedId)
+        if (fields.tags != null) json.put("tags", fields.tags)
+    }
+
     /** Builds the identify JSON. [pow] is sent as a JSON string, never a number. */
     fun build(
         nonce: String,
@@ -85,6 +93,7 @@ internal object RequestBody {
         agentVersion: String,
         pow: String?,
         integrityToken: String?,
+        fields: EventFields.Ok = NO_FIELDS,
     ): String {
         val comps = JSONArray()
         for (c in components) comps.put(JSONObject().put("key", c.key).put("value", c.value))
@@ -98,6 +107,7 @@ internal object RequestBody {
         if (integrityToken != null) {
             json.put("proof", JSONObject().put("type", "play_integrity").put("token", integrityToken))
         }
+        putFields(json, fields)
         return json.toString()
     }
 
@@ -109,6 +119,7 @@ internal object RequestBody {
         agentVersion: String,
         pow: String?,
         integrityToken: String?,
+        fields: EventFields.Ok = NO_FIELDS,
     ): String {
         val comps = JSONArray()
         for (c in components) comps.put(JSONObject().put("key", c.key).put("value", c.value))
@@ -123,6 +134,7 @@ internal object RequestBody {
         if (integrityToken != null) {
             json.put("proof", JSONObject().put("type", "play_integrity").put("token", integrityToken))
         }
+        putFields(json, fields)
         return json.toString()
     }
 }

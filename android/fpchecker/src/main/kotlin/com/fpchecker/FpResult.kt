@@ -20,12 +20,14 @@ public sealed class FpResult {
         val shadowDeductions: List<String> = emptyList(),
         /** `none`, `unconfigured`, `wrong_platform`, `unavailable`, `checked` or `unknown_key`; null from older servers. */
         val proofStatus: String? = null,
+        /** Id of the event this identify wrote (read it with your secret key); null from servers that predate events. */
+        val eventId: String? = null,
         val rawJson: String,
     ) : FpResult()
 
     /**
      * The request failed. [reason] is a server reason code (`bad_request`, `seal_invalid`, ...)
-     * or one of the client-side codes `network`, `challenge_failed`, `bad_response`.
+     * or one of the client-side codes `network`, `challenge_failed`, `bad_response`, `invalid_linked_id`, `invalid_tags`.
      * [httpStatus] is 0 when no HTTP response was received.
      */
     public data class Failure(val reason: String, val httpStatus: Int) : FpResult()
