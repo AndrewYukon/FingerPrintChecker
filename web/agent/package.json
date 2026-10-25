@@ -1,0 +1,30 @@
+{
+  "name": "@fpchecker/agent",
+  "version": "0.1.0",
+  "description": "FingerPrintChecker browser agent: loads the agent once per page, identifies the visitor, optional short-lived result cache.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "vendor", "README.md"],
+  "sideEffects": false,
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "gen": "node scripts/gen-source.mjs",
+    "build": "npm run gen && rm -rf dist && tsc -p tsconfig.json",
+    "pretest": "npm run gen",
+    "test": "vitest run",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "happy-dom": "^15.11.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.0"
+  }
+}
