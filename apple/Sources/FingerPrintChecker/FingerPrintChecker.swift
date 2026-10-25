@@ -73,9 +73,18 @@ public final class FingerPrintChecker: Sendable {
 
     /// Fetches a challenge, collects and seals the device signals, and asks the server for the identity.
     /// Calls are serialised. Never throws: every problem is reported as ``FPResult/failure(reason:httpStatus:)``.
-    public func identify() async -> FPResult {
+    ///
+    /// `linkedId` (1 to 256 characters, no control characters) and `tags` (a JSON object of at most 4096 bytes,
+    /// nested at most 3 levels, an array counting as a level) are stored on the event this call writes; `nil` sends
+    /// nothing. A value that breaks a rule fails with `invalid_linked_id` / `invalid_tags` before any request.
+    public func identify(linkedId: String? = nil, tags: [String: Any]? = nil) async -> FPResult {
+        let fields: EventFields
+        switch EventFields.validate(linkedId: linkedId, tags: tags) {
+        case .success(let valid): fields = valid
+        case .failure(let error): return .failure(reason: error.reason, httpStatus: 0)
+        }
         await lock.acquire()
-        let result = await run()
+        let result = await run(fields: fields)
         await lock.release()
         return result
     }
@@ -83,7 +92,7 @@ public final class FingerPrintChecker: Sendable {
     /// `retryUnknownKey`: an assertion the server does not know (it lost or never kept the key) is retried
     /// once with a fresh nonce, so the coordinator attests a new key and the caller never sees an
     /// unattested score for it.
-    private func run(retryUnknownKey: Bool = true) async -> FPResult {
+    private func run(fields: EventFields, retryUnknownKey: Bool = true) async -> FPResult {
         if let difficulty = config.powDifficulty, !ProofOfWork.validBits.contains(difficulty) {
             return .failure(reason: "bad_config", httpStatus: 0)
         }
@@ -116,6 +125,7 @@ public final class FingerPrintChecker: Sendable {
             if let solved { body["pow"] = solved }
         }
         if let token = signals.deviceCheckToken { body["deviceCheckToken"] = token }
+        fields.apply(to: &body)  // beside the signed fields, never inside them
 
         var proof: AppAttestProof?
         if let appAttest {
@@ -130,7 +140,7 @@ public final class FingerPrintChecker: Sendable {
             if case .success(let success) = result { status = success.proofStatus }
             appAttest.recordOutcome(proof: proof, proofStatus: status)
             if retryUnknownKey, proof.kind == .assertion, status == "unknown_key" {
-                return await run(retryUnknownKey: false)
+                return await run(fields: fields, retryUnknownKey: false)
             }
         }
         return result

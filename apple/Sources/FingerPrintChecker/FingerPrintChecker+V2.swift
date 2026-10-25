@@ -9,15 +9,25 @@ extension FingerPrintChecker {
     /// Protocol v2: fetches a challenge for `intentToken` (minted by your backend with its secret key),
     /// collects the device signals, binds them with App Attest and returns an opaque `attestation` to
     /// forward unchanged to your backend. Calls are serialised. Never throws.
-    public func identify(intentToken: String) async -> FPResultV2 {
+    ///
+    /// `linkedId` (1 to 256 characters, no control characters) and `tags` (a JSON object of at most 4096 bytes,
+    /// nested at most 3 levels, an array counting as a level) are stored on the event this call writes and the
+    /// success carries its `eventId`. `nil` sends nothing. A value that breaks a rule fails with
+    /// `invalid_linked_id` / `invalid_tags` before any request.
+    public func identify(intentToken: String, linkedId: String? = nil, tags: [String: Any]? = nil) async -> FPResultV2 {
+        let fields: EventFields
+        switch EventFields.validate(linkedId: linkedId, tags: tags) {
+        case .success(let valid): fields = valid
+        case .failure(let error): return .failure(reason: error.reason, httpStatus: 0)
+        }
         await lock.acquire()
-        let result = await runV2(intentToken: intentToken)
+        let result = await runV2(intentToken: intentToken, fields: fields)
         await lock.release()
         return result
     }
 
     /// `retryUnknownKey` as in v1: the intent is reusable, so the retry fetches a fresh challenge with it.
-    private func runV2(intentToken: String, retryUnknownKey: Bool = true) async -> FPResultV2 {
+    private func runV2(intentToken: String, fields: EventFields, retryUnknownKey: Bool = true) async -> FPResultV2 {
         if intentToken.isEmpty { return .failure(reason: "bad_config", httpStatus: 0) }
         if let difficulty = config.powDifficulty, !ProofOfWork.validBits.contains(difficulty) {
             return .failure(reason: "bad_config", httpStatus: 0)
@@ -56,6 +66,7 @@ extension FingerPrintChecker {
             if let solved { body["pow"] = solved }
         }
         if let token = signals.deviceCheckToken { body["deviceCheckToken"] = token }
+        fields.apply(to: &body)  // beside the signed fields, never inside them
 
         var proof: AppAttestProof?
         if let appAttest {
@@ -70,7 +81,7 @@ extension FingerPrintChecker {
             if case .success(let success) = result { status = success.proofStatus }
             appAttest.recordOutcome(proof: proof, proofStatus: status)
             if retryUnknownKey, proof.kind == .assertion, status == "unknown_key" {
-                return await runV2(intentToken: intentToken, retryUnknownKey: false)
+                return await runV2(intentToken: intentToken, fields: fields, retryUnknownKey: false)
             }
         }
         return result

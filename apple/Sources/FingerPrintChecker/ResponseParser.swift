@@ -27,7 +27,12 @@ enum ResponseParser {
             trustDeductions: (json["trustDeductions"] as? [Any])?.compactMap { $0 as? String } ?? [],
             shadowDeductions: (json["shadowDeductions"] as? [Any])?.compactMap { $0 as? String } ?? [],
             proofStatus: json["proofStatus"] as? String,
+            eventId: eventId(json),
             raw: body))
+    }
+
+    private static func eventId(_ json: [String: Any]) -> String? {
+        (json["eventId"] as? String).flatMap { $0.isEmpty ? nil : $0 }
     }
 
     /// The attestation as a string: used as is when it is one, re-serialised as JSON otherwise.
@@ -82,6 +87,7 @@ enum ResponseParser {
             trustDeductions: strings("trustDeductions"),
             shadowDeductions: strings("shadowDeductions"),
             rulesVersion: json["rulesVersion"] as? String,
+            eventId: eventId(json),
             raw: body))
     }
 }

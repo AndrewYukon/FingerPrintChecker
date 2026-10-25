@@ -57,7 +57,7 @@ final class IdentifyFlowTests: XCTestCase {
         XCTAssertEqual(identify.timeoutInterval, 10)
         let json = try body(transport)
         XCTAssertEqual(json["platform"] as? String, "ios")
-        XCTAssertEqual(json["agentVersion"] as? String, "ios-0.3.0")
+        XCTAssertEqual(json["agentVersion"] as? String, "ios-0.4.0")
         let comps = FakeCollector().components
         let canonical = Canonical.payload(nonce: "nonce-1", components: comps)
         XCTAssertEqual(json["sig"] as? String, Canonical.seal(sealKey: "seal", canonical: canonical))

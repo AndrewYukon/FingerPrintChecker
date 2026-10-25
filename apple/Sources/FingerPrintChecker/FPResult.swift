@@ -14,13 +14,15 @@ public struct FPSuccess: Sendable, Equatable {
     public let shadowDeductions: [String]
     /// `none`, `unconfigured`, `wrong_platform`, `unavailable`, `checked` or `unknown_key`.
     public let proofStatus: String?
+    /// Id of the event this identify wrote (read it with your secret key); `nil` from servers that predate events.
+    public let eventId: String?
     /// The unmodified response body.
     public let raw: Data
 
     public init(
         visitorId: String, trustScore: Int?, identityConfidence: Int?, isNew: Bool,
         attestation: String?, trustDeductions: [String], shadowDeductions: [String] = [],
-        proofStatus: String?, raw: Data
+        proofStatus: String?, eventId: String? = nil, raw: Data
     ) {
         self.visitorId = visitorId
         self.trustScore = trustScore
@@ -30,6 +32,7 @@ public struct FPSuccess: Sendable, Equatable {
         self.trustDeductions = trustDeductions
         self.shadowDeductions = shadowDeductions
         self.proofStatus = proofStatus
+        self.eventId = eventId
         self.raw = raw
     }
 }
@@ -38,7 +41,7 @@ public struct FPSuccess: Sendable, Equatable {
 public enum FPResult: Sendable, Equatable {
     case success(FPSuccess)
     /// `reason` is a server reason code (`bad_request`, `seal_invalid`, ...) or one of the client-side
-    /// codes `network`, `challenge_failed`, `bad_response`, `no_device_id`, `bad_config`.
+    /// codes `network`, `challenge_failed`, `bad_response`, `no_device_id`, `bad_config`, `invalid_linked_id`, `invalid_tags`.
     /// `httpStatus` is 0 when no HTTP response was received.
     case failure(reason: String, httpStatus: Int)
 }
