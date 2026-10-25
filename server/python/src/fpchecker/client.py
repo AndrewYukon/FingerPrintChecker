@@ -233,7 +233,11 @@ class FpChecker:
                 status = e.code
                 resp_headers = e.headers
                 try:
-                    raw = e.read()
+                    if 300 <= e.code < 400:
+                        # Python < 3.11 has no 308 handler, so the redirect reaches us unhandled: refuse it the same way.
+                        failure = urllib.error.URLError(f"redirect refused (HTTP {e.code})")
+                    else:
+                        raw = e.read()
                 except (OSError, ValueError, http.client.HTTPException) as read_err:
                     failure = read_err
                 finally:

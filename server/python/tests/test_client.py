@@ -228,7 +228,7 @@ def test_error_never_contains_secret():
         client.get_event("e")
     import traceback
 
-    text = repr(ei.value) + str(ei.value) + "".join(traceback.format_exception(ei.value))
+    text = repr(ei.value) + str(ei.value) + "".join(traceback.format_exception(type(ei.value), ei.value, ei.value.__traceback__))
     assert SK not in text
 
 
