@@ -16,6 +16,9 @@ classifiers = [
   "Typing :: Typed",
 ]
 
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
 [project.urls]
 Homepage = "https://fpchecker.com"
 

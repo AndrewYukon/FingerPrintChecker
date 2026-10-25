@@ -28,7 +28,12 @@ enum ResponseParser {
             shadowDeductions: (json["shadowDeductions"] as? [Any])?.compactMap { $0 as? String } ?? [],
             proofStatus: json["proofStatus"] as? String,
             eventId: eventId(json),
+            sealedResult: sealedResult(json),
             raw: body))
+    }
+
+    private static func sealedResult(_ json: [String: Any]) -> String? {
+        (json["sealedResult"] as? String).flatMap { $0.isEmpty ? nil : $0 }
     }
 
     private static func eventId(_ json: [String: Any]) -> String? {
@@ -88,6 +93,7 @@ enum ResponseParser {
             shadowDeductions: strings("shadowDeductions"),
             rulesVersion: json["rulesVersion"] as? String,
             eventId: eventId(json),
+            sealedResult: sealedResult(json),
             raw: body))
     }
 }

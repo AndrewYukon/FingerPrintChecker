@@ -30,9 +30,9 @@ dispositivos reales (un Mac con tres navegadores, un iPhone, dos teléfonos Andr
 | Plataforma | Cómo integrarla | Estado |
 |---|---|---|
 | **Aplicaciones web** (cualquier navegador) | El agente de navegador de FingerPrint Checker `fp-agent.min.js`, servido desde tu propio dominio; consulta [Aplicaciones web](#aplicaciones-web) | Disponible |
-| **Aplicaciones Android** (Kotlin / Java) | `com.fpchecker:fpchecker-android` en Maven Central, código fuente en [`android/`](android) | Disponible, 0.4.0 |
-| **Aplicaciones iOS** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, código fuente en [`apple/`](apple) | Disponible, 0.4.0 |
-| Aplicaciones macOS (Swift Package) | El mismo paquete que iOS | Disponible, 0.4.0 |
+| **Aplicaciones Android** (Kotlin / Java) | `com.fpchecker:fpchecker-android` en Maven Central, código fuente en [`android/`](android) | Disponible, 0.5.0 |
+| **Aplicaciones iOS** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, código fuente en [`apple/`](apple) | Disponible, 0.5.0 |
+| Aplicaciones macOS (Swift Package) | El mismo paquete que iOS | Disponible, 0.5.0 |
 | Herramientas de línea de comandos | Protocolo + ejemplos en [`cli/`](cli/README.md) | Ejemplos |
 
 Todas las plataformas terminan igual: el cliente obtiene un `attestation`, y solo tu backend, que posee tu clave secreta, solicita una decisión. El formato de transmisión de los SDK nativos se especifica en [PROTOCOL.md](PROTOCOL.md); los vectores de conformidad están en [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) y todos los SDK deben reproducirlos.
@@ -72,7 +72,7 @@ Añade el origen de tu sitio a los orígenes permitidos del proyecto; de lo cont
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.4.0")
+    implementation("com.fpchecker:fpchecker-android:0.5.0")
 }
 ```
 
@@ -125,7 +125,7 @@ El APK de release queda sin firmar a menos que `fpcheckerStoreFile`, `fpcheckerS
 Swift Package Manager: añade `https://github.com/AndrewYukon/FingerPrintChecker` (producto `FingerPrintChecker`, iOS 14+, macOS 11+), o en `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.4.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.5.0")
 ```
 
 ```swift
@@ -151,6 +151,25 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 - **DeviceCheck**: el SDK envía un token de DeviceCheck para que FingerPrint Checker pueda recordar, por dispositivo, si ya se hizo un canje. Para ello, crea una clave de DeviceCheck en tu cuenta de Apple Developer y súbela a tu proyecto de FingerPrint Checker; sin ella, el token se ignora.
 - **El bit de canje lo comparten todas las aplicaciones de tu equipo de Apple.** Apple solo conserva dos bits de DeviceCheck por dispositivo y por equipo de desarrollo, así que FingerPrint Checker usa el bit 0 para significar «este dispositivo ya canjeó una prueba gratuita (tipo por defecto) en una de las aplicaciones de este equipo». La contrapartida: un dispositivo que canjeó la prueba en una de tus aplicaciones tendrá la prueba rechazada en tus otras aplicaciones del mismo equipo. Redacta el rechazo en consecuencia («este dispositivo ya ha usado una prueba gratuita»), ya que el usuario puede haberla canjeado en otra aplicación. El bit 1 está reservado. La única forma de mantener dos aplicaciones independientes es publicarlas bajo equipos de desarrollador de Apple distintos. El Device Recall de Play Integrity en Android funciona igual: sus bits los comparten todas las aplicaciones de una misma cuenta de desarrollador de Play.
 - Los simuladores no tienen ninguna de las dos funciones e informan `ios.simulator=true`.
+
+## Resultados sellados, SDK de servidor y paquetes web
+
+Cuando tu proyecto tiene clave de sellado, las respuestas de identify llevan una cadena opcional `sealedResult` (SDK 0.5.0):
+`FpResult.Success.sealedResult` / `FpIdentifyResult.Success.sealedResult` en Android y `FPSuccess.sealedResult` / `FPSuccessV2.sealedResult`
+en iOS y macOS. Vale `null` / `nil` si el proyecto no tiene clave o el servidor es anterior. Reenvíala a TU backend, que la abre con la
+clave del proyecto (nunca en el dispositivo).
+
+| Paquete | Dónde | Instalación |
+|---|---|---|
+| SDK de servidor para Node.js, `@fpchecker/node` | [`server/node`](server/node) | `npm install @fpchecker/node` |
+| SDK de servidor para Python, `fpchecker` | [`server/python`](server/python) | `pip install fpchecker` |
+| SDK de servidor para Go | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
+| Cargador del agente de navegador, `@fpchecker/agent` | [`web/agent`](web/agent) | `npm install @fpchecker/agent` |
+| Wrapper de React, `@fpchecker/react` | [`web/react`](web/react) | `npm install @fpchecker/react` |
+| Wrapper de Vue, `@fpchecker/vue` | [`web/vue`](web/vue) | `npm install @fpchecker/vue` |
+
+Estos paquetes aún no están publicados en npm ni PyPI. Hasta entonces, instálalos desde GitHub: clona este repositorio y ejecuta
+`npm install ./web/agent` (o `./server/node`, ...) / `pip install ./server/python`; para Go, `go get github.com/AndrewYukon/FingerPrintChecker/server/go@main`.
 
 ## Herramientas de línea de comandos
 

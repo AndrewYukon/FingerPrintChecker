@@ -1,5 +1,5 @@
 /// SDK version information.
 public enum FPVersion {
-    /// The SDK version, sent as part of `agentVersion` (for example `ios-0.4.0`).
-    public static let sdk = "0.4.0"
+    /// The SDK version, sent as part of `agentVersion` (for example `ios-0.5.0`).
+    public static let sdk = "0.5.0"
 }

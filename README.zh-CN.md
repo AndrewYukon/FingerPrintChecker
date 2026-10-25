@@ -26,9 +26,9 @@
 | 平台 | 集成方式 | 状态 |
 |---|---|---|
 | **Web 应用**（任意浏览器） | FingerPrint Checker 浏览器 agent `fp-agent.min.js`，部署在你自己的域名下；见 [Web 应用](#web-应用) | 可用 |
-| **Android 应用**（Kotlin / Java） | Maven Central 上的 `com.fpchecker:fpchecker-android`，源码在 [`android/`](android) | 可用，0.4.0 |
-| **iOS 应用**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`，源码在 [`apple/`](apple) | 可用，0.4.0 |
-| macOS 应用（Swift Package） | 与 iOS 使用同一个包 | 可用，0.4.0 |
+| **Android 应用**（Kotlin / Java） | Maven Central 上的 `com.fpchecker:fpchecker-android`，源码在 [`android/`](android) | 可用，0.5.0 |
+| **iOS 应用**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`，源码在 [`apple/`](apple) | 可用，0.5.0 |
+| macOS 应用（Swift Package） | 与 iOS 使用同一个包 | 可用，0.5.0 |
 | 命令行工具 | 协议 + 示例见 [`cli/`](cli/README.md) | 示例 |
 
 所有平台的终点都一样：客户端拿到 `attestation`，只有持有密钥（secret key）的你的后端才去请求决策。原生 SDK 的传输格式在 [PROTOCOL.md](PROTOCOL.md) 中规定；一致性测试向量在 [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json)，每个 SDK 都必须能复现这些向量。
@@ -68,7 +68,7 @@ const decision = await response.json(); // { ok, eligible, action, reason }
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.4.0")
+    implementation("com.fpchecker:fpchecker-android:0.5.0")
 }
 ```
 
@@ -121,7 +121,7 @@ cd android
 Swift Package Manager：添加 `https://github.com/AndrewYukon/FingerPrintChecker`（product 为 `FingerPrintChecker`，iOS 14+、macOS 11+），或在 `Package.swift` 中：
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.4.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.5.0")
 ```
 
 ```swift
@@ -147,6 +147,24 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 - **DeviceCheck**：SDK 会发送一个 DeviceCheck 令牌，使 FingerPrint Checker 能按设备记住是否已经领取过。为此，请在你的 Apple Developer 账号中创建一个 DeviceCheck 密钥，并上传到你的 FingerPrint Checker 项目；没有它，该令牌会被忽略。
 - **已领取标记由你 Apple 团队下的所有应用共享。** Apple 对每个开发者团队的每台设备只保留两个 DeviceCheck 位，因此 FingerPrint Checker 用 bit 0 表示「这台设备已在该团队的某个应用中领取过免费试用（默认类型）」。代价是：在你的某个应用中领取过试用的设备，在同一团队的其他应用中也会被拒绝试用。请据此措辞拒绝提示（「此设备已使用过免费试用」），因为用户可能是在别处领取的。Bit 1 为保留位。要让两个应用互相独立，唯一的办法是把它们发布在不同的 Apple 开发者团队下。Android 的 Play Integrity Device Recall 同理：其位由同一个 Play 开发者账号下的所有应用共享。
 - 模拟器两项功能都不支持，并会报告 `ios.simulator=true`。
+
+## 封装结果、服务端 SDK 与 Web 包
+
+项目配置了封装密钥时，identify 的应答会带一个可选的 `sealedResult` 字符串（SDK 0.5.0）：Android 上是 `FpResult.Success.sealedResult` /
+`FpIdentifyResult.Success.sealedResult`，iOS 和 macOS 上是 `FPSuccess.sealedResult` / `FPSuccessV2.sealedResult`。项目没有密钥，或服务端版本较旧时为
+`null` / `nil`。把它转交给你自己的后端，由后端用项目密钥打开（不要在设备上打开）。
+
+| 包 | 位置 | 安装 |
+|---|---|---|
+| Node.js 服务端 SDK，`@fpchecker/node` | [`server/node`](server/node) | `npm install @fpchecker/node` |
+| Python 服务端 SDK，`fpchecker` | [`server/python`](server/python) | `pip install fpchecker` |
+| Go 服务端 SDK | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
+| 浏览器 agent 加载器，`@fpchecker/agent` | [`web/agent`](web/agent) | `npm install @fpchecker/agent` |
+| React 封装，`@fpchecker/react` | [`web/react`](web/react) | `npm install @fpchecker/react` |
+| Vue 封装，`@fpchecker/vue` | [`web/vue`](web/vue) | `npm install @fpchecker/vue` |
+
+这些包尚未发布到 npm 和 PyPI。发布前请从 GitHub 安装：克隆本仓库后执行 `npm install ./web/agent`（或 `./server/node` 等）/
+`pip install ./server/python`；Go 用 `go get github.com/AndrewYukon/FingerPrintChecker/server/go@main`。
 
 ## 命令行工具
 

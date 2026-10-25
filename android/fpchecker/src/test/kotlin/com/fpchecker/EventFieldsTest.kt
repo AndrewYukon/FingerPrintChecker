@@ -75,8 +75,8 @@ class EventFieldsTest {
     fun bodiesCarryTheFieldsOnlyWhenGiven() {
         val f = ok("order_42", mapOf("page" to "checkout", "n" to listOf(1, 2)))
         for (body in listOf(
-            JSONObject(RequestBody.build("n", "s", comps, "android-0.4.0", null, null, f)),
-            JSONObject(RequestBody.buildV2("i", "c", comps, "android-0.4.0", null, null, f)),
+            JSONObject(RequestBody.build("n", "s", comps, "android-0.5.0", null, null, f)),
+            JSONObject(RequestBody.buildV2("i", "c", comps, "android-0.5.0", null, null, f)),
         )) {
             assertEquals("order_42", body.getString("linkedId"))
             assertEquals("checkout", body.getJSONObject("tags").getString("page"))

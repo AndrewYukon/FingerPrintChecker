@@ -39,6 +39,7 @@ internal object ResponseParser {
             shadowDeductions = strings("shadowDeductions"),
             proofStatus = json.opt("proofStatus") as? String,
             eventId = (json.opt("eventId") as? String)?.ifEmpty { null },
+            sealedResult = (json.opt("sealedResult") as? String)?.ifEmpty { null },
             rawJson = body,
         )
     }
@@ -87,6 +88,7 @@ internal object ResponseParser {
             shadowDeductions = strings("shadowDeductions"),
             rulesVersion = json.opt("rulesVersion") as? String,
             eventId = (json.opt("eventId") as? String)?.ifEmpty { null },
+            sealedResult = (json.opt("sealedResult") as? String)?.ifEmpty { null },
             rawJson = body,
         )
     }

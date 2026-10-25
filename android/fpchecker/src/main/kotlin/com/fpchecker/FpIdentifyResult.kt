@@ -25,6 +25,8 @@ public sealed class FpIdentifyResult {
         val rawJson: String,
         /** Id of the event this identify wrote (read it with your secret key); null from servers that predate events. */
         val eventId: String? = null,
+        /** Sealed result for your backend to open with the project key (`fpsr1.…`); null when the project has no key or the server predates it. */
+        val sealedResult: String? = null,
     ) : FpIdentifyResult()
 
     /**

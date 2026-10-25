@@ -16,13 +16,15 @@ public struct FPSuccess: Sendable, Equatable {
     public let proofStatus: String?
     /// Id of the event this identify wrote (read it with your secret key); `nil` from servers that predate events.
     public let eventId: String?
+    /// Sealed result for your backend to open with the project key (`fpsr1.…`); `nil` when the project has no key or the server predates it.
+    public let sealedResult: String?
     /// The unmodified response body.
     public let raw: Data
 
     public init(
         visitorId: String, trustScore: Int?, identityConfidence: Int?, isNew: Bool,
         attestation: String?, trustDeductions: [String], shadowDeductions: [String] = [],
-        proofStatus: String?, eventId: String? = nil, raw: Data
+        proofStatus: String?, eventId: String? = nil, sealedResult: String? = nil, raw: Data
     ) {
         self.visitorId = visitorId
         self.trustScore = trustScore
@@ -33,6 +35,7 @@ public struct FPSuccess: Sendable, Equatable {
         self.shadowDeductions = shadowDeductions
         self.proofStatus = proofStatus
         self.eventId = eventId
+        self.sealedResult = sealedResult
         self.raw = raw
     }
 }

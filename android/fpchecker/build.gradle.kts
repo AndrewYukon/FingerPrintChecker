@@ -4,7 +4,7 @@ plugins {
     id("com.vanniktech.maven.publish")
 }
 
-val sdkVersion = "0.4.0"
+val sdkVersion = "0.5.0"
 
 kotlin {
     jvmToolchain(17)

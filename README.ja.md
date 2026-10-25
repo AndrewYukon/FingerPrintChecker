@@ -28,9 +28,9 @@ FingerPrint Checker は、どれか 1 台が受け取った時点で残りをす
 | プラットフォーム | 統合方法 | ステータス |
 |---|---|---|
 | **Web アプリ**（任意のブラウザ） | FingerPrint Checker ブラウザエージェント `fp-agent.min.js` を自社ドメインから配信します。[Web アプリ](#web-アプリ)を参照 | 利用可能 |
-| **Android アプリ**（Kotlin / Java） | Maven Central の `com.fpchecker:fpchecker-android`、ソースは [`android/`](android) | 利用可能、0.4.0 |
-| **iOS アプリ**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`、ソースは [`apple/`](apple) | 利用可能、0.4.0 |
-| macOS アプリ（Swift Package） | iOS と同じパッケージ | 利用可能、0.4.0 |
+| **Android アプリ**（Kotlin / Java） | Maven Central の `com.fpchecker:fpchecker-android`、ソースは [`android/`](android) | 利用可能、0.5.0 |
+| **iOS アプリ**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`、ソースは [`apple/`](apple) | 利用可能、0.5.0 |
+| macOS アプリ（Swift Package） | iOS と同じパッケージ | 利用可能、0.5.0 |
 | コマンドラインツール | プロトコルとサンプルは [`cli/`](cli/README.md) | サンプル |
 
 どのプラットフォームでも最終的な流れは同じです。クライアントは `attestation` を受け取り、シークレットキーを持つ自社のバックエンドだけが判定を要求します。ネイティブ SDK のワイヤーフォーマットは [PROTOCOL.md](PROTOCOL.md) に定められており、適合性テストベクターは [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) にあります。すべての SDK はこれらを再現できなければなりません。
@@ -70,7 +70,7 @@ const decision = await response.json(); // { ok, eligible, action, reason }
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.4.0")
+    implementation("com.fpchecker:fpchecker-android:0.5.0")
 }
 ```
 
@@ -123,7 +123,7 @@ cd android
 Swift Package Manager：`https://github.com/AndrewYukon/FingerPrintChecker`（プロダクト `FingerPrintChecker`、iOS 14+、macOS 11+）を追加するか、`Package.swift` に次のように記述します。
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.4.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.5.0")
 ```
 
 ```swift
@@ -149,6 +149,25 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 - **DeviceCheck**：SDK は DeviceCheck トークンを送信し、FingerPrint Checker がデバイスごとに、すでに特典が受け取られたかどうかを記憶できるようにします。そのためには、Apple Developer アカウントで DeviceCheck キーを作成し、FingerPrint Checker のプロジェクトにアップロードしてください。アップロードしないと、トークンは無視されます。
 - **受け取り済みビットは、Apple チームのすべてのアプリで共有されます。** Apple は開発者チームごと・デバイスごとに DeviceCheck ビットを 2 つしか保持しないため、FingerPrint Checker は bit 0 を「このデバイスは、このチームのいずれかのアプリで無料トライアル（デフォルト種別）をすでに受け取った」という意味で使います。トレードオフとして、あるアプリでトライアルを受け取ったデバイスは、同じチームの他のアプリでもトライアルを拒否されます。ユーザーが別のアプリで受け取った可能性があるため、拒否メッセージもそれに合わせた文言にしてください（「このデバイスはすでに無料トライアルを利用しています」など）。Bit 1 は予約されています。2 つのアプリを独立に保つ唯一の方法は、別々の Apple デベロッパーチームで公開することです。Android の Play Integrity Device Recall も同様で、そのビットは 1 つの Play デベロッパーアカウントのすべてのアプリで共有されます。
 - シミュレーターはどちらの機能も持たず、`ios.simulator=true` を報告します。
+
+## シール済み結果、サーバー SDK、Web パッケージ
+
+プロジェクトにシール鍵があると、identify の応答に任意の文字列 `sealedResult` が付きます（SDK 0.5.0）。Android は `FpResult.Success.sealedResult` /
+`FpIdentifyResult.Success.sealedResult`、iOS と macOS は `FPSuccess.sealedResult` / `FPSuccessV2.sealedResult` です。鍵がない場合やサーバーが古い場合は
+`null` / `nil` になります。自社バックエンドに転送し、プロジェクト鍵で開いてください（端末上では開きません）。
+
+| パッケージ | 場所 | インストール |
+|---|---|---|
+| Node.js サーバー SDK、`@fpchecker/node` | [`server/node`](server/node) | `npm install @fpchecker/node` |
+| Python サーバー SDK、`fpchecker` | [`server/python`](server/python) | `pip install fpchecker` |
+| Go サーバー SDK | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
+| ブラウザ agent ローダー、`@fpchecker/agent` | [`web/agent`](web/agent) | `npm install @fpchecker/agent` |
+| React ラッパー、`@fpchecker/react` | [`web/react`](web/react) | `npm install @fpchecker/react` |
+| Vue ラッパー、`@fpchecker/vue` | [`web/vue`](web/vue) | `npm install @fpchecker/vue` |
+
+これらのパッケージはまだ npm / PyPI に公開されていません。公開までは GitHub からインストールしてください。このリポジトリをクローンし、
+`npm install ./web/agent`（または `./server/node` など）/ `pip install ./server/python` を実行します。Go は
+`go get github.com/AndrewYukon/FingerPrintChecker/server/go@main` です。
 
 ## コマンドラインツール
 
