@@ -157,25 +157,29 @@ If you asked the proxy for the version before the tag was pushed, it may cache t
 This repository documents no step-by-step release procedure for these; what exists is the build configuration. Use it as follows.
 
 Both SDKs are already at 0.5.0 in the source: `android/fpchecker/build.gradle.kts` (`val sdkVersion`) and
-`apple/Sources/FingerPrintChecker/Version.swift` (`FingerPrintChecker.sdk`). The demo apps have their own versions; leave them.
+`apple/Sources/FingerPrintChecker/Version.swift` (`FPVersion.sdk`). The demo apps have their own versions; leave them.
 
 **Android.** `android/fpchecker/build.gradle.kts` uses the `com.vanniktech.maven.publish` plugin, publishes to Maven Central through
 the Central Portal (`SonatypeHost.CENTRAL_PORTAL`) under `com.fpchecker:fpchecker-android`, and signs when a signing key is provided
-(`signingInMemoryKey` project property, or the classic `signing.*` properties). The Portal credentials and the GPG signing key from the
-earlier releases (0.1.0 to 0.4.0) are under `~/.config/fpchecker/` (`sonatype-token`, `gpg/`). Typical run, JDK 17:
+(`signingInMemoryKey` project property, or the classic `signing.*` properties). The credentials used for the earlier releases
+(0.1.0 to 0.4.0) are in `~/.config/fpchecker/android/publish.properties`: each `key=value` line goes in as an
+`ORG_GRADLE_PROJECT_<key>` environment variable, never as a `-P` argument and never echoed. JDK 17:
 
 ```bash
 cd android
-export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
+export JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home)"
 ./gradlew :fpchecker:testDebugUnitTest
-# credentials and key go in as ORG_GRADLE_PROJECT_* environment variables set from the files, never as -P arguments:
-#   ORG_GRADLE_PROJECT_mavenCentralUsername / ORG_GRADLE_PROJECT_mavenCentralPassword            (Portal user token)
-#   ORG_GRADLE_PROJECT_signingInMemoryKey / ..._signingInMemoryKeyPassword                       (armored private key + passphrase)
+# export the properties without printing them
+while IFS='=' read -r k v; do
+  case "$k" in ''|'#'*) continue ;; esac
+  export "ORG_GRADLE_PROJECT_${k}=${v}"
+done < ~/.config/fpchecker/android/publish.properties
 ./gradlew :fpchecker:publishAndReleaseToMavenCentral
 ```
 
-Check how the 0.4.0 release was done on your machine (shell history of that day, or the notes of that session) before the first run, and
-confirm afterwards at `https://repo1.maven.org/maven2/com/fpchecker/fpchecker-android/0.5.0/`.
+The task can finish without printing anything useful; confirm at
+`https://repo1.maven.org/maven2/com/fpchecker/fpchecker-android/0.5.0/fpchecker-android-0.5.0.pom` (expect 200; it can take up to an
+hour). If it is still 404 after an hour, open the deployment at central.sonatype.com.
 
 **Apple.** Swift Package Manager reads the git tag, nothing else. After CI is green on `main`:
 

@@ -277,7 +277,7 @@ Concurrent `identify()` calls are serialised. `swift build && swift test` at the
 When your project has a sealing key, identify answers carry an optional `sealedResult` string (SDK 0.5.0): `FpResult.Success.sealedResult` /
 `FpIdentifyResult.Success.sealedResult` on Android, `FPSuccess.sealedResult` / `FPSuccessV2.sealedResult` on iOS and macOS. It is
 `null` / `nil` when the project has no key or the server predates it. Forward it to YOUR backend, which opens it with the project key
-(never on the device); the format is described in the [developer experience design](docs/PUBLISHING.md#what-is-published).
+(never on the device); the format and its test vectors are in [test-vectors/sealed-result-v1.json](test-vectors/sealed-result-v1.json).
 
 | Package | Where | Install |
 |---|---|---|
