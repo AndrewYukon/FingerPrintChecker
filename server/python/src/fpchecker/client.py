@@ -1,7 +1,9 @@
 """HTTP client: one method per OpenAPI operationId (snake_case)."""
 from __future__ import annotations
 
+import http.client
 import json
+import math
 import re
 import socket
 import time
@@ -47,6 +49,11 @@ def _validate_base_url(raw: Any) -> str:
     if u.scheme != "https" and not (u.scheme == "http" and loopback):
         raise ValueError("FpChecker: base_url must be https (http only for localhost, 127.0.0.1, [::1])")
     return raw.rstrip("/")
+
+
+def _check_header_value(name: str, value: str) -> None:
+    if not value.isascii() or any(ord(c) < 0x20 or ord(c) == 0x7F for c in value):
+        raise ValueError(f"FpChecker: {name} must be printable ASCII (no control characters)")
 
 
 def _enc(value: str) -> str:
@@ -111,6 +118,18 @@ class FpChecker:
     ) -> None:
         if not isinstance(secret_key, str) or secret_key == "":
             raise TypeError("FpChecker: secret_key is required")
+        _check_header_value("secret_key", secret_key)
+        if publishable_key is not None:
+            if not isinstance(publishable_key, str) or publishable_key == "":
+                raise ValueError("FpChecker: publishable_key must be a non-empty string")
+            _check_header_value("publishable_key", publishable_key)
+        if (
+            isinstance(timeout, bool)
+            or not isinstance(timeout, (int, float))
+            or not math.isfinite(timeout)
+            or timeout <= 0
+        ):
+            raise ValueError("FpChecker: timeout must be a positive finite number")
         self._secret_key = secret_key
         self._publishable_key = publishable_key
         self._base_url = _validate_base_url(base_url)
@@ -215,11 +234,11 @@ class FpChecker:
                 resp_headers = e.headers
                 try:
                     raw = e.read()
-                except (OSError, ValueError):
-                    raw = b""
+                except (OSError, ValueError, http.client.HTTPException) as read_err:
+                    failure = read_err
                 finally:
                     e.close()
-            except (OSError, ValueError) as e:  # URLError, timeouts, http.client errors
+            except (OSError, ValueError, http.client.HTTPException) as e:  # URLError, timeouts, IncompleteRead, BadStatusLine
                 failure = e
 
             if failure is not None:

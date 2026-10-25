@@ -78,3 +78,13 @@ def test_uses_constant_time_compare(monkeypatch):
     body = b"{}"
     verify_webhook_signature(body, _sign(body, 5), V["secret"], now=5)
     assert calls
+
+
+def test_lone_surrogate_str_body_matches_node_replacement_semantics():
+    # Node's Buffer.from(str,'utf8') turns a lone surrogate into U+FFFD; so do we.
+    body = "a\ud800b"
+    good = _sign("a�b".encode(), 7)
+    verify_webhook_signature(body, good, V["secret"], now=7)
+    with pytest.raises(WebhookSignatureError) as ei:
+        verify_webhook_signature(body, _sign(b"a?b", 7), V["secret"], now=7)
+    assert ei.value.code == "bad_signature"

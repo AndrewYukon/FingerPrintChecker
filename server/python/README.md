@@ -20,6 +20,7 @@ if verdict.get("ok") is False:
 - Non-2xx raises `FpCheckerApiError` with `status`, `code` (`error` or `reason` from the body), `retry_after` (seconds) and `body`.
 - Network failures and timeouts also raise `FpCheckerApiError`, with `status` 0, `code` `"network_error"` or `"timeout"`, and the original exception as `__cause__`.
 - Redirects are never followed (they would forward the secret key to another origin). `base_url` must be https, except localhost, 127.0.0.1 and [::1] (otherwise `ValueError`).
+- `timeout` (positive finite seconds) applies per network operation (connect, each read), not to the whole call.
 - Only GET requests retry (429, 5xx, network failures and timeouts; at most 2 retries, honouring `Retry-After`, wait capped at 10 s). POST, PATCH and DELETE are never retried.
 
 ## Sealed results

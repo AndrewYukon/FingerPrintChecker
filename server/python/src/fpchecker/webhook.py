@@ -35,6 +35,14 @@ def _parse_header(header: object) -> Tuple[str, int, List[str]]:
     return t, int(t), v1
 
 
+def _to_bytes(raw_body: Union[bytes, bytearray, memoryview, str]) -> bytes:
+    if isinstance(raw_body, str):
+        # Same as Node's Buffer.from(str, "utf8"): a lone surrogate becomes U+FFFD
+        # (so the MAC simply will not match) instead of raising.
+        return raw_body.encode("utf-16", "surrogatepass").decode("utf-16", "replace").encode("utf-8")
+    return bytes(raw_body)
+
+
 def verify_webhook_signature(
     raw_body: Union[bytes, bytearray, memoryview, str],
     header: str,
@@ -54,7 +62,7 @@ def verify_webhook_signature(
     clock = time.time() if now is None else now
     t_raw, t, v1 = _parse_header(header)
 
-    body = raw_body.encode("utf-8") if isinstance(raw_body, str) else bytes(raw_body)
+    body = _to_bytes(raw_body)
     expected = hmac.new(secret.encode("utf-8"), t_raw.encode("ascii") + b"." + body, hashlib.sha256).digest()
     match = False
     for candidate in v1:

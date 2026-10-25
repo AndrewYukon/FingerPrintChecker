@@ -408,3 +408,67 @@ def test_real_roundtrip_sends_secret_header():
         assert got["path"] == "/v1/events/e%201"
     finally:
         s.close()
+
+
+# --- fix round 1 ---
+def _raw_server(payload: bytes):
+    import socketserver
+
+    class H(socketserver.BaseRequestHandler):
+        def handle(self):
+            self.request.recv(65536)
+            self.request.sendall(payload)
+
+    srv = socketserver.ThreadingTCPServer(("127.0.0.1", 0), H)
+    srv.daemon_threads = True
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n{",  # IncompleteRead
+        b"garbage\r\n\r\n",  # BadStatusLine
+        b"HTTP/1.1 500 X\r\nContent-Length: 100\r\n\r\n{",  # truncated error body
+    ],
+    ids=["incomplete_ok", "bad_status", "incomplete_error_body"],
+)
+def test_http_client_exceptions_wrapped_and_get_retried(payload):
+    srv = _raw_server(payload)
+    try:
+        sleeps = []
+        c = FpChecker(SK, base_url=f"http://127.0.0.1:{srv.server_address[1]}", timeout=5, sleep=sleeps.append)
+        with pytest.raises(FpCheckerApiError) as ei:
+            c.get_health()
+        assert (ei.value.status, ei.value.code) == (0, "network_error")
+        assert len(sleeps) == 2
+        with pytest.raises(FpCheckerApiError) as ei:
+            c.check_quota({})
+        assert (ei.value.status, ei.value.code) == (0, "network_error")
+        assert len(sleeps) == 2
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+@pytest.mark.parametrize("timeout", [0, -1, True, False, float("nan"), float("inf"), "10", None])
+def test_invalid_timeout_rejected_at_construction(timeout):
+    with pytest.raises(ValueError):
+        FpChecker(SK, timeout=timeout)
+
+
+@pytest.mark.parametrize("bad", ["sk\r\nX: y", "sk\n", "sk\x00", "sk\x7f", "s k\t"])
+def test_keys_with_control_chars_rejected(bad):
+    with pytest.raises(ValueError):
+        FpChecker(bad)
+    with pytest.raises(ValueError):
+        FpChecker(SK, publishable_key=bad)
+
+
+def test_empty_publishable_key_rejected_but_none_ok():
+    FpChecker(SK, publishable_key=None)
+    with pytest.raises(ValueError):
+        FpChecker(SK, publishable_key="")
+    with pytest.raises(ValueError):
+        FpChecker(SK, publishable_key=5)

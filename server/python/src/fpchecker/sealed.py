@@ -28,6 +28,10 @@ def _strict_b64(value: Any) -> Optional[bytes]:
     return raw if base64.b64encode(raw).decode("ascii") == value else None
 
 
+def _reject_constant(name: str) -> Any:
+    raise ValueError(f"non-finite JSON constant {name}")
+
+
 def unseal_result(blob: str, keys: Iterable[str]) -> Dict[str, Any]:
     """Decrypt a sealed result. ``keys`` are base64 32-byte project keys
     (pass active and previous during rotation). Raises SealedResultError."""
@@ -62,8 +66,8 @@ def unseal_result(blob: str, keys: Iterable[str]) -> Dict[str, Any]:
         raise SealedResultError("decrypt_failed")
 
     try:
-        parsed = json.loads(plain.decode("utf-8"))
-    except ValueError:  # includes UnicodeDecodeError
+        parsed = json.loads(plain.decode("utf-8"), parse_constant=_reject_constant)
+    except (ValueError, RecursionError):  # includes UnicodeDecodeError
         raise SealedResultError("decrypt_failed") from None
     if not isinstance(parsed, dict):
         raise SealedResultError("decrypt_failed")
