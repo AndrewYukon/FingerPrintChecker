@@ -7,8 +7,8 @@ export class FpCheckerApiError extends Error {
   readonly retryAfter: number | null;
   readonly body: unknown;
 
-  constructor(status: number, code: string | null, retryAfter: number | null, body: unknown) {
-    super(`FpChecker API error: HTTP ${status}${code ? ` (${code})` : ''}`);
+  constructor(status: number, code: string | null, retryAfter: number | null, body: unknown, cause?: unknown) {
+    super(`FpChecker API error: HTTP ${status}${code ? ` (${code})` : ''}`, cause === undefined ? undefined : { cause });
     this.name = 'FpCheckerApiError';
     this.status = status;
     this.code = code;

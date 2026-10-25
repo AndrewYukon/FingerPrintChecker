@@ -160,3 +160,113 @@ describe('retries', () => {
     expect(b.calls).toHaveLength(1);
   });
 });
+
+describe('redirects', () => {
+  it('uses redirect:error so the secret is never forwarded cross-origin', async () => {
+    const other: Array<Record<string, string>> = [];
+    const f = (async (url: string | URL, init?: RequestInit) => {
+      if (String(url).startsWith('https://evil.test')) {
+        other.push(init?.headers as Record<string, string>);
+        return json(200, {});
+      }
+      if (init?.redirect === 'error') throw new TypeError('fetch failed: redirect');
+      return f(`https://evil.test/x`, init);
+    }) as typeof fetch;
+    const client = new FpChecker({ secretKey: 'sk_test_123', fetch: f, sleep: async () => {} });
+    const e = await client.checkQuota({}).catch((x) => x);
+    expect(e).toBeInstanceOf(FpCheckerApiError);
+    expect(other).toEqual([]);
+  });
+});
+
+describe('network failures', () => {
+  it('wraps network errors as status 0 network_error with cause', async () => {
+    const cause = new TypeError('fetch failed');
+    const { client, calls } = mk([cause]);
+    const e = await client.checkQuota({}).catch((x) => x);
+    expect(e).toBeInstanceOf(FpCheckerApiError);
+    expect([e.status, e.code, e.cause]).toEqual([0, 'network_error', cause]);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('wraps timeouts as code timeout', async () => {
+    const t = Object.assign(new Error('timed out'), { name: 'TimeoutError' });
+    const { client } = mk([t, t, t]);
+    const e = await client.getHealth().catch((x) => x);
+    expect([e.status, e.code, e.cause]).toEqual([0, 'timeout', t]);
+  });
+
+  it('GET retries network failures at most twice', async () => {
+    const { client, calls } = mk([new TypeError('a'), new TypeError('b'), new TypeError('c'), json(200, {})]);
+    const e = await client.getVisitor('v').catch((x) => x);
+    expect(calls).toHaveLength(3);
+    expect(e.code).toBe('network_error');
+    const ok = mk([new TypeError('a'), json(200, { ok: true })]);
+    await expect(ok.client.getVisitor('v')).resolves.toEqual({ ok: true });
+  });
+
+  it('PATCH/DELETE/POST never retry network failures', async () => {
+    for (const call of [
+      (c: FpChecker) => c.updateEvent('e', {}),
+      (c: FpChecker) => c.deleteVisitor('v'),
+      (c: FpChecker) => c.checkEligibility({}),
+    ]) {
+      const { client, calls } = mk([new TypeError('x'), json(200, {})]);
+      await call(client).catch(() => undefined);
+      expect(calls).toHaveLength(1);
+    }
+  });
+});
+
+describe('baseUrl', () => {
+  it('rejects non-https except loopback', () => {
+    expect(() => new FpChecker({ secretKey: 'sk', baseUrl: 'http://api.example.com' })).toThrow(TypeError);
+    expect(() => new FpChecker({ secretKey: 'sk', baseUrl: 'not a url' })).toThrow(TypeError);
+    for (const u of ['http://localhost:8787', 'http://127.0.0.1:1', 'http://[::1]:2', 'https://x.test'])
+      expect(() => new FpChecker({ secretKey: 'sk', baseUrl: u })).not.toThrow();
+  });
+});
+
+describe('every operation (table from openapi)', () => {
+  const deref = (p: any) =>
+    p.$ref ? p.$ref.split('/').slice(1).reduce((o: any, k: string) => o[k], spec) : p;
+  const ops: Array<{ id: string; method: string; path: string; params: Array<{ name: string; in: string }>; body: boolean; sec: string[] }> = [];
+  for (const [path, item] of Object.entries<Record<string, any>>(spec.paths))
+    for (const [method, op] of Object.entries<any>(item))
+      if (op?.operationId)
+        ops.push({
+          id: op.operationId,
+          method: method.toUpperCase(),
+          path,
+          params: [...(item.parameters ?? []), ...(op.parameters ?? [])].map(deref),
+          body: !!op.requestBody,
+          sec: (op.security ?? spec.security ?? []).flatMap((s: object) => Object.keys(s)),
+        });
+
+  it('table is complete', () => expect(ops.length).toBeGreaterThanOrEqual(17));
+
+  for (const op of ops) {
+    it(`${op.id}: ${op.method} ${op.path}`, async () => {
+      const { client, calls } = mk([json(200, { ok: true })], { publishableKey: 'pk_test_9' });
+      const pathParams = op.params.filter((p) => p.in === 'path');
+      const args: unknown[] = pathParams.map((_, i) => `id/${i} x`);
+      const queryParams = op.params.filter((p) => p.in === 'query');
+      if (op.body) args.push({ a: 1 });
+      else if (queryParams.length) args.push({ intent: 'i' });
+      await (client as any)[op.id](...args);
+      const c = calls[0]!;
+      const u = new URL(c.url);
+      let expectedPath = op.path;
+      pathParams.forEach((p, i) => (expectedPath = expectedPath.replace(`{${p.name}}`, encodeURIComponent(`id/${i} x`))));
+      expect(u.pathname).toBe(expectedPath);
+      expect(c.init.method).toBe(op.method);
+      const h = c.init.headers as Record<string, string>;
+      const has = (k: string) => Object.keys(h).some((x) => x.toLowerCase() === k.toLowerCase());
+      expect(has('X-Secret-Key')).toBe(op.sec.includes('secretKey'));
+      expect(has('X-Publishable-Key')).toBe(op.sec.includes('publishableKey'));
+      if (op.sec.includes('secretKey')) expect(h['X-Secret-Key']).toBe('sk_test_123');
+      expect(c.url).not.toContain('sk_test');
+      expect(c.url).not.toContain('pk_test');
+    });
+  }
+});

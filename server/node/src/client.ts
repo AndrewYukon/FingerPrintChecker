@@ -48,7 +48,7 @@ export class FpChecker {
       throw new TypeError('FpChecker: secretKey is required');
     this.#secretKey = options.secretKey;
     this.#publishableKey = options.publishableKey;
-    this.#baseUrl = (options.baseUrl ?? DEFAULT_BASE).replace(/\/+$/, '');
+    this.#baseUrl = validateBaseUrl(options.baseUrl ?? DEFAULT_BASE);
     this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.#timeoutMs = options.timeoutMs ?? 30_000;
     this.#maxRetryDelayMs = options.maxRetryDelayMs ?? 10_000;
@@ -100,13 +100,27 @@ export class FpChecker {
     const maxRetries = spec.method === 'GET' ? MAX_RETRIES : 0;
 
     for (let attempt = 0; ; attempt++) {
-      const res = await this.#fetch(url, {
-        method: spec.method,
-        headers,
-        body,
-        signal: AbortSignal.timeout(this.#timeoutMs),
-      });
-      const parsed = await readBody(res);
+      let res: Response;
+      let parsed: unknown;
+      try {
+        res = await this.#fetch(url, {
+          method: spec.method,
+          headers,
+          body,
+          // A redirect would forward X-Secret-Key to another origin.
+          redirect: 'error',
+          signal: AbortSignal.timeout(this.#timeoutMs),
+        });
+        parsed = await readBody(res);
+      } catch (cause) {
+        const timeout = cause instanceof Error && (cause.name === 'TimeoutError' || cause.name === 'AbortError');
+        const err = new FpCheckerApiError(0, timeout ? 'timeout' : 'network_error', null, null, cause);
+        if (attempt < maxRetries) {
+          await this.#sleep(Math.min(500 * 2 ** attempt, this.#maxRetryDelayMs));
+          continue;
+        }
+        throw err;
+      }
       if (res.ok) return (parsed ?? {}) as ApiResponse;
 
       const retryAfter = parseRetryAfter(res.headers.get('retry-after'));
@@ -122,6 +136,19 @@ export class FpChecker {
 }
 
 const enc = encodeURIComponent;
+
+function validateBaseUrl(raw: string): string {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new TypeError('FpChecker: baseUrl is not a valid URL');
+  }
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname);
+  if (u.protocol !== 'https:' && !(u.protocol === 'http:' && loopback))
+    throw new TypeError('FpChecker: baseUrl must be https (http only for localhost, 127.0.0.1, [::1])');
+  return raw.replace(/\/+$/, '');
+}
 
 function queryString(q?: QueryParams): string {
   if (!q) return '';

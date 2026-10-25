@@ -41,6 +41,8 @@ function parseHeader(header: unknown): { tRaw: string; t: number; v1: string[] }
 /** Throws WebhookSignatureError unless the header is a valid, fresh signature of rawBody. */
 export function verifyWebhookSignature(opts: VerifyWebhookOptions): void {
   const { rawBody, header, secret, toleranceSec = 300 } = opts;
+  if (typeof toleranceSec !== 'number' || !Number.isFinite(toleranceSec) || toleranceSec < 0)
+    throw new TypeError('verifyWebhookSignature: toleranceSec must be a finite number >= 0');
   const now = opts.now ?? Math.floor(Date.now() / 1000);
   const { tRaw, t, v1 } = parseHeader(header);
 

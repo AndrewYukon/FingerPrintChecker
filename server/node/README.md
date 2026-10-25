@@ -18,7 +18,9 @@ One async method per OpenAPI `operationId`: `createIntent`, `getChallenge`, `ide
 - The secret key goes in the `X-Secret-Key` header, never in a URL. `getChallenge` and `identify` use the publishable key (`publishableKey` option).
 - 2xx responses are returned as data, **including** refusals such as `{ ok: false, error }`. Check `ok`.
 - Non-2xx throws `FpCheckerApiError` with `status`, `code` (`error ?? reason` from the body) and `retryAfter` (seconds).
-- Only GET requests retry (429 and 5xx, at most 2 retries, honouring `Retry-After`, wait capped at 10 s). POST, PATCH and DELETE are never retried.
+- Network failures and timeouts also throw `FpCheckerApiError`, with `status` 0, `code` `network_error` or `timeout`, and the original error as `cause`.
+- Redirects are never followed (they would forward the secret key to another origin). `baseUrl` must be https, except localhost, 127.0.0.1 and [::1].
+- Only GET requests retry (including after network failures and timeouts) (429 and 5xx, at most 2 retries, honouring `Retry-After`, wait capped at 10 s). POST, PATCH and DELETE are never retried.
 
 ## Sealed results
 
@@ -35,7 +37,7 @@ Pass every active key (active and previous during rotation). Throws `SealedResul
 verifyWebhookSignature({ rawBody, header: req.headers['fpc-signature'] as string, secret: process.env.FPC_WEBHOOK_SECRET! });
 ```
 
-Throws `WebhookSignatureError` with `code` of `malformed_header`, `bad_signature`, `expired` or `future` (default tolerance 300 s).
+Throws `WebhookSignatureError` with `code` of `malformed_header`, `bad_signature`, `expired` or `future` (default tolerance 300 s; `toleranceSec` must be a finite number >= 0 or a TypeError is thrown).
 
 ## License
 

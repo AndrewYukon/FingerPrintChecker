@@ -45,3 +45,19 @@ describe('verifyWebhookSignature vectors', () => {
     ).toThrow(/malformed_header|malformed/);
   });
 });
+
+describe('toleranceSec validation', () => {
+  const c = vec.cases[0];
+  for (const bad of [Number.NaN, -1, '300', Infinity, undefined === 0 ? 0 : null]) {
+    it(`rejects ${String(bad)}`, () => {
+      expect(() =>
+        verifyWebhookSignature({ rawBody: c.body, header: c.header, secret: vec.secret, now: c.now, toleranceSec: bad as never }),
+      ).toThrow(TypeError);
+    });
+  }
+  it('accepts 0', () => {
+    expect(() =>
+      verifyWebhookSignature({ rawBody: c.body, header: c.header, secret: vec.secret, now: c.now, toleranceSec: 0 }),
+    ).not.toThrow();
+  });
+});
