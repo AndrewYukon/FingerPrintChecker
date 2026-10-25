@@ -39,6 +39,7 @@ export function FpCheckerProvider(props: FpCheckerProviderProps) {
   const mounted = useRef(true);
   const callId = useRef(0);
   const agentRef = useRef<{ key: string; promise: Promise<FpAgent> } | null>(null);
+  const prevKey = useRef<string | null>(null);
   const optionsKey = JSON.stringify([publishableKey, endpoint ?? null, scriptUrl ?? null]);
 
   useEffect(() => {
@@ -69,17 +70,22 @@ export function FpCheckerProvider(props: FpCheckerProviderProps) {
   // A change of options starts a new generation: old calls become stale and state resets.
   useEffect(() => {
     let active = true;
-    callId.current += 1;
-    setData(undefined);
-    setError(undefined);
-    setIsLoading(false);
+    // Only a real change resets: on first mount (and the StrictMode re-run) children's
+    // mount-time identify calls have already started and must stay current.
+    if (prevKey.current !== null && prevKey.current !== optionsKey) {
+      callId.current += 1;
+      setData(undefined);
+      setError(undefined);
+      setIsLoading(false);
+    }
+    prevKey.current = optionsKey;
     getAgent().catch((e: unknown) => {
       if (active) setError(toError(e));
     });
     return () => {
       active = false;
     };
-  }, [getAgent]);
+  }, [getAgent, optionsKey]);
 
   const identify = useCallback(
     async (opts: IdentifyOptions): Promise<IdentifyResult> => {

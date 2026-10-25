@@ -1,7 +1,7 @@
 import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { StrictMode, type ReactNode } from 'react';
+import { StrictMode, useEffect, type ReactNode } from 'react';
 
 const identifyMock = vi.fn();
 const loadMock = vi.fn();
@@ -217,6 +217,31 @@ describe('FpCheckerProvider', () => {
     expect(loadMock).toHaveBeenCalledTimes(2);
     expect(result.current.data).toEqual(ok('r'));
     expect(result.current.error).toBeUndefined();
+  });
+
+  describe('mount-time identify from a child effect', () => {
+    function Child() {
+      const { identify, data } = useFpChecker();
+      useEffect(() => {
+        identify({ intentToken: 't' }).catch(() => {});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <span data-testid="d">{data?.eventId ?? 'none'}</span>;
+    }
+    const tree = (strict: boolean) => {
+      const inner = (
+        <FpCheckerProvider publishableKey="pk_test">
+          <Child />
+        </FpCheckerProvider>
+      );
+      return strict ? <StrictMode>{inner}</StrictMode> : inner;
+    };
+
+    it.each([false, true])('result lands in data (StrictMode=%s)', async (strict) => {
+      identifyMock.mockResolvedValue(ok('mount'));
+      const { getByTestId } = render(tree(strict));
+      await waitFor(() => expect(getByTestId('d').textContent).toBe('mount'));
+    });
   });
 
   describe('option change', () => {

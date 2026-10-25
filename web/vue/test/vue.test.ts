@@ -197,4 +197,14 @@ describe('fpChecker plugin', () => {
     await p;
     expect(controllerState.data.value).toBeUndefined();
   });
+
+  it('unmount while loading resets isLoading', async () => {
+    identifyMock.mockReturnValue(new Promise(() => {}));
+    const { api, w } = mountHook();
+    void api.identify({ intentToken: 't' }).catch(() => {});
+    await flushPromises();
+    expect(api.isLoading.value).toBe(true);
+    w.unmount();
+    expect(api.isLoading.value).toBe(false);
+  });
 });

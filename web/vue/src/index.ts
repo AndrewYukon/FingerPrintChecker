@@ -95,6 +95,7 @@ function createController(opts: LoadOptions): Controller {
     dispose: () => {
       disposed = true;
       callId += 1; // in-flight calls become stale
+      isLoading.value = false;
     },
   };
 }
