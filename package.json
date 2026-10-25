@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "name": "fingerprintchecker-web-workspace",
+  "workspaces": ["web/agent", "web/react", "web/vue"]
+}
