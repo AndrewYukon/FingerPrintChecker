@@ -1,6 +1,8 @@
 """fpchecker CLI identify (Python 3.8+, stdlib only). Env: FPC_PK, FPC_INTENT (v2) or FPC_SEAL (v1), FPC_TENANT, FPC_BASE, FPC_POW (default 16).
 v2 (recommended): python3 identify.py --intent <intentToken>   (your backend mints it with POST /v2/intents). v1: needs FPC_SEAL.
-Self-test: python3 identify.py --self-test   (checks ../../test-vectors/protocol-v2.json)"""
+Optional event fields: --linked-id <id> (1-256 chars, no control chars) and --tags '<json object>' (<= 4096 bytes, nested <= 3 levels, an array counts as a level).
+They sit beside the signed fields; the answer's eventId identifies the event. Bad values exit 2 before any request.
+Self-test: python3 identify.py --self-test   (checks ../../test-vectors/protocol-v2.json and the event-field rules)"""
 import base64, hashlib, hmac, json, os, pathlib, platform, re, subprocess, sys, urllib.error, urllib.parse, urllib.request, uuid
 
 KEY_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
@@ -24,6 +26,27 @@ def identify_canonical(platform_, agent_version, challenge, components):
     return (f'{{"agentVersion":{jcs_string(agent_version)},"challenge":{jcs_string(challenge)},"components":[{comps}],'
             f'"domain":"fpchecker.identify.v2","platform":{jcs_string(platform_)},"protocolVersion":2}}')
 
+def _within_depth(v, depth):
+    if isinstance(v, list): return depth < 3 and all(_within_depth(x, depth + 1) for x in v)
+    if isinstance(v, dict): return depth <= 3 and all(_within_depth(x, depth + 1) for x in v.values())
+    return True
+
+def event_fields(linked_id=None, tags_json=None):
+    """The body fragment for the optional event fields ({} when neither is given); raises ValueError on a bad value. Never part of the signed bytes."""
+    out = {}
+    if linked_id is not None:
+        if not (1 <= len(linked_id.encode("utf-16-le")) // 2 <= 256) or re.search("[\x00-\x1f\x7f]", linked_id): raise ValueError("invalid linkedId: 1-256 characters, no control characters")
+        out["linkedId"] = linked_id
+    if tags_json is not None:
+        def no_const(c): raise ValueError(c)  # NaN / Infinity are not JSON
+        try: tags = json.loads(tags_json, parse_constant=no_const)
+        except ValueError: raise ValueError("invalid tags: not valid JSON") from None
+        if tags is not None:  # null means "not set", as on the server
+            if not isinstance(tags, dict) or not _within_depth(tags, 1) or len(json.dumps(tags, separators=(",", ":"), ensure_ascii=False).encode("utf-8")) > 4096:
+                raise ValueError("invalid tags: a JSON object of at most 4096 bytes, nested at most 3 levels (an array counts as a level)")
+            out["tags"] = tags
+    return out
+
 def self_test():
     v = json.loads((pathlib.Path(__file__).resolve().parents[2] / "test-vectors" / "protocol-v2.json").read_text(encoding="utf-8"))
     fail = 0
@@ -42,13 +65,25 @@ def self_test():
         i = r["input"]
         try: identify_canonical(i["platform"], i["agentVersion"], i["challenge"], i["components"]); check(False, r["name"] + ": must be refused")
         except ValueError: pass
-    print(f"{len(v['accept'])} accept + {len(v['reject'])} reject cases, {fail} failed")
+    def refused(*a):
+        try: event_fields(*a); return False
+        except ValueError: return True
+    check(event_fields() == {} and event_fields(None, "null") == {}, "event fields: absent / null send nothing")
+    check(event_fields("o_1", '{"a":{"b":{"c":1}},"l":[1]}') == {"linkedId": "o_1", "tags": {"a": {"b": {"c": 1}}, "l": [1]}}, "event fields: valid")
+    check(len(event_fields("a" * 256)["linkedId"]) == 256, "event fields: 256 chars")
+    for bad in ["", "a" * 257, "a\nb", "a\x7fb"]: check(refused(bad, None), f"event fields: linkedId {bad[:8]!r} refused")
+    for bad in ["[]", '"x"', "nope", '{"x":NaN}', '{"a":{"b":{"c":{"d":1}}}}', '{"a":{"b":[1]}}', json.dumps({"k": "a" * 4096}), json.dumps({"k": "\u20ac" * 1366}, ensure_ascii=False)]:
+        check(refused(None, bad), f"event fields: tags {bad[:20]} refused")
+    check(not refused(None, json.dumps({"k": "a" * 4088})), "event fields: 4096 bytes accepted")
+    print(f"{len(v['accept'])} accept + {len(v['reject'])} reject cases, event-field cases, {fail} failed")
     sys.exit(1 if fail else 0)
 
 def main():
     env, args = os.environ.get, sys.argv[1:]
     base, pk, bits = env("FPC_BASE", "https://api.fpchecker.com"), env("FPC_PK"), int(env("FPC_POW", "16"))
     intent = args[args.index("--intent") + 1] if "--intent" in args else env("FPC_INTENT")
+    try: fields = event_fields(args[args.index("--linked-id") + 1] if "--linked-id" in args else None, args[args.index("--tags") + 1] if "--tags" in args else None)
+    except ValueError as e: print(e, file=sys.stderr); sys.exit(2)  # before any request
     if not pk: sys.exit("FPC_PK is not set")
     if not intent and not env("FPC_SEAL"): sys.exit("give --intent <intentToken> (or FPC_INTENT) for v2, or FPC_SEAL for v1")
     id_file = pathlib.Path.home() / ".config" / env("FPC_TENANT", "fpchecker") / "device-id"
@@ -74,16 +109,16 @@ def main():
     if intent:  # v2: nothing is sealed or bound; the answer carries an opaque attestation
         ch = call(f"/v2/challenge?intent={urllib.parse.quote(intent, safe='')}&difficulty={bits}")
         if not ch.get("ok") or not isinstance(ch.get("challenge"), str): print(json.dumps(ch, indent=2)); sys.exit(1)
-        agent = "cli-python-0.3.0"
+        agent = "cli-python-0.4.0"
         identify_canonical("cli", agent, ch["challenge"], components)  # refuse locally what the server refuses
-        out = call("/v2/identify", {"protocolVersion": 2, "platform": "cli", "intentToken": intent, "challenge": ch["challenge"], "agentVersion": agent, "components": components, "pow": solve(ch["challenge"])})
+        out = call("/v2/identify", {"protocolVersion": 2, "platform": "cli", "intentToken": intent, "challenge": ch["challenge"], "agentVersion": agent, "components": components, "pow": solve(ch["challenge"]), **fields})
         print(json.dumps(out, indent=2))  # hand `attestation` to your backend for /v1/eligibility
         if out.get("ok") is not True or not isinstance(out.get("attestation"), str) or not out["attestation"]: sys.exit(1)  # success without attestation = failure
         return
     nonce = call(f"/v1/challenge?difficulty={bits}")["nonce"]
     canonical = nonce + "|" + "|".join(sorted(f"{c['key']}={c['value']}" for c in components))  # sort the key=value strings
     sig = hmac.new(env("FPC_SEAL").encode(), canonical.encode(), hashlib.sha256).hexdigest()
-    print(json.dumps(call("/v1/identify", {"platform": "cli", "nonce": nonce, "sig": sig, "components": components, "agentVersion": "cli-python-1", "pow": solve(nonce)}), indent=2))
+    print(json.dumps(call("/v1/identify", {"platform": "cli", "nonce": nonce, "sig": sig, "components": components, "agentVersion": "cli-python-1", "pow": solve(nonce), **fields}), indent=2))
 
 if __name__ == "__main__":
     if "--self-test" in sys.argv: self_test()

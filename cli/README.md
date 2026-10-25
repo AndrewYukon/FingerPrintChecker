@@ -39,6 +39,11 @@ export FPC_SEAL=...           # seal key (console → project)
 node cli/node/identify.mjs    # prints the identify answer; send `attestation` to your backend
 ```
 
+**Event fields (0.4.0).** `--linked-id <id>` (1 to 256 characters, no control characters) and `--tags '<json object>'`
+(at most 4096 bytes, nested at most 3 levels, an array counts as a level) are stored on the event, beside the signed
+fields (they are not part of the canonical bytes). A bad value exits with status 2 before any request. The answer carries
+`eventId`. The self-tests also check these rules.
+
 What they send (see [PROTOCOL.md](../PROTOCOL.md)): `cli.randomId` (a UUID generated once and kept
 in `~/.config/<tenant>/device-id`, mode 0600), `cli.platformUuid` on macOS (`IOPlatformUUID` from
 `ioreg`, which survives reinstalls), `cli.timezone` and `cli.osVersion`.

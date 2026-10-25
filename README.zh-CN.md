@@ -26,9 +26,9 @@
 | 平台 | 集成方式 | 状态 |
 |---|---|---|
 | **Web 应用**（任意浏览器） | FingerPrint Checker 浏览器 agent `fp-agent.min.js`，部署在你自己的域名下；见 [Web 应用](#web-应用) | 可用 |
-| **Android 应用**（Kotlin / Java） | Maven Central 上的 `com.fpchecker:fpchecker-android`，源码在 [`android/`](android) | 可用，0.3.0 |
-| **iOS 应用**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`，源码在 [`apple/`](apple) | 可用，0.3.0 |
-| macOS 应用（Swift Package） | 与 iOS 使用同一个包 | 可用，0.3.0 |
+| **Android 应用**（Kotlin / Java） | Maven Central 上的 `com.fpchecker:fpchecker-android`，源码在 [`android/`](android) | 可用，0.4.0 |
+| **iOS 应用**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`，源码在 [`apple/`](apple) | 可用，0.4.0 |
+| macOS 应用（Swift Package） | 与 iOS 使用同一个包 | 可用，0.4.0 |
 | 命令行工具 | 协议 + 示例见 [`cli/`](cli/README.md) | 示例 |
 
 所有平台的终点都一样：客户端拿到 `attestation`，只有持有密钥（secret key）的你的后端才去请求决策。原生 SDK 的传输格式在 [PROTOCOL.md](PROTOCOL.md) 中规定；一致性测试向量在 [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json)，每个 SDK 都必须能复现这些向量。
@@ -68,7 +68,7 @@ const decision = await response.json(); // { ok, eligible, action, reason }
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.3.0")
+    implementation("com.fpchecker:fpchecker-android:0.4.0")
 }
 ```
 
@@ -121,7 +121,7 @@ cd android
 Swift Package Manager：添加 `https://github.com/AndrewYukon/FingerPrintChecker`（product 为 `FingerPrintChecker`，iOS 14+、macOS 11+），或在 `Package.swift` 中：
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.3.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.4.0")
 ```
 
 ```swift

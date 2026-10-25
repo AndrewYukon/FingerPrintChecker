@@ -1,6 +1,8 @@
 // fpchecker CLI identify (Go 1.21+, stdlib only). Env: FPC_PK, FPC_INTENT (v2) or FPC_SEAL (v1), FPC_TENANT, FPC_BASE, FPC_POW (default 16).
 // v2 (recommended): go run identify.go --intent <intentToken>   (your backend mints it with POST /v2/intents). v1: needs FPC_SEAL.
-// Self-test: go run identify.go --self-test   (checks ../../test-vectors/protocol-v2.json)
+// Optional event fields: --linked-id <id> (1-256 chars, no control chars) and --tags '<json object>' (<= 4096 bytes, nested <= 3 levels, an array counts as a level).
+// They sit beside the signed fields; the answer's eventId identifies the event. Bad values exit 2 before any request.
+// Self-test: go run identify.go --self-test   (checks ../../test-vectors/protocol-v2.json and the event-field rules)
 package main
 
 import (
@@ -41,10 +43,24 @@ func main() {
 		os.Exit(selfTest())
 	}
 	intent := os.Getenv("FPC_INTENT")
+	var linkedID, tagsJSON *string
 	for i, a := range args {
-		if a == "--intent" && i+1 < len(args) {
-			intent = args[i+1]
+		if i+1 >= len(args) {
+			continue
 		}
+		switch a {
+		case "--intent":
+			intent = args[i+1]
+		case "--linked-id":
+			linkedID = &args[i+1]
+		case "--tags":
+			tagsJSON = &args[i+1]
+		}
+	}
+	fields, err := eventFields(linkedID, tagsJSON)
+	if err != nil { // before any request
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
 	}
 	base, pk, nbits := env("FPC_BASE", "https://api.fpchecker.com"), os.Getenv("FPC_PK"), env("FPC_POW", "16")
 	if pk == "" || (intent == "" && os.Getenv("FPC_SEAL") == "") {
@@ -97,12 +113,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, ch)
 			os.Exit(1)
 		}
-		const agent = "cli-go-0.3.0"
+		const agent = "cli-go-0.4.0"
 		if _, err := identifyCanonical("cli", agent, challenge, comps); err != nil { // refuse locally what the server refuses
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		answer := call("POST", "/v2/identify", map[string]any{"protocolVersion": 2, "platform": "cli", "intentToken": intent, "challenge": challenge, "agentVersion": agent, "components": comps, "pow": solve(challenge, need)})
+		answer := call("POST", "/v2/identify", withFields(map[string]any{"protocolVersion": 2, "platform": "cli", "intentToken": intent, "challenge": challenge, "agentVersion": agent, "components": comps, "pow": solve(challenge, need)}, fields))
 		out, _ := json.MarshalIndent(answer, "", "  ")
 		fmt.Println(string(out))                                                         // hand `attestation` to your backend for /v1/eligibility
 		if att, _ := answer["attestation"].(string); answer["ok"] != true || att == "" { // success without an attestation = failure
@@ -118,8 +134,72 @@ func main() {
 	sort.Strings(parts) // sort the key=value strings
 	mac := hmac.New(sha256.New, []byte(os.Getenv("FPC_SEAL")))
 	mac.Write([]byte(nonce + "|" + strings.Join(parts, "|")))
-	out, _ := json.MarshalIndent(call("POST", "/v1/identify", map[string]any{"platform": "cli", "nonce": nonce, "sig": hex.EncodeToString(mac.Sum(nil)), "components": comps, "agentVersion": "cli-go-1", "pow": solve(nonce, need)}), "", "  ")
+	out, _ := json.MarshalIndent(call("POST", "/v1/identify", withFields(map[string]any{"platform": "cli", "nonce": nonce, "sig": hex.EncodeToString(mac.Sum(nil)), "components": comps, "agentVersion": "cli-go-1", "pow": solve(nonce, need)}, fields)), "", "  ")
 	fmt.Println(string(out))
+}
+
+// withFields merges the event fields (linkedId, tags) into a request body, beside the signed fields.
+func withFields(body map[string]any, fields map[string]any) map[string]any {
+	for k, v := range fields {
+		body[k] = v
+	}
+	return body
+}
+
+// --- optional event fields (linkedId, tags): the server's rules, checked before any request; never part of the signed bytes ---
+
+var controlRe = regexp.MustCompile("[\\x00-\\x1f\\x7f]")
+
+func tagsWithinDepth(v any, depth int) bool {
+	switch x := v.(type) {
+	case []any:
+		if depth >= 3 {
+			return false
+		}
+		for _, e := range x {
+			if !tagsWithinDepth(e, depth+1) {
+				return false
+			}
+		}
+	case map[string]any:
+		if depth > 3 {
+			return false
+		}
+		for _, e := range x {
+			if !tagsWithinDepth(e, depth+1) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// eventFields returns the body fragment ({} when neither is given); nil means "not set", as on the server.
+func eventFields(linkedID, tagsJSON *string) (map[string]any, error) {
+	out := map[string]any{}
+	if linkedID != nil {
+		if n := len(utf16.Encode([]rune(*linkedID))); n < 1 || n > 256 || controlRe.MatchString(*linkedID) {
+			return nil, fmt.Errorf("invalid linkedId: 1-256 characters, no control characters")
+		}
+		out["linkedId"] = *linkedID
+	}
+	if tagsJSON != nil {
+		var tags any
+		if err := json.Unmarshal([]byte(*tagsJSON), &tags); err != nil {
+			return nil, fmt.Errorf("invalid tags: not valid JSON")
+		}
+		if tags != nil { // JSON null means "not set"
+			obj, ok := tags.(map[string]any)
+			var buf bytes.Buffer
+			enc := json.NewEncoder(&buf)
+			enc.SetEscapeHTML(false)                                                             // JSON.stringify (the server's measure) leaves < > & alone
+			if !ok || !tagsWithinDepth(obj, 1) || enc.Encode(obj) != nil || buf.Len()-1 > 4096 { // Encode adds a newline
+				return nil, fmt.Errorf("invalid tags: a JSON object of at most 4096 bytes, nested at most 3 levels (an array counts as a level)")
+			}
+			out["tags"] = obj
+		}
+	}
+	return out, nil
 }
 
 func solve(challenge string, need int) string {
@@ -307,7 +387,33 @@ func selfTest() int {
 		_, err := identifyCanonical(in.Platform, in.AgentVersion, in.Challenge, in.Components)
 		check(err != nil, r.Name+": must be refused")
 	}
-	fmt.Printf("%d accept + %d reject cases, %d failed\n", len(v.Accept), len(v.Reject), fail)
+	str := func(s string) *string { return &s }
+	f, err := eventFields(nil, nil)
+	check(err == nil && len(f) == 0, "event fields: absent sends nothing")
+	f, err = eventFields(nil, str("null"))
+	check(err == nil && len(f) == 0, "event fields: null tags is not set")
+	f, err = eventFields(str("o_1"), str(`{"a":{"b":{"c":1}},"l":[1]}`))
+	out, _ := json.Marshal(f)
+	check(err == nil && string(out) == `{"linkedId":"o_1","tags":{"a":{"b":{"c":1}},"l":[1]}}`, "event fields: valid")
+	_, err = eventFields(str(strings.Repeat("a", 256)), nil)
+	check(err == nil, "event fields: 256 chars")
+	for _, bad := range []string{"", strings.Repeat("a", 257), "a\nb", "a\x7fb"} {
+		_, err := eventFields(&bad, nil)
+		check(err != nil, fmt.Sprintf("event fields: linkedId %q refused", bad))
+	}
+	big, _ := json.Marshal(map[string]string{"k": strings.Repeat("a", 4096)})
+	euro, _ := json.Marshal(map[string]string{"k": strings.Repeat("\u20ac", 1366)})
+	for _, bad := range []string{"[]", `"x"`, "nope", `{"a":{"b":{"c":{"d":1}}}}`, `{"a":{"b":[1]}}`, string(big), string(euro)} {
+		_, err := eventFields(nil, &bad)
+		check(err != nil, "event fields: tags "+bad[:min(20, len(bad))]+" refused")
+	}
+	edge, _ := json.Marshal(map[string]string{"k": strings.Repeat("a", 4088)})
+	_, err = eventFields(nil, str(string(edge)))
+	check(err == nil, "event fields: 4096 bytes accepted")
+	amp, _ := json.Marshal(map[string]string{"k": strings.Repeat("&", 4088)})
+	_, err = eventFields(nil, str(string(amp)))
+	check(err == nil, "event fields: & is not counted as an escape")
+	fmt.Printf("%d accept + %d reject cases, event-field cases, %d failed\n", len(v.Accept), len(v.Reject), fail)
 	if fail > 0 {
 		return 1
 	}
