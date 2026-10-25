@@ -1,0 +1,1690 @@
+openapi: 3.1.0
+info:
+  title: FPChecker API
+  version: 0.44.0
+  summary: The customer-facing HTTP API of FPChecker.
+  description: |
+    Identify a device, decide whether it may claim or use something, and read what was seen.
+    Hand-written from the route handlers; `worker/test/openapi-contract.test.ts` checks it against the running
+    server (the route set, the examples and the real answers).
+
+    **Keys.** A project has a secret key (`sk_…`, header `X-Secret-Key`, backend only) and a publishable key
+    (`pk_…`, header `X-Publishable-Key`, safe in a browser or app). `/v2/challenge` and `/v2/identify` take the
+    publishable key; every other keyed route takes the secret key. The wrong kind of key is `401`.
+
+    **Errors.** Most failures are `{ "ok": false, "error": "<code>" }` (`Error`). Routes that make a decision
+    or record something answer in their own shape: `{ "ok": false, "reason": "<code>" }` plus the fields the
+    route normally has (`EligibilityRefusal`, `QuotaRefusal`, `ReleaseRefusal`, `SubjectRefusal`,
+    `FeedbackRefusal`, `IdentifyRefusal`, `ReasonError`). Some failures are deliberately HTTP 200 with
+    `ok: false` (a fail-closed internal error, `maintenance`, most identify refusals): **test `ok`, not only the
+    status**. Never treat a response without `ok: true` as a success.
+
+    **Billing.** On a metered project a billed call with an empty balance is `402 { "ok": false, "error":
+    "insufficient_credits" }`, and `503 commit_uncertain` means the charge may have happened. A billed call is
+    never safe to retry blindly.
+
+    **Forward compatibility.** Clients must tolerate unknown enum values in response fields (for example `reason`,
+    `error` and signal kinds) and unknown object properties. New values and properties may be added without a
+    version bump; treat an unrecognised value as a generic refusal or ignore it, never as a parse failure.
+
+    **Not in this file.** Admin, console and network-check routes, and the older v1 challenge and identify
+    protocol, are not part of the customer contract. The production API serves no OpenAPI route of its own.
+servers:
+  - url: https://api.fpchecker.com
+    description: Production
+security: []
+tags:
+  - name: Identify
+    description: Browser and app side (publishable key), plus the backend call that starts it.
+  - name: Decisions
+    description: Backend calls that spend an attestation (secret key).
+  - name: Events
+    description: Read and annotate what identify recorded (secret key).
+  - name: Operations
+    description: Liveness and status (no key).
+paths:
+  /v2/intents:
+    post:
+      operationId: createIntent
+      tags: [Identify]
+      summary: Create an intent for the next identify
+      description: |
+        Your backend names what the next identify is for. The returned `intentToken` goes to your client, which
+        passes it to `GET /v2/challenge` and `POST /v2/identify`. Stateless and free. Treat the token as opaque.
+        A fail-closed server error is `200 { "ok": false, "error": "temporarily_unavailable" }`.
+      security:
+        - secretKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntentRequest'
+            examples:
+              trial:
+                value: { purpose: 'claim:trial', subject: user-123, clientIp: 203.0.113.7 }
+      responses:
+        '200':
+          description: The intent, or a fail-closed refusal (check `ok`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/IntentResponse'
+                  - $ref: '#/components/schemas/Error'
+              examples:
+                created:
+                  value: { ok: true, intentToken: fpi1.eyJwIjoicHJqXzAxMjM0NTY3ODlhYiJ9.c2ln, expiresIn: 600 }
+        '400':
+          description: '`bad_request`, `bad_purpose` or `bad_subject`.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                badPurpose:
+                  value: { ok: false, error: bad_purpose }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402': { $ref: '#/components/responses/InsufficientCredits' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /v2/challenge:
+    get:
+      operationId: getChallenge
+      tags: [Identify]
+      summary: Get a challenge for an intent
+      description: |
+        Called by the client (publishable key). The `intent` must be URL-encoded. An intent can fetch several
+        challenges until it expires (for example a second identify after a proof-of-work request).
+      security:
+        - publishableKey: []
+      parameters:
+        - name: intent
+          in: query
+          required: true
+          description: The `intentToken` your backend created.
+          schema: { type: string }
+        - name: difficulty
+          in: query
+          required: false
+          description: Ask for a proof-of-work challenge of this many zero bits (8 to 28).
+          schema: { type: integer, minimum: 8, maximum: 28 }
+      responses:
+        '200':
+          description: The challenge, or a fail-closed refusal (check `ok`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ChallengeResponse'
+                  - $ref: '#/components/schemas/Error'
+              examples:
+                issued:
+                  value: { ok: true, protocolVersion: 2, challenge: v4.2c9f0b7a1d.5e3a, expiresIn: 300 }
+        '400':
+          description: '`bad_intent` (missing, expired or another project''s) or `bad_difficulty`.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                badIntent:
+                  value: { ok: false, error: bad_intent }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402': { $ref: '#/components/responses/InsufficientCredits' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /v2/identify:
+    post:
+      operationId: identify
+      tags: [Identify]
+      summary: Identify a device
+      description: |
+        Called by the client (publishable key) with the components it collected. The answer carries one opaque
+        `attestation` for your backend to spend, the `eventId` of the recorded event and, when the project has
+        sealed results enabled, a `sealedResult` your backend decrypts with the project's sealing key.
+
+        Refusals are mostly HTTP 200 with `ok: false` and a `reason` (`IdentifyRefusal`); a rate limit or the
+        daily identify cap is 429, no credits is 402. **A success without a non-empty string `attestation` is a
+        failure.**
+      security:
+        - publishableKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentifyRequest'
+            examples:
+              web:
+                value:
+                  protocolVersion: 2
+                  platform: web
+                  intentToken: fpi1.eyJwIjoicHJqXzAxMjM0NTY3ODlhYiJ9.c2ln
+                  challenge: v4.2c9f0b7a1d.5e3a
+                  agentVersion: 0.3.0
+                  components:
+                    - { key: fpjs.timezone, value: Europe/Berlin }
+                  linkedId: order-123
+                  tags: { plan: pro }
+              android:
+                value:
+                  protocolVersion: 2
+                  platform: android
+                  intentToken: fpi1.eyJwIjoicHJqXzAxMjM0NTY3ODlhYiJ9.c2ln
+                  challenge: v4.2c9f0b7a1d.5e3a
+                  agentVersion: android-0.1.0
+                  components:
+                    - { key: android.id, value: 1a2b3c4d5e6f7081 }
+                  proof: { type: play_integrity, token: eyJhbGciOi }
+      responses:
+        '200':
+          description: The attestation, or a refusal (check `ok`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/IdentifyResponse'
+                  - $ref: '#/components/schemas/IdentifyRefusal'
+              examples:
+                sealed:
+                  summary: Web identify of a project with sealed results on
+                  value:
+                    ok: true
+                    protocolVersion: 2
+                    attestation: fpa1.Zm9v.YmFy
+                    expiresIn: 600
+                    eventId: ev_0123456789ABCDEFGHJK
+                    sealedResult: ZnBzMQECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4v
+                native:
+                  summary: Native identify, no sealed results
+                  value:
+                    ok: true
+                    protocolVersion: 2
+                    attestation: fpa1.Zm9v.YmFy
+                    expiresIn: 600
+                    eventId: ev_0123456789ABCDEFGHJK
+                    proofStatus: checked
+                refused:
+                  value: { ok: false, protocolVersion: 2, reason: bad_intent }
+        '400':
+          description: '`invalid_linked_id` or `invalid_tags` (reason and error both set).'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdentifyRefusal' }
+              examples:
+                badTags:
+                  value: { ok: false, protocolVersion: 2, reason: invalid_tags, error: invalid_tags }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402': { $ref: '#/components/responses/InsufficientCredits' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '429':
+          description: Rate limited, or `identify_daily_limit` on a metered account.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/IdentifyRefusal'
+                  - $ref: '#/components/schemas/RateLimitError'
+              examples:
+                limit:
+                  value: { ok: false, protocolVersion: 2, reason: identify_daily_limit }
+  /v1/eligibility:
+    post:
+      operationId: checkEligibility
+      tags: [Decisions]
+      summary: Decide whether this device may claim, and optionally record the claim
+      description: |
+        Backend only. Spends the attestation from identify. With `claim: true` an `allow` records one claim
+        atomically and the answer carries its `claimId`. Business outcomes (deny, turnstile, pow) are HTTP 200
+        with `ok: true` and an `action`: grant only on `eligible === true`. Billed; never retried automatically.
+        Pass the real end-user IP as `clientIp`.
+
+        **Attestation refusals.** Only a missing or non-object `attestation` is HTTP 400. An expired or altered
+        attestation, one issued for another purpose, or one whose subject differs is HTTP 200 with `ok: false`
+        and `reason` `bad_attestation`, `attestation_purpose`, `attestation_subject` or (when the project requires
+        intents) `intent_required`: **test `ok`, not only the status**.
+      security:
+        - secretKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EligibilityRequest'
+            examples:
+              claim:
+                value:
+                  attestation: fpa1.Zm9v.YmFy
+                  email: user@example.org
+                  claim: true
+                  clientIp: 203.0.113.7
+                  kind: trial
+      responses:
+        '200':
+          description: The decision (check `eligible` and `action`), or a fail-closed refusal.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EligibilityResponse'
+                  - $ref: '#/components/schemas/EligibilityRefusal'
+              examples:
+                allowed:
+                  value:
+                    ok: true
+                    visitorId: v4_visitor1
+                    confidence: 92
+                    identityConfidence: 92
+                    trustScore: 85
+                    isNew: true
+                    eligible: true
+                    action: allow
+                    reason: ok
+                    claimId: '1042'
+                needsCheck:
+                  value:
+                    ok: true
+                    visitorId: v4_visitor1
+                    confidence: 92
+                    identityConfidence: 92
+                    trustScore: 85
+                    isNew: true
+                    eligible: false
+                    action: turnstile
+                    reason: new_device_verification
+                internal:
+                  value: { ok: false, eligible: false, action: deny, reason: internal_error }
+        '400':
+          description: '`bad_attestation`: the `attestation` is missing or not an object.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EligibilityRefusal' }
+              examples:
+                missing:
+                  value: { ok: false, eligible: false, action: deny, reason: bad_attestation }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402': { $ref: '#/components/responses/InsufficientCredits' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '429':
+          description: '`rate_limited` or `project_write_budget`.'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EligibilityRefusal'
+                  - $ref: '#/components/schemas/RateLimitError'
+              examples:
+                limited:
+                  value: { ok: false, eligible: false, action: deny, reason: rate_limited }
+        '503': { $ref: '#/components/responses/CommitUncertain' }
+  /v1/eligibility/release:
+    post:
+      operationId: releaseEligibility
+      tags: [Decisions]
+      summary: Give a granted claim back
+      description: |
+        Backend only. Idempotent: releasing a released claim answers `released: true` with
+        `already_released`. A refusal to release is HTTP 200 with `ok: true` and `released: false`.
+      security:
+        - secretKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseRequest'
+            examples:
+              release:
+                value: { claimId: '1042' }
+      responses:
+        '200':
+          description: The outcome (check `released`), or a fail-closed refusal.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ReleaseResponse'
+                  - $ref: '#/components/schemas/ReleaseRefusal'
+              examples:
+                released:
+                  value: { ok: true, claimId: '1042', released: true, reason: released }
+                missing:
+                  value: { ok: true, claimId: '1042', released: false, reason: claim_not_found }
+        '400':
+          description: '`bad_request`: the claim id is malformed.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReleaseRefusal' }
+              examples:
+                malformed:
+                  value: { ok: false, released: false, reason: bad_request }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402': { $ref: '#/components/responses/InsufficientCredits' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '429':
+          description: '`rate_limited` or `project_write_budget`.'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ReleaseRefusal'
+                  - $ref: '#/components/schemas/RateLimitError'
+              examples:
+                limited:
+                  value: { ok: false, released: false, reason: rate_limited }
+        '503': { $ref: '#/components/responses/CommitUncertain' }
+  /v1/quota:
+    post:
+      operationId: checkQuota
+      tags: [Decisions]
+      summary: Check or consume a windowed usage quota, or give a use back
+      description: |
+        Backend only. Same envelope as eligibility, without an email. Without `consume` it is a read-only probe;
+        with `consume` an `allow` records one use (an `idempotencyKey` makes a retry count once). With
+        `release: true` and the `idempotencyKey` it gives that use back and needs no attestation. A quota name
+        the project has not configured is denied, never unlimited. Billed; never retried automatically.
+
+        **Attestation refusals.** Only a missing or non-object `attestation` is HTTP 400. An expired or altered
+        attestation, one issued for another purpose, or one whose subject differs is HTTP 200 with `ok: false`
+        and `reason` `bad_attestation`, `attestation_purpose`, `attestation_subject` or (when the project requires
+        intents) `intent_required`: **test `ok`, not only the status**.
+      security:
+        - secretKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuotaRequest'
+            examples:
+              consume:
+                value:
+                  attestation: fpa1.Zm9v.YmFy
+                  quota: api-calls
+                  consume: true
+                  idempotencyKey: req-8841
+                  clientIp: 203.0.113.7
+              release:
+                value: { quota: api-calls, release: true, idempotencyKey: req-8841 }
+      responses:
+        '200':
+          description: The decision (check `allowed` and `action`), the release outcome, or a fail-closed refusal.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/QuotaResponse'
+                  - $ref: '#/components/schemas/QuotaReleaseResponse'
+                  - $ref: '#/components/schemas/QuotaRefusal'
+              examples:
+                allowed:
+                  value:
+                    ok: true
+                    visitorId: v4_visitor1
+                    identityConfidence: 92
+                    trustScore: 85
+                    quota: api-calls
+                    allowed: true
+                    action: allow
+                    reason: ok
+                    limit: 10
+                    used: 3
+                    remaining: 7
+                    windowSeconds: 86400
+                released:
+                  value: { ok: true, quota: api-calls, released: true }
+                internal:
+                  value: { ok: false, allowed: false, action: deny, reason: internal_error }
+        '400':
+          description: '`bad_attestation` (the `attestation` is missing or not an object) or `bad_request`.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuotaRefusal' }
+              examples:
+                missing:
+                  value: { ok: false, allowed: false, action: deny, reason: bad_attestation }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402': { $ref: '#/components/responses/InsufficientCredits' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '429':
+          description: '`rate_limited` or `project_write_budget`.'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/QuotaRefusal'
+                  - $ref: '#/components/schemas/RateLimitError'
+              examples:
+                limited:
+                  value: { ok: false, allowed: false, action: deny, reason: rate_limited }
+        '503': { $ref: '#/components/responses/CommitUncertain' }
+  /v1/subjects/bind:
+    post:
+      operationId: bindSubject
+      tags: [Decisions]
+      summary: Bind a subject (for example an inviter) to the attested device
+      description: |
+        Backend only. The attestation must come from an intent created for purpose `subjects` with the same
+        `subject`. Billed; never retried automatically.
+
+        **Attestation refusals.** Only a missing or non-object `attestation` is HTTP 400. An expired or altered
+        attestation, one issued for another purpose, or one whose subject differs is HTTP 200 with `ok: false`
+        and `reason` `bad_attestation`, `attestation_purpose`, `attestation_subject` or (when the project requires
+        intents) `intent_required`: **test `ok`, not only the status**.
+      security:
+        - secretKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubjectRequest'
+            examples:
+              bind:
+                value: { subject: user-9, attestation: fpa1.Zm9v.YmFy }
+      responses:
+        '200':
+          description: Bound, or a fail-closed refusal (check `ok`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/BindResponse'
+                  - $ref: '#/components/schemas/SubjectRefusal'
+              examples:
+                bound:
+                  value: { ok: true, visitorId: v4_visitor1, bound: true }
+        '400':
+          description: '`bad_request`, `bad_subject`, or `bad_attestation` (the `attestation` is missing or not an object).'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubjectRefusal' }
+              examples:
+                missing:
+                  value: { ok: false, reason: bad_subject }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402': { $ref: '#/components/responses/InsufficientCredits' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '429':
+          description: '`rate_limited` or `project_write_budget`.'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SubjectRefusal'
+                  - $ref: '#/components/schemas/RateLimitError'
+              examples:
+                limited:
+                  value: { ok: false, reason: rate_limited }
+        '503': { $ref: '#/components/responses/CommitUncertain' }
+  /v1/subjects/relation:
+    post:
+      operationId: relateSubjects
+      tags: [Decisions]
+      summary: Compare the attested device with a subject's bound devices
+      description: |
+        Backend only. Read only; `suggestion` is advice, the decision is yours. A refusal carries
+        `suggestion: review` so a caller that reads only the suggestion never sees an allow from a check that did
+        not run. Billed; never retried automatically.
+
+        **Attestation refusals.** Only a missing or non-object `attestation` is HTTP 400. An expired or altered
+        attestation, one issued for another purpose, or one whose subject differs is HTTP 200 with `ok: false`
+        and `reason` `bad_attestation`, `attestation_purpose`, `attestation_subject` or (when the project requires
+        intents) `intent_required`: **test `ok`, not only the status**.
+      security:
+        - secretKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubjectRequest'
+            examples:
+              relation:
+                value: { subject: user-9, attestation: fpa1.Zm9v.YmFy }
+      responses:
+        '200':
+          description: The comparison, or a fail-closed refusal (check `ok`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/RelationResponse'
+                  - $ref: '#/components/schemas/SubjectRefusal'
+              examples:
+                unrelated:
+                  value:
+                    ok: true
+                    visitorId: v4_visitor1
+                    sameDevice: false
+                    sameBrowserProfile: false
+                    sameMachine: false
+                    sameNetwork: false
+                    sharedDeviceClass: false
+                    subjectDevices: 1
+                    subjectBound: true
+                    subjectSaturated: false
+                    suggestion: allow
+                refused:
+                  value: { ok: false, reason: internal_error, suggestion: review }
+        '400':
+          description: '`bad_request`, `bad_subject`, or `bad_attestation` (the `attestation` is missing or not an object).'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubjectRefusal' }
+              examples:
+                missing:
+                  value: { ok: false, reason: bad_attestation, suggestion: review }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402': { $ref: '#/components/responses/InsufficientCredits' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '429':
+          description: '`rate_limited`.'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SubjectRefusal'
+                  - $ref: '#/components/schemas/RateLimitError'
+              examples:
+                limited:
+                  value: { ok: false, reason: rate_limited, suggestion: review }
+        '503': { $ref: '#/components/responses/CommitUncertain' }
+  /v1/feedback:
+    post:
+      operationId: sendFeedback
+      tags: [Decisions]
+      summary: Say what a visitor or claim turned out to be
+      description: |
+        Backend only. Labels are input for offline analysis and never change a live decision. Exactly one of
+        `visitorId` and `claimId`. Not charged on metered projects (a zero balance still answers 402).
+      security:
+        - secretKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequest'
+            examples:
+              abuse:
+                value: { claimId: '1042', label: abuse, reason: chargeback }
+              legit:
+                value: { visitorId: v4_visitor1, label: legit }
+      responses:
+        '200':
+          description: Recorded, or a fail-closed refusal (`recorded` is false).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/FeedbackResponse'
+                  - $ref: '#/components/schemas/FeedbackRefusal'
+              examples:
+                recorded:
+                  value: { ok: true, recorded: true }
+                internal:
+                  value: { ok: false, recorded: false, reason: internal_error }
+        '400':
+          description: '`bad_request`: both or neither id, a bad `label` or `reason`, or a malformed id.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeedbackRefusal' }
+              examples:
+                bad:
+                  value: { ok: false, recorded: false, reason: bad_request }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402': { $ref: '#/components/responses/InsufficientCredits' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '404':
+          description: The claim is not this project's, or the visitor was not seen in the last 90 days.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeedbackRefusal' }
+              examples:
+                unknown:
+                  value: { ok: false, recorded: false, reason: not_found }
+        '429':
+          description: '`rate_limited` or `project_write_budget`.'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/FeedbackRefusal'
+                  - $ref: '#/components/schemas/RateLimitError'
+              examples:
+                limited:
+                  value: { ok: false, recorded: false, reason: rate_limited }
+        '503': { $ref: '#/components/responses/CommitUncertain' }
+  /v1/claims/flags:
+    get:
+      operationId: getClaimFlags
+      tags: [Decisions]
+      summary: List claims later found to share a household
+      description: |
+        Backend only. Oldest first. `next` is the cursor for the following page (pass it as `after`). It is
+        `null` on the last page, but also non-null when a page is exactly full, so the page after it can be empty:
+        loop until `next` is null.
+      security:
+        - secretKey: []
+      parameters:
+        - name: after
+          in: query
+          required: false
+          description: The `flagId` to continue after. Default `0`.
+          schema: { type: string, pattern: '^(0|[1-9][0-9]{0,14})$' }
+        - name: limit
+          in: query
+          required: false
+          description: Page size, 1 to 500. Default 100.
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        '200':
+          description: One page of flags.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClaimFlagsResponse' }
+              examples:
+                page:
+                  value:
+                    ok: true
+                    flags:
+                      - { flagId: '17', claimId: '1042', relatedClaimId: '977', kind: trial, reason: same_household, flaggedAt: 1792924550563 }
+                    next: null
+        '400':
+          description: '`bad_request`: a malformed `after` or `limit`.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReasonError' }
+              examples:
+                bad:
+                  value: { ok: false, reason: bad_request }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '429': { $ref: '#/components/responses/RateLimitedReason' }
+        '500':
+          description: Fail-closed server error (never an empty page).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReasonError' }
+              examples:
+                internal:
+                  value: { ok: false, reason: internal_error }
+  /v1/events:
+    get:
+      operationId: searchEvents
+      tags: [Events]
+      summary: Search events
+      description: |
+        Newest first, scoped to the caller's project. Any combination of the parameters; an unknown, repeated or
+        malformed parameter is `400 invalid_request`. The signal filters match the event's `signals`; an event whose
+        value is `null` matches neither `true` nor `false`.
+      security:
+        - secretKey: []
+      parameters:
+        - name: visitorId
+          in: query
+          description: Exact match.
+          schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,80}$' }
+        - name: linkedId
+          in: query
+          description: Exact match.
+          schema: { type: string, minLength: 1, maxLength: 256 }
+        - name: ip
+          in: query
+          description: One address, or a CIDR no wider than IPv4 /16 or IPv6 /48.
+          schema: { type: string }
+        - name: suspect
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: platform
+          in: query
+          schema: { $ref: '#/components/schemas/Platform' }
+        - name: bot
+          in: query
+          description: '`true` matches events where bot detection says `bad`, `false` those where it says `not_detected`.'
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: vpn
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: proxy
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: tor
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: incognito
+          in: query
+          description: Reserved. Both `true` and `false` match nothing today, because the value is always null (null matches neither).
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: tampering
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: virtualMachine
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: start
+          in: query
+          description: ISO 8601 date or time. Default the last 7 days (or the retention, if shorter). The span cannot exceed the project's retention.
+          schema: { type: string }
+        - name: end
+          in: query
+          description: ISO 8601 date or time. Default now.
+          schema: { type: string }
+        - name: limit
+          in: query
+          description: 1 to 100.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: The `next` of the previous page.
+          schema: { type: string }
+      responses:
+        '200':
+          description: One page of events.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventPage' }
+              examples:
+                page:
+                  value:
+                    events: []
+                    next: null
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '429': { $ref: '#/components/responses/RateLimitedReason' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/events/{eventId}:
+    parameters:
+      - $ref: '#/components/parameters/EventId'
+    get:
+      operationId: getEvent
+      tags: [Events]
+      summary: Get one event
+      security:
+        - secretKey: []
+      responses:
+        '200':
+          description: The event.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Event' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimitedReason' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    patch:
+      operationId: updateEvent
+      tags: [Events]
+      summary: Annotate an event
+      description: |
+        Any of `linkedId`, `tags` and `suspect`; `null` clears `linkedId` and `tags`. An unknown field, an empty
+        body or an invalid value is `400 invalid_request` and changes nothing.
+      security:
+        - secretKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EventPatch' }
+            examples:
+              flag:
+                value: { suspect: true, tags: { reviewed: true } }
+              clear:
+                value: { linkedId: null }
+      responses:
+        '200':
+          description: The updated event.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Event' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimitedReason' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/visitors/{visitorId}:
+    parameters:
+      - name: visitorId
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,80}$' }
+    get:
+      operationId: getVisitor
+      tags: [Events]
+      summary: Summarise a visitor
+      description: '`404` for a visitor this project has not seen within its retention.'
+      security:
+        - secretKey: []
+      responses:
+        '200':
+          description: The visitor summary.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Visitor' }
+              examples:
+                visitor:
+                  value:
+                    visitorId: v4_visitor1
+                    firstSeenAt: '2026-10-20T08:00:00.000Z'
+                    lastSeenAt: '2026-10-25T09:30:00.000Z'
+                    eventCount: 4
+                    linkedIds: [user_123]
+                    recentEvents: []
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimitedReason' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteVisitor
+      tags: [Events]
+      summary: Erase a visitor for this project
+      description: |
+        Erases this project's events, queued and past webhook deliveries and device rows for the visitor.
+        `shared: true` means another project also uses the device, whose rows were kept. A second call is `404`.
+        If the rate limiter itself fails the call refuses with `503 unavailable` and deletes nothing: retry it.
+      security:
+        - secretKey: []
+      responses:
+        '200':
+          description: Erased.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VisitorDeleted' }
+              examples:
+                deleted:
+                  value: { deleted: true, shared: false }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimitedReason' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503':
+          description: The rate limiter is unavailable; nothing was deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                unavailable:
+                  value: { ok: false, error: unavailable }
+  /health:
+    get:
+      operationId: getHealth
+      tags: [Operations]
+      summary: Is the process answering
+      description: Proves the process answers; it stays green with the database or cache down. Use `/status` for that.
+      security: []
+      responses:
+        '200':
+          description: Alive.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+              examples:
+                alive:
+                  value: { ok: true, version: 0.44.0, env: production, commit: 6bd97c0 }
+  /status:
+    get:
+      operationId: getStatus
+      tags: [Operations]
+      summary: Can the API serve identify and claims right now
+      description: Booleans only, cached for 15 seconds. `503` with the same body when a dependency is down or the server is in maintenance.
+      security: []
+      responses:
+        '200':
+          description: Healthy.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Status' }
+              examples:
+                up:
+                  value: { ok: true, version: 0.44.0, maintenance: false, checks: { api: true, database: true, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
+        '503':
+          description: Not able to serve.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Status' }
+              examples:
+                down:
+                  value: { ok: false, version: 0.44.0, maintenance: false, checks: { api: true, database: false, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
+webhooks:
+  event:
+    post:
+      operationId: event
+      tags: [Events]
+      summary: A new event, sent to your endpoint
+      description: |
+        Sent to each HTTPS endpoint you register in the console, once per recorded event (at least once: ignore a
+        repeated `FPC-Delivery-Id` or `eventId`). Answer any `2xx` within 3 seconds. A failed delivery is retried up
+        to 6 times in total.
+
+        Verify `FPC-Signature` before trusting the body: `t=<unix seconds>,v1=<hex>` (hex in either case) where `v1` is the
+        HMAC-SHA256, keyed with the endpoint secret (the whole `whsec_…` string), of `<t>.<raw request body>`.
+        Use the raw bytes you received, never re-serialised JSON; compare in constant time; reject a `t` more than
+        300 seconds from your clock. The header may carry more than one `v1`; any valid one passes.
+      parameters:
+        - name: FPC-Signature
+          in: header
+          required: true
+          schema: { type: string, pattern: '^t=[0-9]+,v1=[0-9a-fA-F]+(,v1=[0-9a-fA-F]+)*$' }
+        - name: FPC-Event-Id
+          in: header
+          required: true
+          schema: { type: string }
+        - name: FPC-Delivery-Id
+          in: header
+          required: true
+          description: '`whd_…`, the same on every retry of this delivery.'
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WebhookEvent' }
+            examples:
+              event:
+                value:
+                  v: 1
+                  eventId: ev_0123456789ABCDEFGHJK
+                  projectId: prj_0123456789ab
+                  visitorId: v4_visitor1
+                  createdAt: '2026-10-25T09:30:00.000Z'
+                  platform: web
+                  protocol: 2
+                  isNew: false
+                  identityConfidence: 92
+                  trustScore: 85
+                  linkedId: user_123
+                  tags: { page: checkout }
+                  suspect: false
+                  ip: 203.0.113.7
+                  ipInfo: { asn: 64500, country: DE, timezone: Europe/Berlin }
+                  origin: 'https://shop.example'
+                  agentVersion: 0.9.0
+                  signals: null
+      responses:
+        '200':
+          description: Received. Any `2xx` counts.
+components:
+  securitySchemes:
+    secretKey:
+      type: apiKey
+      in: header
+      name: X-Secret-Key
+      description: The project's secret key (`sk_…`). Backend only.
+    publishableKey:
+      type: apiKey
+      in: header
+      name: X-Publishable-Key
+      description: The project's publishable key (`pk_…`). Safe in a browser or app.
+  parameters:
+    EventId:
+      name: eventId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^ev_[0-9A-HJKMNP-TV-Z]{20}$' }
+  responses:
+    Unauthorized:
+      description: The key is missing, malformed, unknown, or of the wrong kind for this route.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            missing:
+              value: { ok: false, error: missing_or_malformed_secret_key }
+    InsufficientCredits:
+      description: A metered project with an empty balance.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            empty:
+              value: { ok: false, error: insufficient_credits }
+    ProjectDisabled:
+      description: The project is disabled.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            disabled:
+              value: { ok: false, error: project_disabled }
+    RateLimited:
+      description: Too many requests from this address (the answer may also come before authentication).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/RateLimitError' }
+          examples:
+            limited:
+              value: { ok: false, error: rate_limited }
+    RateLimitedReason:
+      description: Rate limited, by the route's own limit (`reason`) or by the per-IP limit that runs before authentication (`error`).
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ReasonError'
+              - $ref: '#/components/schemas/RateLimitError'
+          examples:
+            limited:
+              value: { ok: false, reason: rate_limited }
+            preAuth:
+              value: { ok: false, error: rate_limited }
+    CommitUncertain:
+      description: The database did not confirm whether the decision and its charge were committed. The call may have been charged; it is not replayed automatically.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            uncertain:
+              value: { ok: false, error: commit_uncertain }
+    InvalidRequest:
+      description: An unknown, repeated or malformed parameter or body field.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            invalid:
+              value: { ok: false, error: invalid_request }
+    NotFound:
+      description: 'Malformed, missing, or another project''s id: all answer the same, so ids cannot be probed.'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            missing:
+              value: { ok: false, error: not_found }
+    InternalError:
+      description: Fail-closed server error (never an empty result).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            internal:
+              value: { ok: false, error: internal_error }
+  schemas:
+    Error:
+      type: object
+      description: The common failure shape. `error` is a stable code.
+      required: [ok, error]
+      properties:
+        ok: { const: false }
+        error: { type: string }
+      example: { ok: false, error: not_found }
+    RateLimitError:
+      type: object
+      description: The per-IP limit that runs before authentication answers this on every route, whatever shape the route's own errors have.
+      required: [ok, error]
+      properties:
+        ok: { const: false }
+        error: { const: rate_limited }
+      example: { ok: false, error: rate_limited }
+    ReasonError:
+      type: object
+      description: A failure that names its code in `reason`.
+      required: [ok, reason]
+      properties:
+        ok: { const: false }
+        reason: { type: string }
+      example: { ok: false, reason: rate_limited }
+    Platform:
+      type: string
+      enum: [web, android, ios, macos, cli]
+    BoolParam:
+      type: string
+      enum: ['true', 'false']
+    Health:
+      type: object
+      required: [ok, version, env, commit]
+      properties:
+        ok: { const: true }
+        version: { type: string }
+        env: { type: string }
+        commit: { type: [string, 'null'] }
+        maintenance: { const: true, description: Present only while the server is in maintenance. }
+    Status:
+      type: object
+      required: [ok, version, maintenance, checks, checkedAt]
+      properties:
+        ok: { type: boolean }
+        version: { type: string }
+        maintenance: { type: boolean }
+        checks:
+          type: object
+          required: [api, database, cache]
+          properties:
+            api: { const: true }
+            database: { type: boolean }
+            cache: { type: boolean }
+        checkedAt: { type: string, format: date-time }
+    IntentRequest:
+      type: object
+      required: [purpose]
+      properties:
+        purpose:
+          type: string
+          description: '`claim:<kind>` (kind `trial` unless the project configures others), `quota:<name>` or `subjects`.'
+          pattern: '^(subjects|claim:[a-z0-9][a-z0-9_-]{0,39}|quota:[a-z0-9][a-z0-9_-]{0,39})$'
+        subject:
+          type: [string, 'null']
+          description: Optional, 1 to 200 characters, no control characters. When set, the decision call must pass the same `subject`.
+          minLength: 1
+          maxLength: 200
+        clientIp:
+          type: string
+          description: The end user's IP, for rate limiting. Take it only from your own edge.
+    IntentResponse:
+      type: object
+      required: [ok, intentToken, expiresIn]
+      properties:
+        ok: { const: true }
+        intentToken: { type: string, description: Opaque. }
+        expiresIn: { type: integer, description: Seconds. }
+    ChallengeResponse:
+      type: object
+      required: [ok, protocolVersion, challenge, expiresIn]
+      properties:
+        ok: { const: true }
+        protocolVersion: { const: 2 }
+        challenge: { type: string, description: Opaque. }
+        expiresIn: { type: integer, description: Seconds. }
+    Component:
+      type: object
+      required: [key, value]
+      properties:
+        key: { type: string, pattern: '^[A-Za-z0-9._-]{1,64}$' }
+        value: { type: string }
+        hash: { type: string, pattern: '^[0-9a-f]{64}$', description: Web agent only. }
+    NativeProof:
+      description: A platform proof, bound to the request by the SDK.
+      oneOf:
+        - type: object
+          required: [type, token]
+          properties:
+            type: { const: play_integrity }
+            token: { type: string }
+        - type: object
+          required: [type, keyId]
+          properties:
+            type: { const: app_attest }
+            keyId: { type: string }
+            attestation: { type: [string, 'null'] }
+            assertion: { type: [string, 'null'] }
+    IdentifyRequest:
+      type: object
+      required: [protocolVersion, platform, intentToken, challenge, agentVersion, components]
+      properties:
+        protocolVersion: { const: 2 }
+        platform: { $ref: '#/components/schemas/Platform' }
+        intentToken: { type: string }
+        challenge: { type: string }
+        agentVersion: { type: string, maxLength: 64 }
+        components:
+          type: array
+          items: { $ref: '#/components/schemas/Component' }
+        pow: { type: string, description: 'Proof-of-work solution, when the challenge asked for one.' }
+        proof: { $ref: '#/components/schemas/NativeProof' }
+        deviceCheckToken: { type: string }
+        linkedId:
+          type: [string, 'null']
+          description: Your own id for this visit (1 to 256 characters, no control characters). Not covered by any platform proof.
+          minLength: 1
+          maxLength: 256
+        tags:
+          type:
+            - object
+            - 'null'
+          description: A JSON object of at most 4096 bytes, nested at most 3 levels. Not covered by any platform proof.
+    IdentifyResponse:
+      type: object
+      required: [ok, protocolVersion, attestation, expiresIn, eventId]
+      properties:
+        ok: { const: true }
+        protocolVersion: { const: 2 }
+        attestation: { type: string, minLength: 1, description: Opaque. Send it unchanged to your backend. }
+        expiresIn: { type: integer, description: Seconds. }
+        eventId: { type: string, pattern: '^ev_[0-9A-HJKMNP-TV-Z]{20}$' }
+        proofStatus:
+          type: string
+          enum: [none, unconfigured, wrong_platform, unavailable, checked, unknown_key]
+          description: Native platforms only. `unknown_key` means re-attest the App Attest key and retry once.
+        sealedResult:
+          type: string
+          description: |
+            Present only when the project has an active sealing key, and never on a refusal. Standard base64 (with
+            padding) of `"fps1" | keyId(4) | nonce(12) | AES-256-GCM ciphertext and 16-byte tag`; keyId is the first
+            4 bytes of SHA-256(key) and the first 8 bytes are the AAD. Decrypt it in your backend with the project's
+            sealing key (keep the previous key too during a rotation). The plaintext is identity-only JSON:
+            `version` (1), `eventId`, `visitorId`, `projectId`, `linkedId` (or null), `tags` (or null), `timestamp`
+            (Unix ms), `platform` and `proofStatus` (always `none` on web). There is no IP address, no signals, no
+            score and no decision in it. Full format and a sample: docs/INTEGRATION.md, "Sealed results".
+      description: |
+        Projects whose administrator enabled score details also get `visitorId`, `trustScore`, `identityConfidence`,
+        `isNew` and rule diagnostics here. Do not branch on them.
+    IdentifyRefusal:
+      type: object
+      required: [ok, protocolVersion, reason]
+      properties:
+        ok: { const: false }
+        protocolVersion: { const: 2 }
+        reason:
+          type: string
+          description: For example `bad_request`, `bad_intent`, `bad_nonce`, `nonce_reused`, `components_too_large`, `identify_daily_limit`, `project_write_budget`, `internal_error`.
+        error: { type: string, description: Set with `reason` for `invalid_linked_id` and `invalid_tags`. }
+    EligibilityRequest:
+      type: object
+      required: [attestation]
+      properties:
+        attestation: { type: string, description: The `attestation` from identify. }
+        subject: { type: string, description: Must equal the intent's subject when the intent named one. }
+        email: { type: string }
+        claim: { type: boolean, description: Record one claim when the decision is allow. }
+        idempotent: { type: boolean, description: 'With `claim`, answer allow again (`replayed: true`) when the same identity claimed within 24 hours.' }
+        kind: { type: string, description: Claim kind; default `trial`. }
+        turnstileToken: { type: string }
+        clientIp: { type: string }
+    Action:
+      type: string
+      enum: [allow, turnstile, pow, deny]
+    EligibilityResponse:
+      type: object
+      required: [ok, visitorId, confidence, identityConfidence, trustScore, isNew, eligible, action, reason]
+      properties:
+        ok: { const: true }
+        visitorId: { type: string }
+        confidence: { type: number }
+        identityConfidence: { type: number }
+        trustScore: { type: number }
+        isNew: { type: boolean }
+        eligible: { type: boolean, description: Grant only when true. }
+        action: { $ref: '#/components/schemas/Action' }
+        reason: { type: string, description: See "Handle the result" in docs/INTEGRATION.md. }
+        powDifficulty: { type: integer, description: 'With action `pow` (or `turnstile` in `either` mode), the zero bits a proof needs.' }
+        replayed: { type: boolean }
+        claimId: { type: string, description: 'Present on an allow with `claim: true`.' }
+    EligibilityRefusal:
+      type: object
+      required: [ok, eligible, action, reason]
+      properties:
+        ok: { const: false }
+        eligible: { const: false }
+        action: { const: deny }
+        reason:
+          type: string
+          description: 'The attestation reasons are HTTP 200 (HTTP 400 only when the attestation is missing). New values may be added; treat an unknown value as a generic refusal.'
+          enum: [bad_attestation, attestation_purpose, attestation_subject, intent_required, rate_limited, project_write_budget, internal_error]
+    ReleaseRequest:
+      type: object
+      required: [claimId]
+      properties:
+        claimId: { type: string, pattern: '^[1-9][0-9]{0,14}$' }
+    ReleaseResponse:
+      type: object
+      required: [ok, claimId, released, reason]
+      properties:
+        ok: { const: true }
+        claimId: { type: string }
+        released: { type: boolean }
+        reason: { type: string, description: 'New values may be added; treat an unknown value as a generic refusal.', enum: [released, already_released, claim_not_found, release_window_passed, release_limit] }
+    ReleaseRefusal:
+      type: object
+      required: [ok, released, reason]
+      properties:
+        ok: { const: false }
+        released: { const: false }
+        reason: { type: string }
+    QuotaRequest:
+      type: object
+      required: [quota]
+      properties:
+        attestation: { type: string, description: Required unless `release` is true. }
+        subject: { type: string }
+        quota: { type: string, pattern: '^[a-z0-9][a-z0-9_-]{0,39}$' }
+        consume: { type: boolean }
+        idempotencyKey: { type: string, pattern: '^[A-Za-z0-9_.:-]{1,64}$' }
+        release: { type: boolean, description: Give back the use recorded under `idempotencyKey`. Not combinable with `consume`. }
+        turnstileToken: { type: string }
+        clientIp: { type: string }
+    QuotaResponse:
+      type: object
+      required: [ok, visitorId, identityConfidence, trustScore, quota, allowed, action, reason]
+      properties:
+        ok: { const: true }
+        visitorId: { type: string }
+        identityConfidence: { type: number }
+        trustScore: { type: number }
+        quota: { type: string }
+        allowed: { type: boolean }
+        action: { $ref: '#/components/schemas/Action' }
+        reason: { type: string }
+        powDifficulty: { type: integer }
+        limit: { type: integer }
+        used: { type: integer, description: 'Uses in the current window, including this one when consumed.' }
+        remaining: { type: integer }
+        windowSeconds: { type: integer }
+        retryAt: { type: integer, description: Unix milliseconds when a denied quota frees one use. }
+        replayed: { type: boolean }
+    QuotaReleaseResponse:
+      type: object
+      required: [ok, quota, released]
+      properties:
+        ok: { const: true }
+        quota: { type: string }
+        released: { type: boolean }
+    QuotaRefusal:
+      type: object
+      required: [ok, allowed, action, reason]
+      properties:
+        ok: { const: false }
+        allowed: { const: false }
+        action: { const: deny }
+        reason:
+          type: string
+          description: 'The attestation reasons are HTTP 200 (HTTP 400 only when the attestation is missing). New values may be added; treat an unknown value as a generic refusal.'
+          enum: [bad_attestation, attestation_purpose, attestation_subject, intent_required, bad_request, rate_limited, project_write_budget, internal_error]
+    SubjectRequest:
+      type: object
+      required: [subject, attestation]
+      properties:
+        subject: { type: string, minLength: 1, maxLength: 200 }
+        attestation: { type: string }
+    BindResponse:
+      type: object
+      required: [ok, visitorId, bound]
+      properties:
+        ok: { const: true }
+        visitorId: { type: string }
+        bound: { const: true }
+    Suggestion:
+      type: string
+      enum: [allow, review, deny]
+    RelationResponse:
+      type: object
+      required: [ok, visitorId, sameDevice, sameBrowserProfile, sameMachine, sameNetwork, sharedDeviceClass, subjectDevices, subjectBound, subjectSaturated, suggestion]
+      properties:
+        ok: { const: true }
+        visitorId: { type: string }
+        sameDevice: { type: boolean }
+        sameBrowserProfile: { type: boolean }
+        sameMachine: { type: boolean, description: Coarse; one model of machine can share it. }
+        sameNetwork: { type: boolean, description: 'Weak; flatmates, colleagues and carrier NAT share one.' }
+        sharedDeviceClass: { type: boolean }
+        subjectDevices: { type: integer, description: Bound devices that were compared. }
+        subjectBound: { type: boolean, description: 'False when the subject has no binding: nothing was compared.' }
+        subjectSaturated: { type: boolean }
+        suggestion: { $ref: '#/components/schemas/Suggestion' }
+    SubjectRefusal:
+      type: object
+      required: [ok, reason]
+      properties:
+        ok: { const: false }
+        reason:
+          type: string
+          description: 'The attestation reasons are HTTP 200 (HTTP 400 only when the attestation is missing). New values may be added; treat an unknown value as a generic refusal.'
+          enum: [bad_attestation, attestation_purpose, attestation_subject, intent_required, bad_request, bad_subject, rate_limited, project_write_budget, internal_error]
+        suggestion: { const: review, description: Only on a relation refusal. }
+    FeedbackRequest:
+      type: object
+      required: [label]
+      properties:
+        visitorId: { type: string, description: Exactly one of `visitorId` and `claimId`. }
+        claimId: { type: string, pattern: '^[1-9][0-9]{0,14}$' }
+        label: { type: string, enum: [abuse, legit] }
+        reason: { type: string, pattern: '^[a-z0-9_]{1,64}$' }
+    FeedbackResponse:
+      type: object
+      required: [ok, recorded]
+      properties:
+        ok: { const: true }
+        recorded: { const: true }
+    FeedbackRefusal:
+      type: object
+      required: [ok, recorded, reason]
+      properties:
+        ok: { const: false }
+        recorded: { const: false }
+        reason: { type: string }
+    ClaimFlag:
+      type: object
+      required: [flagId, claimId, relatedClaimId, kind, reason, flaggedAt]
+      properties:
+        flagId: { type: string }
+        claimId: { type: string }
+        relatedClaimId: { type: string }
+        kind: { type: string }
+        reason: { type: string }
+        flaggedAt: { type: integer, description: Unix milliseconds. }
+    ClaimFlagsResponse:
+      type: object
+      required: [ok, flags, next]
+      properties:
+        ok: { const: true }
+        flags:
+          type: array
+          items: { $ref: '#/components/schemas/ClaimFlag' }
+        next: { type: [string, 'null'], description: 'Pass as `after`. Non-null whenever the page is exactly full (the following page may then be empty); loop until it is null.' }
+    Window:
+      type: object
+      required: ['5m', '1h', '24h']
+      properties:
+        '5m': { type: integer }
+        '1h': { type: integer }
+        '24h': { type: integer }
+    Signals:
+      type: object
+      description: |
+        What the server learned about the visit (version 1). **Unknown is `null`, never `false`**: `false` means the
+        check ran and found nothing. Evidence to weigh, not verdicts.
+      required: [version, ip, vpn, proxy, bot, incognito, tampering, privacyBrowser, virtualMachine, devtools, velocity, mobile]
+      properties:
+        version: { const: 1 }
+        ip:
+          type: object
+          required: [country, city, timezone, asn, asName, datacenter, tor, relay, blocklist]
+          properties:
+            country: { type: [string, 'null'] }
+            city: { type: [string, 'null'] }
+            timezone: { type: [string, 'null'] }
+            asn: { type: [integer, 'null'] }
+            asName: { type: [string, 'null'], description: 'Where you show it, add "IP address data powered by IPinfo".' }
+            datacenter: { type: [boolean, 'null'] }
+            tor: { type: [boolean, 'null'] }
+            relay: { type: [boolean, 'null'] }
+            blocklist:
+              type: object
+              required: [result, sources]
+              properties:
+                result: { type: [boolean, 'null'] }
+                sources:
+                  type: array
+                  items: { type: string }
+        vpn:
+          type: object
+          required: [result, methods]
+          properties:
+            result: { type: [boolean, 'null'] }
+            methods:
+              type: array
+              items: { type: string, enum: [timezone_mismatch, ip_range, relay] }
+        proxy:
+          type: object
+          required: [result, type]
+          properties:
+            result: { type: [boolean, 'null'] }
+            type: { enum: [datacenter, null] }
+        bot:
+          type: object
+          required: [result, types]
+          properties:
+            result: { enum: [not_detected, bad, null] }
+            types:
+              type: array
+              items: { type: string, enum: [webdriver, headless, playwright, selenium, inhuman_timing, inconsistent_environment] }
+        incognito: { type: [boolean, 'null'], description: Reserved; currently always null. }
+        tampering:
+          type: object
+          required: [result, antiDetectBrowser]
+          properties:
+            result: { type: [boolean, 'null'] }
+            antiDetectBrowser: { type: [boolean, 'null'] }
+        privacyBrowser:
+          type: object
+          required: [result, name]
+          properties:
+            result: { type: [boolean, 'null'] }
+            name: { enum: [brave, firefox_rfp, tor_browser, null] }
+        virtualMachine: { type: [boolean, 'null'] }
+        devtools: { type: [boolean, 'null'], description: Reserved; currently always null. }
+        velocity:
+          description: Approximate counts including this event; null when the database was slow or busy.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [distinctIp, distinctCountry, distinctLinkedId, events]
+              properties:
+                distinctIp: { $ref: '#/components/schemas/Window' }
+                distinctCountry: { $ref: '#/components/schemas/Window' }
+                distinctLinkedId: { $ref: '#/components/schemas/Window' }
+                events: { $ref: '#/components/schemas/Window' }
+        mobile:
+          description: android, ios and macos only; null for web.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [emulator, attested, integrity]
+              properties:
+                emulator: { type: [boolean, 'null'] }
+                attested: { type: [boolean, 'null'] }
+                integrity: { enum: [strong, basic, failed, null] }
+    EventCore:
+      type: object
+      required: [v, eventId, projectId, visitorId, createdAt, platform, protocol, isNew, identityConfidence, trustScore, linkedId, tags, suspect, ip, ipInfo, origin, agentVersion]
+      properties:
+        v: { const: 1 }
+        eventId: { type: string, pattern: '^ev_[0-9A-HJKMNP-TV-Z]{20}$' }
+        projectId: { type: string }
+        visitorId: { type: string }
+        createdAt: { type: string, format: date-time }
+        platform: { $ref: '#/components/schemas/Platform' }
+        protocol: { enum: [1, 2] }
+        isNew: { type: boolean }
+        identityConfidence: { type: number }
+        trustScore: { type: number }
+        linkedId: { type: [string, 'null'] }
+        tags:
+          type:
+            - object
+            - 'null'
+        suspect: { type: boolean, description: Yours to set with `updateEvent`; always false in a webhook. }
+        ip: { type: string }
+        ipInfo:
+          type: object
+          required: [asn, country, timezone]
+          properties:
+            asn: { type: [integer, 'null'] }
+            country: { type: [string, 'null'] }
+            timezone: { type: [string, 'null'] }
+        origin: { type: [string, 'null'] }
+        agentVersion: { type: [string, 'null'] }
+        signals:
+          oneOf:
+            - $ref: '#/components/schemas/Signals'
+            - type: 'null'
+    Event:
+      description: An event as the read API returns it (`signals` is always present, `null` when the event has none).
+      allOf:
+        - $ref: '#/components/schemas/EventCore'
+        - type: object
+          required: [signals]
+      example:
+        v: 1
+        eventId: ev_0123456789ABCDEFGHJK
+        projectId: prj_0123456789ab
+        visitorId: v4_visitor1
+        createdAt: '2026-10-25T09:30:00.000Z'
+        platform: web
+        protocol: 2
+        isNew: false
+        identityConfidence: 92
+        trustScore: 85
+        linkedId: user_123
+        tags: { page: checkout }
+        suspect: false
+        ip: 203.0.113.7
+        ipInfo: { asn: 64500, country: DE, timezone: Europe/Berlin }
+        origin: 'https://shop.example'
+        agentVersion: 0.9.0
+        signals:
+          version: 1
+          ip:
+            country: DE
+            city: Berlin
+            timezone: Europe/Berlin
+            asn: 64500
+            asName: Example Hosting GmbH
+            datacenter: true
+            tor: false
+            relay: false
+            blocklist: { result: false, sources: [] }
+          vpn: { result: true, methods: [timezone_mismatch] }
+          proxy: { result: true, type: datacenter }
+          bot: { result: bad, types: [headless] }
+          incognito: null
+          tampering: { result: false, antiDetectBrowser: false }
+          privacyBrowser: { result: false, name: null }
+          virtualMachine: false
+          devtools: null
+          velocity:
+            distinctIp: { 5m: 1, 1h: 2, 24h: 3 }
+            distinctCountry: { 5m: 1, 1h: 1, 24h: 2 }
+            distinctLinkedId: { 5m: 1, 1h: 1, 24h: 1 }
+            events: { 5m: 2, 1h: 4, 24h: 9 }
+          mobile: null
+    WebhookEvent:
+      description: |
+        The event JSON as a webhook body. `signals` can be missing from a payload queued before server 0.43.0
+        (treat missing and `null` alike). A console "Test" delivery adds `"test": true`.
+      allOf:
+        - $ref: '#/components/schemas/EventCore'
+        - type: object
+          properties:
+            test: { const: true }
+    EventPage:
+      type: object
+      required: [events, next]
+      properties:
+        events:
+          type: array
+          items: { $ref: '#/components/schemas/Event' }
+        next: { type: [string, 'null'], description: 'Pass as `cursor`. Can be non-null on an exactly full last page, so the next page may be empty: loop until it is null.' }
+    EventPatch:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        linkedId: { type: [string, 'null'], minLength: 1, maxLength: 256 }
+        tags: { type: [object, 'null'] }
+        suspect: { type: boolean }
+    Visitor:
+      type: object
+      required: [visitorId, firstSeenAt, lastSeenAt, eventCount, linkedIds, recentEvents]
+      properties:
+        visitorId: { type: string }
+        firstSeenAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+        eventCount: { type: integer }
+        linkedIds:
+          type: array
+          description: Newest first.
+          items: { type: string }
+        recentEvents:
+          type: array
+          items: { $ref: '#/components/schemas/Event' }
+    VisitorDeleted:
+      type: object
+      required: [deleted, shared]
+      properties:
+        deleted: { const: true }
+        shared: { type: boolean, description: True when another project also uses the device; its rows were kept. }

@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "generatedBy": "fp-guard scripts/gen-test-vectors.mjs",
+  "notes": "Format: base64(\"fps1\" | keyId(4) | nonce(12) | AES-256-GCM ciphertext+tag(16)); AAD = first 8 bytes; keyId = first 4 bytes of SHA-256(key). `keys` in a case names entries of the top-level `keys` map (base64) handed to unseal; `short` is deliberately 16 bytes. SDKs must compare the parsed payload object to `expect`, not raw JSON text. Error codes are language-neutral: bad_format | unknown_key | decrypt_failed | invalid_key | unsupported_version. Check order: invalid_key (any provided key not exactly 32 bytes, raised before the blob is looked at) -> strict base64 -> decoded length >= 36 (4+4+12+16) -> magic \"fps1\" -> keyId lookup among given keys (unknown_key) -> AES-GCM decrypt -> JSON parse (failure = decrypt_failed) -> version === 1 (unsupported_version). Strict base64 recipe (any language): input must match ^[A-Za-z0-9+/]*={0,2}$ and have length % 4 == 0; decode it, re-encode the bytes with the standard alphabet and padding, and the result must equal the input byte-for-byte, otherwise bad_format. This rejects whitespace/newlines, URL-safe characters, missing padding and non-zero unused trailing bits. Go StdEncoding.Strict() alone and Python base64.b64decode(validate=True) alone are insufficient (each misses some of these cases); do the regex + length check and the re-encode comparison.",
+  "keys": {
+    "a": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "b": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8=",
+    "short": "UFFSU1RVVldYWVpbXF1eXw=="
+  },
+  "keyIds": {
+    "a": "630dcd29",
+    "b": "00e98867"
+  },
+  "cases": [
+    {
+      "name": "ok",
+      "keys": [
+        "a"
+      ],
+      "blob": "ZnBzMWMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrXOzrTjMApjjVHjerztRO0aSuRCJrAbiliF5IY3Ifd9MBkiYFu3maV0hj+Ed+A/WWHZmHckJlIzT7/oCrClsiWLhm4lQOsLnr1zkwdDOzJ6Vm+JhLll6WDvunZ02TUjAE5K2FWceZbLYrggPMS/WngvDrFCMDvzk66Cis6vawKx3Hze3D9NyJCKpJ9CpMIFROv5NCNdbZ0ONIR5F8O+MyEbnvfesq3gZQS6sbn9RiTWgBrGuQerGPZ/io4x8u38rbkPviLjnXCn40iAjGywEb7ljW8YpPg+QOHsjNA8nWsAqLmjCeFZWzUD1",
+      "expect": {
+        "version": 1,
+        "eventId": "evt_0123456789abcdef",
+        "visitorId": "v_4f9c2a7d81b3e605",
+        "projectId": "prj_vector_demo",
+        "linkedId": "order-1042",
+        "tags": {
+          "plan": "pro",
+          "source": "checkout"
+        },
+        "timestamp": 1761400000000,
+        "platform": "web",
+        "proofStatus": "verified"
+      }
+    },
+    {
+      "name": "rotated",
+      "keys": [
+        "a",
+        "b"
+      ],
+      "blob": "ZnBzMQDpiGcCAgICAgICAgICAgLwbhTpLAktNfzGD7k7fIy9fw5y06GbiTjI4DjPxYb1bGRqyD17ukOeZKgca/tqMoYeega4/VaeHq5AeBCunEicnLak3ZplomAp3VJlDbftIVtGdB6nmu8WmEAgCUSZzPsE5O1t5/kWebJC0XgbMrxU3kH/eVNoX+ddG0VfsnhQwwIoiAiOaFofDsVEjwxKL4cnS8fUobzxQ/TYceGQQylAvSzgLm567NCRZwGZVUhKof3sa5a6h6FKdzc/JZeY93xFhBKy6u/7ioZvUsCberjtogFiuqzi8SyYrrCnrr7EjF0HBPvJo42739mqZpnUVttphZ4gd/cf6KLJhZCjlMRx30/N",
+      "expect": {
+        "version": 1,
+        "eventId": "evt_0123456789abcdef",
+        "visitorId": "v_4f9c2a7d81b3e605",
+        "projectId": "prj_vector_demo",
+        "linkedId": "order-1042",
+        "tags": {
+          "plan": "pro",
+          "source": "checkout"
+        },
+        "timestamp": 1761400000000,
+        "platform": "web",
+        "proofStatus": "verified"
+      }
+    },
+    {
+      "name": "wrong_key",
+      "keys": [
+        "a"
+      ],
+      "blob": "ZnBzMQDpiGcCAgICAgICAgICAgLwbhTpLAktNfzGD7k7fIy9fw5y06GbiTjI4DjPxYb1bGRqyD17ukOeZKgca/tqMoYeega4/VaeHq5AeBCunEicnLak3ZplomAp3VJlDbftIVtGdB6nmu8WmEAgCUSZzPsE5O1t5/kWebJC0XgbMrxU3kH/eVNoX+ddG0VfsnhQwwIoiAiOaFofDsVEjwxKL4cnS8fUobzxQ/TYceGQQylAvSzgLm567NCRZwGZVUhKof3sa5a6h6FKdzc/JZeY93xFhBKy6u/7ioZvUsCberjtogFiuqzi8SyYrrCnrr7EjF0HBPvJo42739mqZpnUVttphZ4gd/cf6KLJhZCjlMRx30/N",
+      "expect": {
+        "error": "unknown_key"
+      }
+    },
+    {
+      "name": "bit_flip",
+      "keys": [
+        "a"
+      ],
+      "blob": "ZnBzMWMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrXOzrTjMApjjVHjerztRO0aSuRCJrAbiliF5IY3Ifd9MBkiYFu3maV0hj+Ed+A/WWHZmHckJlIzT7/oCrClsiWLhm4lQOsLnr1zkwdDOzJ6Vm+JhLll6WDvunZ02TUjAE5K2FWceZbLYrggPMS/WngvDrFCMDvzk66Cis6vawKx3Hze3D9NyJCKpJ9CpMIFROv5NCNdbZ0ONIR5F8O+MyEbnvfesq3gZQS6sbn9RiTWgBrGuQerGPZ/io4x8u38rbkPviLjnXCn40iAjGywEb7ljW8YpPg+QOHsjNA8nWsAqLmjCeFZWzUD0",
+      "expect": {
+        "error": "decrypt_failed"
+      }
+    },
+    {
+      "name": "trailing_newline",
+      "keys": [
+        "a"
+      ],
+      "blob": "ZnBzMWMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrXOzrTjMApjjVHjerztRO0aSuRCJrAbiliF5IY3Ifd9MBkiYFu3maV0hj+Ed+A/WWHZmHckJlIzT7/oCrClsiWLhm4lQOsLnr1zkwdDOzJ6Vm+JhLll6WDvunZ02TUjAE5K2FWceZbLYrggPMS/WngvDrFCMDvzk66Cis6vawKx3Hze3D9NyJCKpJ9CpMIFROv5NCNdbZ0ONIR5F8O+MyEbnvfesq3gZQS6sbn9RiTWgBrGuQerGPZ/io4x8u38rbkPviLjnXCn40iAjGywEb7ljW8YpPg+QOHsjNA8nWsAqLmjCeFZWzUD1\n",
+      "expect": {
+        "error": "bad_format"
+      }
+    },
+    {
+      "name": "url_safe",
+      "keys": [
+        "a"
+      ],
+      "blob": "ZnBzMWMNzSkKCgoKCgoKCgoKCgrSACn1uF0enV6k4pRBmdxX9XzQQMwYeVy2FntYnQ3ziVtBGQd5S0S690n1p0XD44cNVEzFsoC_2QtwfhQ0h20zOajXHtmEHDWh9p6euLzYNLPh2IupQt1kw4iz8-rK834m6Pr6CSpgdkAJNiX7O-AfmPEJKOiLsyx_lrHQsASJjmUNVsI-CFFkz8kDi8bLXM6_kVWkjyC7FV1T4Hab0V6yHTJJPrWKxNowg0CnCvrSCCPyOD3ab9Fr0BfcyMMHgZf9YkBvmIv_E-QZQrUppK8Yf9pcffIuckg13gQlEs22P89-OUzA9C8Wy57KWrFsw5yI_zEfag2TErQTK0AKkcRQh9R47w==",
+      "expect": {
+        "error": "bad_format"
+      }
+    },
+    {
+      "name": "missing_padding",
+      "keys": [
+        "a"
+      ],
+      "blob": "ZnBzMWMNzSkKCgoKCgoKCgoKCgrSACn1uF0enV6k4pRBmdxX9XzQQMwYeVy2FntYnQ3ziVtBGQd5S0S690n1p0XD44cNVEzFsoC/2QtwfhQ0h20zOajXHtmEHDWh9p6euLzYNLPh2IupQt1kw4iz8+rK834m6Pr6CSpgdkAJNiX7O+AfmPEJKOiLsyx/lrHQsASJjmUNVsI+CFFkz8kDi8bLXM6/kVWkjyC7FV1T4Hab0V6yHTJJPrWKxNowg0CnCvrSCCPyOD3ab9Fr0BfcyMMHgZf9YkBvmIv/E+QZQrUppK8Yf9pcffIuckg13gQlEs22P89+OUzA9C8Wy57KWrFsw5yI/zEfag2TErQTK0AKkcRQh9R47w",
+      "expect": {
+        "error": "bad_format"
+      }
+    },
+    {
+      "name": "noncanonical_trailing_bits",
+      "keys": [
+        "a"
+      ],
+      "blob": "ZnBzMWMNzSkKCgoKCgoKCgoKCgrSACn1uF0enV6k4pRBmdxX9XzQQMwYeVy2FntYnQ3ziVtBGQd5S0S690n1p0XD44cNVEzFsoC/2QtwfhQ0h20zOajXHtmEHDWh9p6euLzYNLPh2IupQt1kw4iz8+rK834m6Pr6CSpgdkAJNiX7O+AfmPEJKOiLsyx/lrHQsASJjmUNVsI+CFFkz8kDi8bLXM6/kVWkjyC7FV1T4Hab0V6yHTJJPrWKxNowg0CnCvrSCCPyOD3ab9Fr0BfcyMMHgZf9YkBvmIv/E+QZQrUppK8Yf9pcffIuckg13gQlEs22P89+OUzA9C8Wy57KWrFsw5yI/zEfag2TErQTK0AKkcRQh9R47wundefined=",
+      "expect": {
+        "error": "bad_format"
+      }
+    },
+    {
+      "name": "len_35",
+      "keys": [
+        "a"
+      ],
+      "blob": "ZnBzMWMNzSkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "expect": {
+        "error": "bad_format"
+      }
+    },
+    {
+      "name": "len_36_tag_only",
+      "keys": [
+        "a"
+      ],
+      "blob": "ZnBzMWMNzSkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "expect": {
+        "error": "decrypt_failed"
+      }
+    },
+    {
+      "name": "invalid_key",
+      "keys": [
+        "a",
+        "short"
+      ],
+      "blob": "ZnBzMWMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrXOzrTjMApjjVHjerztRO0aSuRCJrAbiliF5IY3Ifd9MBkiYFu3maV0hj+Ed+A/WWHZmHckJlIzT7/oCrClsiWLhm4lQOsLnr1zkwdDOzJ6Vm+JhLll6WDvunZ02TUjAE5K2FWceZbLYrggPMS/WngvDrFCMDvzk66Cis6vawKx3Hze3D9NyJCKpJ9CpMIFROv5NCNdbZ0ONIR5F8O+MyEbnvfesq3gZQS6sbn9RiTWgBrGuQerGPZ/io4x8u38rbkPviLjnXCn40iAjGywEb7ljW8YpPg+QOHsjNA8nWsAqLmjCeFZWzUD1",
+      "expect": {
+        "error": "invalid_key"
+      }
+    },
+    {
+      "name": "unsupported_version",
+      "keys": [
+        "a"
+      ],
+      "blob": "ZnBzMWMNzSkDAwMDAwMDAwMDAwOVaUqzeeE7ebB/PEzhiDFxfziCub7aBpPnyzJCNBObYa82CumdvhaHK88haElnH2yapR7YxNAPzhzHbmfY25pjJPjlnzDmFeBjrnJ//XpoRt6m3uo/7zf0alECU1O8VbnJgtrWxNWY52guawm4wKniHZyBUZ3FotOSEkB7nFVQ5uMtxNlBYKHoJQrx4nlLcJE/m62aMuOoDvZqLrtGKkyPA+BBqj2vYqRd+FBtshbggmdI2LnmT7sKY20g5atH0AlRV0yO0uWJs937MweC7sJYi5pJTV61PqIH1acus47luO4rjtzOr3xKFwwbcZ6264eQIkHRgOYUV40RMDZFUb+/IV3Z",
+      "expect": {
+        "error": "unsupported_version"
+      }
+    },
+    {
+      "name": "truncated",
+      "keys": [
+        "a"
+      ],
+      "blob": "ZnBzMWMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2",
+      "expect": {
+        "error": "bad_format"
+      }
+    },
+    {
+      "name": "bad_magic",
+      "keys": [
+        "a"
+      ],
+      "blob": "ZnBzMmMNzSkBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrXOzrTjMApjjVHjerztRO0aSuRCJrAbiliF5IY3Ifd9MBkiYFu3maV0hj+Ed+A/WWHZmHckJlIzT7/oCrClsiWLhm4lQOsLnr1zkwdDOzJ6Vm+JhLll6WDvunZ02TUjAE5K2FWceZbLYrggPMS/WngvDrFCMDvzk66Cis6vawKx3Hze3D9NyJCKpJ9CpMIFROv5NCNdbZ0ONIR5F8O+MyEbnvfesq3gZQS6sbn9RiTWgBrGuQerGPZ/io4x8u38rbkPviLjnXCn40iAjGywEb7ljW8YpPg+QOHsjNA8nWsAqLmjCeFZWzUD1",
+      "expect": {
+        "error": "bad_format"
+      }
+    },
+    {
+      "name": "not_base64",
+      "keys": [
+        "a"
+      ],
+      "blob": "this is not base64!",
+      "expect": {
+        "error": "bad_format"
+      }
+    },
+    {
+      "name": "header_swapped",
+      "keys": [
+        "a",
+        "b"
+      ],
+      "blob": "ZnBzMQDpiGcBAQEBAQEBAQEBAQEM4ZNQGvYBCbp2XSk0RTeurgD7kvWhLP6WrXOzrTjMApjjVHjerztRO0aSuRCJrAbiliF5IY3Ifd9MBkiYFu3maV0hj+Ed+A/WWHZmHckJlIzT7/oCrClsiWLhm4lQOsLnr1zkwdDOzJ6Vm+JhLll6WDvunZ02TUjAE5K2FWceZbLYrggPMS/WngvDrFCMDvzk66Cis6vawKx3Hze3D9NyJCKpJ9CpMIFROv5NCNdbZ0ONIR5F8O+MyEbnvfesq3gZQS6sbn9RiTWgBrGuQerGPZ/io4x8u38rbkPviLjnXCn40iAjGywEb7ljW8YpPg+QOHsjNA8nWsAqLmjCeFZWzUD1",
+      "expect": {
+        "error": "decrypt_failed"
+      }
+    }
+  ]
+}

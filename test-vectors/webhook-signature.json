@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "generatedBy": "fp-guard scripts/gen-test-vectors.mjs",
+  "notes": "Header: `FPC-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256(secret, t + \".\" + rawBody)>`; more than one v1 may appear and any valid one passes. `body` is the raw received text and `now` the verifier clock in unix seconds; tolerance is 300 s in both directions (inclusive). Check order: parse header -> signature -> time window. The signature is judged before the clock so forged requests get no time-window oracle; expired/future only mean authentic-but-outside-window (bad_mac_and_expired is bad_signature). Header parsing (whitespace is ASCII only: space, tab, CR, LF; digits are ASCII [0-9] only): any whitespace anywhere, an empty or \"=\"-less part, a duplicate t, a t that is not 1-12 ASCII digits, or no v1 is malformed_header; unknown keys are ignored. A v1 that is not 64 hex chars never matches (bad_signature, not malformed_header); hex is accepted in either case. `expect` is true or {error}: expired | future | bad_signature | malformed_header. SDKs compare the parsed result, not raw text.",
+  "secret": "whsec_vector_0123456789abcdef",
+  "cases": [
+    {
+      "name": "ok",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1761400000,v1=bdbc35c28e4721c55e4ca1f6d0a141f8e4b1acf901d765fdeac82438f69b7cfe",
+      "now": 1761400000,
+      "expect": true
+    },
+    {
+      "name": "edge_past_300",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1761399700,v1=50a94f9c226025fcd5f8484031d36de757b0d27e42eaf003277f8d7fd21baf59",
+      "now": 1761400000,
+      "expect": true
+    },
+    {
+      "name": "edge_future_300",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1761400300,v1=d9139357dc518883ed19de3e62550ed609b03acb7de5f8acea84bf63ca0723d3",
+      "now": 1761400000,
+      "expect": true
+    },
+    {
+      "name": "expired",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1761399699,v1=cc8e73cb5efa3fac899f92cab95a999257484d1c892ad31c7a814072254ed85f",
+      "now": 1761400000,
+      "expect": {
+        "error": "expired"
+      }
+    },
+    {
+      "name": "future",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1761400301,v1=da2e9f6568a8eb6617dfa94a1f6d31fbcc63ba6d2cda681baf162ac7d9a7e03a",
+      "now": 1761400000,
+      "expect": {
+        "error": "future"
+      }
+    },
+    {
+      "name": "bad_mac",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1761400000,v1=bdbc35c28e4721c55e4ca1f6d0a141f8e4b1acf901d765fdeac82438f69b7cf0",
+      "now": 1761400000,
+      "expect": {
+        "error": "bad_signature"
+      }
+    },
+    {
+      "name": "reserialized",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1761400000,v1=6da2cab3bf25f9cdfb74a56b974029a7e8bdeb21222185910f5a5efca90755ee",
+      "now": 1761400000,
+      "expect": {
+        "error": "bad_signature"
+      }
+    },
+    {
+      "name": "multiple_v1",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1761400000,v1=0000000000000000000000000000000000000000000000000000000000000000,v1=bdbc35c28e4721c55e4ca1f6d0a141f8e4b1acf901d765fdeac82438f69b7cfe",
+      "now": 1761400000,
+      "expect": true
+    },
+    {
+      "name": "bad_mac_and_expired",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1761399000,v1=bdbc35c28e4721c55e4ca1f6d0a141f8e4b1acf901d765fdeac82438f69b7cf0",
+      "now": 1761400000,
+      "expect": {
+        "error": "bad_signature"
+      }
+    },
+    {
+      "name": "duplicate_t",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1761400000,t=1761400000,v1=bdbc35c28e4721c55e4ca1f6d0a141f8e4b1acf901d765fdeac82438f69b7cfe",
+      "now": 1761400000,
+      "expect": {
+        "error": "malformed_header"
+      }
+    },
+    {
+      "name": "whitespace_around_parts",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1761400000, v1=bdbc35c28e4721c55e4ca1f6d0a141f8e4b1acf901d765fdeac82438f69b7cfe",
+      "now": 1761400000,
+      "expect": {
+        "error": "malformed_header"
+      }
+    },
+    {
+      "name": "uppercase_hex",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1761400000,v1=BDBC35C28E4721C55E4CA1F6D0A141F8E4B1ACF901D765FDEAC82438F69B7CFE",
+      "now": 1761400000,
+      "expect": true
+    },
+    {
+      "name": "v1_wrong_length",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1761400000,v1=bdbc35c28e4721c55e4ca1f6d0a141f8",
+      "now": 1761400000,
+      "expect": {
+        "error": "bad_signature"
+      }
+    },
+    {
+      "name": "t_too_long",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "t=1111111111111,v1=ae3961b466eda4368a9ede6373669ad407c6bf6a5ca2a71450d354a6d115a382",
+      "now": 1111111111111,
+      "expect": {
+        "error": "malformed_header"
+      }
+    },
+    {
+      "name": "malformed_header",
+      "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
+      "header": "not-a-signature",
+      "now": 1761400000,
+      "expect": {
+        "error": "malformed_header"
+      }
+    }
+  ]
+}
