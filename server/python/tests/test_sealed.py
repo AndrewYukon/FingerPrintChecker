@@ -78,8 +78,8 @@ def _seal(payload: bytes, key_b64=VECTORS["keys"]["a"]):
 
 @pytest.mark.parametrize(
     "payload",
-    [b'{"version":NaN}', b'{"version":1,"x":Infinity}', b'{"version":1,"x":-Infinity}', b"[" * 100000 + b"]" * 100000, b"\xff\xfe", b""],
-    ids=["nan", "inf", "neg_inf", "deep", "bad_utf8", "empty"],
+    [b'{"version":NaN}', b'{"version":1,"x":Infinity}', b'{"version":1,"x":-Infinity}', b"[" * 100000 + b"]" * 100000, b"\xff\xfe", b"", b'{"version":1,"x":"\xff"}'],
+    ids=["nan", "inf", "neg_inf", "deep", "bad_utf8", "empty", "bad_utf8_in_string"],
 )
 def test_json_edge_cases_are_decrypt_failed(payload):
     with pytest.raises(SealedResultError) as ei:

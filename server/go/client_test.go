@@ -380,7 +380,7 @@ func TestRetryGivesUpAfterTwoAndCapsDelay(t *testing.T) {
 	c, _ := newTestClient(t, rec, WithSleep(func(_ context.Context, d time.Duration) error { sleeps = append(sleeps, d); return nil }))
 	_, err := c.GetHealth(context.Background())
 	var ae *APIError
-	if !errors.As(err, &ae) || ae.Status != 429 || ae.Code != "rate_limited" || ae.RetryAfter != 999 {
+	if !errors.As(err, &ae) || ae.Status != 429 || ae.Code != "rate_limited" || ae.RetryAfter == nil || *ae.RetryAfter != 999 {
 		t.Fatalf("%+v", ae)
 	}
 	if rec.count() != 3 || sleeps[0] != 10*time.Second || sleeps[1] != 10*time.Second {
@@ -505,3 +505,94 @@ func TestUsesCallerTransport(t *testing.T) {
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestRetryAfterZeroHonoured(t *testing.T) {
+	var n int32
+	rec := &recorder{serve: func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&n, 1) == 1 {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(503)
+			return
+		}
+		_, _ = w.Write([]byte(`{}`))
+	}}
+	var sleeps []time.Duration
+	c, _ := newTestClient(t, rec, WithSleep(func(_ context.Context, d time.Duration) error { sleeps = append(sleeps, d); return nil }))
+	if _, err := c.GetHealth(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(sleeps) != 1 || sleeps[0] != 0 {
+		t.Fatalf("Retry-After: 0 must mean no wait, sleeps=%v", sleeps)
+	}
+	// absent vs zero on the error
+	for hdr, want := range map[string]*int{"": nil, "0": intp(0), "7": intp(7)} {
+		hdr, want := hdr, want
+		rec := &recorder{serve: func(w http.ResponseWriter, r *http.Request) {
+			if hdr != "" {
+				w.Header().Set("Retry-After", hdr)
+			}
+			w.WriteHeader(400)
+		}}
+		c, _ := newTestClient(t, rec)
+		_, err := c.CheckQuota(context.Background(), map[string]any{})
+		var ae *APIError
+		if !errors.As(err, &ae) || (ae.RetryAfter == nil) != (want == nil) || (want != nil && *ae.RetryAfter != *want) {
+			t.Fatalf("hdr %q: %+v", hdr, ae)
+		}
+	}
+}
+
+func intp(n int) *int { return &n }
+
+func TestDefaultSleepReturnsPromptlyWhenCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	start := time.Now()
+	err := sleepCtx(ctx, 10*time.Second)
+	if !errors.Is(err, context.Canceled) || time.Since(start) > time.Second {
+		t.Fatalf("err=%v after %v", err, time.Since(start))
+	}
+	// through the client with the default sleep: 503 then cancelled ctx, no 10s wait
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	rec := &recorder{serve: func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "10")
+		w.WriteHeader(503)
+		time.AfterFunc(100*time.Millisecond, cancel2) // fires while the client sits in its 10s back-off
+	}}
+	ts := httptest.NewServer(rec)
+	defer ts.Close()
+	c, _ := New(testSecret, WithBaseURL(ts.URL))
+	start = time.Now()
+	_, err = c.GetHealth(ctx2)
+	var ae *APIError
+	if !errors.As(err, &ae) || ae.Status != 503 || time.Since(start) > 2*time.Second || rec.count() != 1 {
+		t.Fatalf("err=%v after %v reqs=%d", err, time.Since(start), rec.count())
+	}
+}
+
+func TestBodyRedactedToo(t *testing.T) {
+	rec := &recorder{serve: func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(400)
+		_, _ = w.Write([]byte(`{"error":"x","echo":"` + testSecret + `"}`))
+	}}
+	c, _ := newTestClient(t, rec)
+	_, err := c.CheckQuota(context.Background(), map[string]any{})
+	var ae *APIError
+	if !errors.As(err, &ae) {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(ae.Body), testSecret) || strings.Contains(ae.Error(), testSecret) || !strings.Contains(string(ae.Body), "[redacted]") {
+		t.Fatalf("body=%s err=%s", ae.Body, ae.Error())
+	}
+	if ae.Code != "x" {
+		t.Fatal(ae.Code)
+	}
+}
+
+func TestBaseURLRejectsQueryAndFragment(t *testing.T) {
+	for _, u := range []string{"https://example.com?a=1", "https://example.com/x#f", "https://example.com/?", "https://example.com#"} {
+		if _, err := New(testSecret, WithBaseURL(u)); err == nil {
+			t.Errorf("%s must be rejected", u)
+		}
+	}
+}

@@ -183,7 +183,7 @@ func (c *Client) do(ctx context.Context, method, path string, q Query, body any,
 		status, hdr, raw, err := c.attempt(ctx, method, target, payload, keyHeader, keyValue)
 		if err != nil {
 			if attempt < retries && ctx.Err() == nil {
-				if serr := cfg.sleep(ctx, backoff(attempt, 0)); serr == nil {
+				if serr := cfg.sleep(ctx, backoff(attempt, nil)); serr == nil {
 					continue
 				}
 			}
@@ -205,7 +205,7 @@ func (c *Client) do(ctx context.Context, method, path string, q Query, body any,
 			Status:     status,
 			Code:       c.redact(errorCode(raw)),
 			RetryAfter: retryAfter,
-			Body:       json.RawMessage(raw),
+			Body:       json.RawMessage(bytes.ReplaceAll(raw, []byte(cfg.secretKey), []byte("[redacted]"))),
 		}
 	}
 }
@@ -277,19 +277,19 @@ func errorCode(raw []byte) string {
 	return ""
 }
 
-func parseRetryAfter(v string) int {
+func parseRetryAfter(v string) *int {
 	v = strings.TrimSpace(v)
 	if !retryAfterPattern.MatchString(v) {
-		return 0
+		return nil
 	}
 	n, _ := strconv.Atoi(v)
-	return n
+	return &n
 }
 
-func backoff(attempt, retryAfterSec int) time.Duration {
+func backoff(attempt int, retryAfterSec *int) time.Duration {
 	d := 500 * time.Millisecond << uint(attempt)
-	if retryAfterSec > 0 {
-		d = time.Duration(retryAfterSec) * time.Second
+	if retryAfterSec != nil {
+		d = time.Duration(*retryAfterSec) * time.Second
 	}
 	if d > maxDelay {
 		d = maxDelay

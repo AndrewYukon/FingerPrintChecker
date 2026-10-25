@@ -14,9 +14,10 @@ type APIError struct {
 	// Code is the body's "error" (or, failing that, "reason") string;
 	// "network_error" or "timeout" when Status is 0. Empty if the body had none.
 	Code string
-	// RetryAfter is the parsed Retry-After header (whole seconds), or 0.
-	RetryAfter int
-	// Body is the raw response body (may be empty or not JSON).
+	// RetryAfter is the parsed Retry-After header in whole seconds; nil when
+	// the header is absent or unparseable, so an explicit 0 is distinguishable.
+	RetryAfter *int
+	// Body is the raw response body (may be empty or not JSON), with the secret key redacted.
 	Body json.RawMessage
 	// Err is the underlying cause for Status 0; see Unwrap.
 	Err error

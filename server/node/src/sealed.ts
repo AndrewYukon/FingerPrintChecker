@@ -68,7 +68,7 @@ export function unsealResult(blob: string, keys: string[]): SealedResult {
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(plain.toString('utf8'));
+    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plain));
   } catch {
     throw new SealedResultError('decrypt_failed');
   }

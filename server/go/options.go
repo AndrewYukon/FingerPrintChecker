@@ -93,6 +93,9 @@ func validateBaseURL(raw string) (string, error) {
 	if err != nil || u.Hostname() == "" || u.User != nil {
 		return "", errors.New("fpchecker: base URL is not a valid URL")
 	}
+	if u.RawQuery != "" || u.Fragment != "" || u.ForceQuery || strings.ContainsAny(raw, "?#") {
+		return "", errors.New("fpchecker: base URL must not contain a query or fragment")
+	}
 	host := strings.ToLower(u.Hostname())
 	loopback := host == "localhost" || host == "127.0.0.1" || host == "::1"
 	if u.Scheme != "https" && !(u.Scheme == "http" && loopback) {
