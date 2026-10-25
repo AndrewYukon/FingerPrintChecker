@@ -1,6 +1,6 @@
 'use client';
 
-import { load } from '@fpchecker/agent';
+import { FpCheckerAgentError, load } from '@fpchecker/agent';
 import type { FpAgent, IdentifyOptions, IdentifyResult, LoadOptions } from '@fpchecker/agent';
 import {
   createContext,
@@ -39,6 +39,7 @@ export function FpCheckerProvider(props: FpCheckerProviderProps) {
   const mounted = useRef(true);
   const callId = useRef(0);
   const agentRef = useRef<{ key: string; promise: Promise<FpAgent> } | null>(null);
+  const optionsKey = JSON.stringify([publishableKey, endpoint ?? null, scriptUrl ?? null]);
 
   useEffect(() => {
     mounted.current = true;
@@ -48,27 +49,43 @@ export function FpCheckerProvider(props: FpCheckerProviderProps) {
   }, []);
 
   const getAgent = useCallback((): Promise<FpAgent> => {
-    const key = JSON.stringify([publishableKey, endpoint ?? null, scriptUrl ?? null]);
-    if (agentRef.current?.key !== key) {
+    if (agentRef.current?.key !== optionsKey) {
       const opts: LoadOptions = {
         publishableKey,
         ...(endpoint !== undefined ? { endpoint } : {}),
         ...(scriptUrl !== undefined ? { scriptUrl } : {}),
       };
-      agentRef.current = { key, promise: load(opts) };
+      const promise = load(opts);
+      agentRef.current = { key: optionsKey, promise };
+      // Do not cache a failed load: the next identify retries.
+      promise.catch(() => {
+        if (agentRef.current?.promise === promise) agentRef.current = null;
+      });
     }
     return agentRef.current.promise;
-  }, [publishableKey, endpoint, scriptUrl]);
+  }, [optionsKey, publishableKey, endpoint, scriptUrl]);
 
   // Client only: effects never run during server rendering.
+  // A change of options starts a new generation: old calls become stale and state resets.
   useEffect(() => {
+    let active = true;
+    callId.current += 1;
+    setData(undefined);
+    setError(undefined);
+    setIsLoading(false);
     getAgent().catch((e: unknown) => {
-      if (mounted.current) setError(toError(e));
+      if (active) setError(toError(e));
     });
+    return () => {
+      active = false;
+    };
   }, [getAgent]);
 
   const identify = useCallback(
     async (opts: IdentifyOptions): Promise<IdentifyResult> => {
+      if (typeof window === 'undefined') {
+        throw new FpCheckerAgentError('ssr', 'identify() can only run in the browser; call it from an event handler or effect.');
+      }
       const id = ++callId.current;
       const isLatest = () => mounted.current && callId.current === id;
       setIsLoading(true);
@@ -81,8 +98,7 @@ export function FpCheckerProvider(props: FpCheckerProviderProps) {
         }
         return result;
       } catch (e) {
-        const err = toError(e);
-        if (isLatest()) setError(err);
+        if (isLatest()) setError(toError(e));
         throw e;
       } finally {
         if (isLatest()) setIsLoading(false);

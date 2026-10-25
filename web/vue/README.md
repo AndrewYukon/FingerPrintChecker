@@ -19,6 +19,7 @@ The plugin accepts the same options as `load()` from `@fpchecker/agent`: `publis
 <script setup lang="ts">
 import { useFpChecker } from '@fpchecker/vue';
 
+const props = defineProps<{ intentToken: string }>();
 const { identify, data, error, isLoading } = useFpChecker(); // data, error, isLoading are refs
 
 async function onSubmit() {
@@ -35,10 +36,10 @@ async function onSubmit() {
 
 ## Nuxt
 
-Register it in a client-only plugin so it never runs on the server:
+The plugin is safe to install on the server: it never loads the agent during SSR, only after the component mounts (or on the first `identify` in the browser). Use a universal plugin, no `.client` suffix and no `<ClientOnly>` needed:
 
 ```ts
-// plugins/fpchecker.client.ts
+// plugins/fpchecker.ts
 import { fpChecker } from '@fpchecker/vue';
 
 export default defineNuxtPlugin((nuxtApp) => {
@@ -46,7 +47,7 @@ export default defineNuxtPlugin((nuxtApp) => {
 });
 ```
 
-Components that call `useFpChecker()` must render on the client (wrap them in `<ClientOnly>`), because the plugin is not installed during SSR.
+Calling `identify()` on the server rejects with an error whose `code` is `'ssr'`; call it from an event handler or `onMounted`.
 
 ## License
 
