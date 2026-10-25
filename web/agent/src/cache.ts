@@ -1,3 +1,4 @@
+import { sha256Hex } from './sha256.js';
 import { FpCheckerAgentError, type CacheOptions } from './types.js';
 
 export const MAX_TTL_SECONDS = 3600;
@@ -25,9 +26,20 @@ export function validateCache(c: CacheOptions): void {
   }
 }
 
-// Key = publishableKey + linkedId, encoded (JSON of the pair, percent-encoded) so no delimiter ambiguity.
-export function cacheKey(publishableKey: string, linkedId: string | undefined): string {
-  return PREFIX + encodeURIComponent(JSON.stringify([publishableKey, linkedId ?? null]));
+function canonical(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`;
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    return `{${Object.keys(o).sort().map((k) => `${JSON.stringify(k)}:${canonical(o[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(v) ?? 'null';
+}
+
+// Key = publishableKey + SHA-256(linkedId) + SHA-256(canonical tags). The raw linkedId (may be PII) never
+// reaches storage. The intent token is deliberately not part of the key.
+export function cacheKey(publishableKey: string, linkedId: string | undefined, tags?: Record<string, unknown>): string {
+  const t = tags === undefined ? '' : canonical(tags);
+  return `${PREFIX}${encodeURIComponent(publishableKey)}:${sha256Hex(linkedId ?? '')}:${sha256Hex(t)}`;
 }
 
 function area(kind: 'session' | 'local'): Storage | undefined {
@@ -38,15 +50,42 @@ function area(kind: 'session' | 'local'): Storage | undefined {
   }
 }
 
+function remove(key: string, c: CacheOptions): void {
+  try {
+    if (c.storage === 'memory') memory.delete(key);
+    else area(c.storage)?.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function readCache(key: string, c: CacheOptions, now = Date.now()): CachedValue | undefined {
   try {
     let e: Entry | undefined;
     if (c.storage === 'memory') e = memory.get(key);
     else {
       const raw = area(c.storage)?.getItem(key);
-      e = raw ? (JSON.parse(raw) as Entry) : undefined;
+      if (raw === null || raw === undefined) return undefined;
+      try {
+        e = JSON.parse(raw) as Entry;
+      } catch {
+        e = undefined;
+      }
     }
-    if (!e || typeof e.eventId !== 'string' || typeof e.expiresAt !== 'number' || e.expiresAt <= now) return undefined;
+    if (e === undefined && c.storage === 'memory') return undefined;
+    const valid =
+      e !== undefined &&
+      e !== null &&
+      typeof e.eventId === 'string' &&
+      typeof e.expiresAt === 'number' &&
+      Number.isFinite(e.expiresAt) &&
+      e.expiresAt > now &&
+      e.expiresAt <= now + MAX_TTL_SECONDS * 1000 &&
+      (e.sealedResult === undefined || typeof e.sealedResult === 'string');
+    if (!valid || !e) {
+      remove(key, c);
+      return undefined;
+    }
     return e.sealedResult === undefined ? { eventId: e.eventId } : { eventId: e.eventId, sealedResult: e.sealedResult };
   } catch {
     return undefined;

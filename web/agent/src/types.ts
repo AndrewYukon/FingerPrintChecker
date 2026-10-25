@@ -2,6 +2,8 @@ export interface LoadOptions {
   publishableKey: string;
   /** API base URL. Default https://api.fpchecker.com */
   endpoint?: string;
+  /** Load the agent from this URL via <script src> instead of injecting it inline (strict CSP). */
+  scriptUrl?: string;
 }
 
 export interface CacheOptions {

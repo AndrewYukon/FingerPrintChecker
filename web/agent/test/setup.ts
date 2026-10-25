@@ -2,10 +2,12 @@
 // Pin the browser-style Storage from happy-dom so tests behave the same on every Node version.
 import { Window } from 'happy-dom';
 
+if (typeof window !== 'undefined') {
 const host = new Window();
 for (const name of ['localStorage', 'sessionStorage'] as const) {
   const value = host[name];
   for (const target of [globalThis, window]) {
     Object.defineProperty(target, name, { value, configurable: true, writable: true });
   }
+}
 }

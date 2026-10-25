@@ -14,7 +14,7 @@ export async function load(opts: LoadOptions): Promise<FpAgent> {
   if (!opts || typeof opts.publishableKey !== 'string' || opts.publishableKey === '') {
     throw new FpCheckerAgentError('invalid_option', 'publishableKey is required');
   }
-  const agent = await loadAgentScript();
+  const agent = await loadAgentScript(opts.scriptUrl);
   const baseUrl = opts.endpoint ?? DEFAULT_ENDPOINT;
   const publishableKey = opts.publishableKey;
 
@@ -22,7 +22,7 @@ export async function load(opts: LoadOptions): Promise<FpAgent> {
     async identify(o: IdentifyOptions): Promise<IdentifyResult> {
       const cache = o.cache === false || o.cache === undefined ? undefined : o.cache;
       if (cache) validateCache(cache);
-      const key = cache ? cacheKey(publishableKey, o.linkedId) : '';
+      const key = cache ? cacheKey(publishableKey, o.linkedId, o.tags) : '';
       if (cache) {
         const hit = readCache(key, cache);
         if (hit) return { ...hit, fromCache: true };

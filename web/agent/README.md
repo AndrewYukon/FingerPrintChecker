@@ -29,18 +29,27 @@ await fp.identify({ intentToken, linkedId: userId, cache: { ttlSeconds: 300, sto
 ```
 
 - `ttlSeconds` is 1..3600; `storage` is `'memory' | 'session' | 'local'`.
-- Key = publishableKey + linkedId. Only `eventId` and `sealedResult` are stored, never the attestation.
-- A hit returns `{ eventId, sealedResult, fromCache: true }` with **no `attestation` and no `expiresIn`**. If you need an attestation (eligibility, quota), do not enable the cache, or pass `cache: false` to force a fresh request.
-- Storage errors (private mode, blocked storage, quota, corrupt entries) count as a miss and identify still works.
+- Key = publishableKey + SHA-256(linkedId) + SHA-256(canonical JSON of `tags`, keys sorted). The raw `linkedId` never reaches storage. The `intentToken` is **not** part of the key.
+- A cache hit is the result of an **earlier** identify (an earlier intent). It returns `{ eventId, sealedResult, fromCache: true }` with **no `attestation` and no `expiresIn`**, so it must not be used for eligibility or quota decisions. For those, pass `cache: false` (or leave the cache off) to force a fresh request.
+- Only `eventId` and `sealedResult` are stored, never the attestation. Expired, malformed or too-far-future entries (more than 3600 s ahead) are treated as a miss and deleted from storage.
+- Storage errors (private mode, blocked storage, quota) count as a miss and identify still works.
 
 ## Content Security Policy
 
-The agent is bundled in this package as a string and injected as an inline `<script>` element (no network fetch for the script itself). Your CSP therefore needs one of:
+By default the agent is bundled in this package as a string and injected as an inline `<script>` (no fetch for the script itself). Your CSP then needs one of:
 
-- `script-src 'nonce-<value>'` and a `<meta name="csp-nonce" content="<value>">` tag, which this package copies onto the injected script; or
+- `script-src 'nonce-<value>'` plus a `<meta name="csp-nonce" content="<value>">` tag, which this package copies onto the injected script; or
 - `script-src 'unsafe-inline'` (not recommended).
 
-Also allow the API endpoint in `connect-src` (`https://api.fpchecker.com` by default). If the CSP blocks the script, `load()` rejects with `code: 'load_failed'`.
+**Strict CSP (for example `script-src 'self'`):** pass `scriptUrl` and the agent is loaded with `<script src>` instead of inline.
+
+```ts
+const fp = await load({ publishableKey, scriptUrl: '/static/fp-agent.min.js' });
+```
+
+Either self-host a copy of `node_modules/@fpchecker/agent/vendor/fp-agent.min.js` (it matches this package version), or use `https://fpchecker.com/static/fp-agent.min.js`. The hosted file tracks the website's agent version, not this package's, and needs `https://fpchecker.com` in `script-src`. If the script fails to load, `load()` rejects with `code: 'load_failed'`, the element is removed, and a later `load()` tries again.
+
+Also allow the API endpoint in `connect-src` (`https://api.fpchecker.com` by default).
 
 ## Vendored file
 
