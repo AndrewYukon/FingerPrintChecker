@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "FPChecker API",
-    "version": "0.44.0",
+    "version": "0.45.0",
     "summary": "The customer-facing HTTP API of FPChecker.",
     "description": "Identify a device, decide whether it may claim or use something, and read what was seen.\nHand-written from the route handlers; `worker/test/openapi-contract.test.ts` checks it against the running\nserver (the route set, the examples and the real answers).\n\n**Keys.** A project has a secret key (`sk_…`, header `X-Secret-Key`, backend only) and a publishable key\n(`pk_…`, header `X-Publishable-Key`, safe in a browser or app). `/v2/challenge` and `/v2/identify` take the\npublishable key; every other keyed route takes the secret key. The wrong kind of key is `401`.\n\n**Errors.** Most failures are `{ \"ok\": false, \"error\": \"<code>\" }` (`Error`). Routes that make a decision\nor record something answer in their own shape: `{ \"ok\": false, \"reason\": \"<code>\" }` plus the fields the\nroute normally has (`EligibilityRefusal`, `QuotaRefusal`, `ReleaseRefusal`, `SubjectRefusal`,\n`FeedbackRefusal`, `IdentifyRefusal`, `ReasonError`). Some failures are deliberately HTTP 200 with\n`ok: false` (a fail-closed internal error, `maintenance`, most identify refusals): **test `ok`, not only the\nstatus**. Never treat a response without `ok: true` as a success.\n\n**Billing.** On a metered project a billed call with an empty balance is `402 { \"ok\": false, \"error\":\n\"insufficient_credits\" }`, and `503 commit_uncertain` means the charge may have happened. A billed call is\nnever safe to retry blindly.\n\n**Forward compatibility.** Clients must tolerate unknown enum values in response fields (for example `reason`,\n`error` and signal kinds) and unknown object properties. New values and properties may be added without a\nversion bump; treat an unrecognised value as a generic refusal or ignore it, never as a parse failure.\n\n**Not in this file.** Admin, console and network-check routes, and the older v1 challenge and identify\nprotocol, are not part of the customer contract. The production API serves no OpenAPI route of its own.\n"
   },
@@ -212,7 +212,28 @@
             "$ref": "#/components/responses/InsufficientCredits"
           },
           "403": {
-            "$ref": "#/components/responses/ProjectDisabled"
+            "description": "`project_disabled`, or `request_filtered` when the project's request filters (allowed origins, IP deny list, header rules, crawler blocking) refuse the request. A filtered request is not billed and records no event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "disabled": {
+                    "value": {
+                      "ok": false,
+                      "error": "project_disabled"
+                    }
+                  },
+                  "filtered": {
+                    "value": {
+                      "ok": false,
+                      "error": "request_filtered"
+                    }
+                  }
+                }
+              }
+            }
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
@@ -359,7 +380,28 @@
             "$ref": "#/components/responses/InsufficientCredits"
           },
           "403": {
-            "$ref": "#/components/responses/ProjectDisabled"
+            "description": "`project_disabled`, or `request_filtered` when the project's request filters (allowed origins, IP deny list, header rules, crawler blocking) refuse the request. A filtered request is not billed and records no event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "disabled": {
+                    "value": {
+                      "ok": false,
+                      "error": "project_disabled"
+                    }
+                  },
+                  "filtered": {
+                    "value": {
+                      "ok": false,
+                      "error": "request_filtered"
+                    }
+                  }
+                }
+              }
+            }
           },
           "429": {
             "description": "Rate limited, or `identify_daily_limit` on a metered account.",
@@ -1784,7 +1826,7 @@
                   "alive": {
                     "value": {
                       "ok": true,
-                      "version": "0.44.0",
+                      "version": "0.45.0",
                       "env": "production",
                       "commit": "6bd97c0"
                     }
@@ -1817,7 +1859,7 @@
                   "up": {
                     "value": {
                       "ok": true,
-                      "version": "0.44.0",
+                      "version": "0.45.0",
                       "maintenance": false,
                       "checks": {
                         "api": true,
@@ -1842,7 +1884,7 @@
                   "down": {
                     "value": {
                       "ok": false,
-                      "version": "0.44.0",
+                      "version": "0.45.0",
                       "maintenance": false,
                       "checks": {
                         "api": true,
@@ -2660,7 +2702,7 @@
           },
           "reason": {
             "type": "string",
-            "description": "See \"Handle the result\" in docs/INTEGRATION.md."
+            "description": "See \"Handle the result\" in docs/INTEGRATION.md. Includes `rule_deny` (a deny rule matched; `ruleId` says which) and `rule_allow` (an allow rule let a first claim through the first-claim and trust gates; in a shared device class it skips only the datacenter check and the human check still runs). New values may be added; treat an unknown value as a generic refusal."
           },
           "powDifficulty": {
             "type": "integer",
@@ -2672,6 +2714,10 @@
           "claimId": {
             "type": "string",
             "description": "Present on an allow with `claim: true`."
+          },
+          "ruleId": {
+            "type": "string",
+            "description": "Present only when a rule of the project's ruleset decided the answer (`rule_deny`, or a `human_check` rule) or a matched `allow` rule applied (reason `rule_allow`). Never present otherwise."
           }
         }
       },
@@ -2841,7 +2887,12 @@
             "$ref": "#/components/schemas/Action"
           },
           "reason": {
-            "type": "string"
+            "type": "string",
+            "description": "Includes `rule_deny` when a deny rule matched. New values may be added; treat an unknown value as a generic refusal."
+          },
+          "ruleId": {
+            "type": "string",
+            "description": "Present with reason `rule_deny`: the rule that denied."
           },
           "powDifficulty": {
             "type": "integer"
@@ -3508,6 +3559,34 @@
           }
         }
       },
+      "RuleAction": {
+        "type": "object",
+        "required": [
+          "type",
+          "rulesetVersion"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "allow",
+              "human_check",
+              "deny",
+              "none"
+            ],
+            "description": "`none` when the ruleset was evaluated and no rule matched. New values may be added; treat an unknown value as `none`."
+          },
+          "ruleId": {
+            "type": "string",
+            "description": "The matching rule; absent when `type` is `none`."
+          },
+          "ruleName": {
+            "type": "string"
+          },
+          "rulesetVersion": {
+            "type": "integer"
+          }
+        }
+      },
       "EventCore": {
         "type": "object",
         "required": [
@@ -3622,6 +3701,21 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "proxied": {
+            "type": "boolean",
+            "description": "True when the request reached the API through the project's Cloudflare proxy integration with a valid proxy secret."
+          },
+          "ruleAction": {
+            "description": "What the project's ruleset decided for this event. Null when the ruleset is disabled. Never in the browser or app identify answer or a sealed result.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RuleAction"
+              }
             ]
           },
           "signals": {
@@ -3743,7 +3837,7 @@
         }
       },
       "WebhookEvent": {
-        "description": "The event JSON as a webhook body. `signals` can be missing from a payload queued before server 0.43.0\n(treat missing and `null` alike). A console \"Test\" delivery adds `\"test\": true`.\n",
+        "description": "The event JSON as a webhook body. `signals` can be missing from a payload queued before server 0.43.0\n(treat missing and `null` alike); `proxied` and `ruleAction` can be missing from a payload queued before server 0.45.0. A console \"Test\" delivery adds `\"test\": true`.\n",
         "allOf": [
           {
             "$ref": "#/components/schemas/EventCore"

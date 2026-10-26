@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: FPChecker API
-  version: 0.44.0
+  version: 0.45.0
   summary: The customer-facing HTTP API of FPChecker.
   description: |
     Identify a device, decide whether it may claim or use something, and read what was seen.
@@ -130,7 +130,16 @@ paths:
                   value: { ok: false, error: bad_intent }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '402': { $ref: '#/components/responses/InsufficientCredits' }
-        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '403':
+          description: '`project_disabled`, or `request_filtered` when the project''s request filters (allowed origins, IP deny list, header rules, crawler blocking) refuse the request. A filtered request is not billed and records no event.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                disabled:
+                  value: { ok: false, error: project_disabled }
+                filtered:
+                  value: { ok: false, error: request_filtered }
         '429': { $ref: '#/components/responses/RateLimited' }
   /v2/identify:
     post:
@@ -215,7 +224,16 @@ paths:
                   value: { ok: false, protocolVersion: 2, reason: invalid_tags, error: invalid_tags }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '402': { $ref: '#/components/responses/InsufficientCredits' }
-        '403': { $ref: '#/components/responses/ProjectDisabled' }
+        '403':
+          description: '`project_disabled`, or `request_filtered` when the project''s request filters (allowed origins, IP deny list, header rules, crawler blocking) refuse the request. A filtered request is not billed and records no event.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                disabled:
+                  value: { ok: false, error: project_disabled }
+                filtered:
+                  value: { ok: false, error: request_filtered }
         '429':
           description: Rate limited, or `identify_daily_limit` on a metered account.
           content:
@@ -925,7 +943,7 @@ paths:
               schema: { $ref: '#/components/schemas/Health' }
               examples:
                 alive:
-                  value: { ok: true, version: 0.44.0, env: production, commit: 6bd97c0 }
+                  value: { ok: true, version: 0.45.0, env: production, commit: 6bd97c0 }
   /status:
     get:
       operationId: getStatus
@@ -941,7 +959,7 @@ paths:
               schema: { $ref: '#/components/schemas/Status' }
               examples:
                 up:
-                  value: { ok: true, version: 0.44.0, maintenance: false, checks: { api: true, database: true, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
+                  value: { ok: true, version: 0.45.0, maintenance: false, checks: { api: true, database: true, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
         '503':
           description: Not able to serve.
           content:
@@ -949,7 +967,7 @@ paths:
               schema: { $ref: '#/components/schemas/Status' }
               examples:
                 down:
-                  value: { ok: false, version: 0.44.0, maintenance: false, checks: { api: true, database: false, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
+                  value: { ok: false, version: 0.45.0, maintenance: false, checks: { api: true, database: false, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
 webhooks:
   event:
     post:
@@ -1307,10 +1325,11 @@ components:
         isNew: { type: boolean }
         eligible: { type: boolean, description: Grant only when true. }
         action: { $ref: '#/components/schemas/Action' }
-        reason: { type: string, description: See "Handle the result" in docs/INTEGRATION.md. }
+        reason: { type: string, description: 'See "Handle the result" in docs/INTEGRATION.md. Includes `rule_deny` (a deny rule matched; `ruleId` says which) and `rule_allow` (an allow rule let a first claim through the first-claim and trust gates; in a shared device class it skips only the datacenter check and the human check still runs). New values may be added; treat an unknown value as a generic refusal.' }
         powDifficulty: { type: integer, description: 'With action `pow` (or `turnstile` in `either` mode), the zero bits a proof needs.' }
         replayed: { type: boolean }
         claimId: { type: string, description: 'Present on an allow with `claim: true`.' }
+        ruleId: { type: string, description: 'Present only when a rule of the project''s ruleset decided the answer (`rule_deny`, or a `human_check` rule) or a matched `allow` rule applied (reason `rule_allow`). Never present otherwise.' }
     EligibilityRefusal:
       type: object
       required: [ok, eligible, action, reason]
@@ -1365,7 +1384,8 @@ components:
         quota: { type: string }
         allowed: { type: boolean }
         action: { $ref: '#/components/schemas/Action' }
-        reason: { type: string }
+        reason: { type: string, description: 'Includes `rule_deny` when a deny rule matched. New values may be added; treat an unknown value as a generic refusal.' }
+        ruleId: { type: string, description: 'Present with reason `rule_deny`: the rule that denied.' }
         powDifficulty: { type: integer }
         limit: { type: integer }
         used: { type: integer, description: 'Uses in the current window, including this one when consumed.' }
@@ -1565,6 +1585,14 @@ components:
                 emulator: { type: [boolean, 'null'] }
                 attested: { type: [boolean, 'null'] }
                 integrity: { enum: [strong, basic, failed, null] }
+    RuleAction:
+      type: object
+      required: [type, rulesetVersion]
+      properties:
+        type: { enum: [allow, human_check, deny, none], description: '`none` when the ruleset was evaluated and no rule matched. New values may be added; treat an unknown value as `none`.' }
+        ruleId: { type: string, description: 'The matching rule; absent when `type` is `none`.' }
+        ruleName: { type: string }
+        rulesetVersion: { type: integer }
     EventCore:
       type: object
       required: [v, eventId, projectId, visitorId, createdAt, platform, protocol, isNew, identityConfidence, trustScore, linkedId, tags, suspect, ip, ipInfo, origin, agentVersion]
@@ -1595,6 +1623,12 @@ components:
             timezone: { type: [string, 'null'] }
         origin: { type: [string, 'null'] }
         agentVersion: { type: [string, 'null'] }
+        proxied: { type: boolean, description: True when the request reached the API through the project's Cloudflare proxy integration with a valid proxy secret. }
+        ruleAction:
+          description: 'What the project''s ruleset decided for this event. Null when the ruleset is disabled. Never in the browser or app identify answer or a sealed result.'
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/RuleAction'
         signals:
           oneOf:
             - $ref: '#/components/schemas/Signals'
@@ -1652,7 +1686,7 @@ components:
     WebhookEvent:
       description: |
         The event JSON as a webhook body. `signals` can be missing from a payload queued before server 0.43.0
-        (treat missing and `null` alike). A console "Test" delivery adds `"test": true`.
+        (treat missing and `null` alike); `proxied` and `ruleAction` can be missing from a payload queued before server 0.45.0. A console "Test" delivery adds `"test": true`.
       allOf:
         - $ref: '#/components/schemas/EventCore'
         - type: object
