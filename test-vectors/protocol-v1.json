@@ -43,12 +43,20 @@
         {
           "key": "android.model",
           "value": "Pixel 7"
+        },
+        {
+          "key": "android.integrity",
+          "value": "1::"
+        },
+        {
+          "key": "android.setupDay",
+          "value": "20000"
         }
       ],
-      "canonical": "v2.prj_0123456789ab.1800000000000.1800000300.0123456789abcdef0123456789abcdef.abababababababababababababababababababababababababababababababab|android.buildFingerprint=google/panther/panther:14/AP1A.240305.019/11228894:user/release-keys|android.hardware=panther|android.id=1a2b3c4d5e6f7081|android.mediaDrmId=4773d12e2371bb935b9a0f5439b4a1c3ad3f2414b86980f8418d1cfabdfadfef|android.model=Pixel 7|android.networkCountry=de|android.sdkInt=34|android.simCountry=|android.timezone=Europe/Berlin",
-      "sig": "80cf009118c0a0e6c82306a2e123522713cfa38c6ea9dced75b6566dd44115eb",
-      "requestHashHex": "fece6223416a4e9a5b23a26250e49d2206eb7e4a1571cb3e7d65e92474ba0a76",
-      "clientDataHashBase64": "/s5iI0FqTppbI6JiUOSdIgbrfkoVccs+fWXpJHS6CnY="
+      "canonical": "v2.prj_0123456789ab.1800000000000.1800000300.0123456789abcdef0123456789abcdef.abababababababababababababababababababababababababababababababab|android.buildFingerprint=google/panther/panther:14/AP1A.240305.019/11228894:user/release-keys|android.hardware=panther|android.id=1a2b3c4d5e6f7081|android.integrity=1::|android.mediaDrmId=4773d12e2371bb935b9a0f5439b4a1c3ad3f2414b86980f8418d1cfabdfadfef|android.model=Pixel 7|android.networkCountry=de|android.sdkInt=34|android.setupDay=20000|android.simCountry=|android.timezone=Europe/Berlin",
+      "sig": "b050679d00940bea87adc7dacbf77381923633c7ffecc5f3f3edb64be7b92e0a",
+      "requestHashHex": "ec1fa818e35ea34b7f737a1be30c8a82b094f186766209f2a76b4a41b3763121",
+      "clientDataHashBase64": "7B+oGONeo0t/c3ob4wyKgrCU8YZ2Ygnyp2tKQbN2MSE="
     },
     {
       "name": "ios",
@@ -77,12 +85,16 @@
         {
           "key": "ios.simulator",
           "value": "false"
+        },
+        {
+          "key": "ios.integrity",
+          "value": "1:hook:mock_location"
         }
       ],
-      "canonical": "v2.prj_0123456789ab.1800000000000.1800000300.0123456789abcdef0123456789abcdef.abababababababababababababababababababababababababababababababab|ios.idfv=0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e|ios.keychainId=A1B2C3D4-E5F6-4711-8899-AABBCCDDEEFF|ios.model=iPhone17,1|ios.osVersion=26.1|ios.simulator=false|ios.timezone=America/Sao_Paulo",
-      "sig": "f1801d0585cdd822a4199076106dfc1a7a2b091a10dde819b81c0e18f63bb94f",
-      "requestHashHex": "fe594d10fa6ec39c5db9c37fbaea0c96c0eb01c922df1915375cbb96d98c3b49",
-      "clientDataHashBase64": "/llNEPpuw5xducN/uuoMlsDrAcki3xkVN1y7ltmMO0k="
+      "canonical": "v2.prj_0123456789ab.1800000000000.1800000300.0123456789abcdef0123456789abcdef.abababababababababababababababababababababababababababababababab|ios.idfv=0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e|ios.integrity=1:hook:mock_location|ios.keychainId=A1B2C3D4-E5F6-4711-8899-AABBCCDDEEFF|ios.model=iPhone17,1|ios.osVersion=26.1|ios.simulator=false|ios.timezone=America/Sao_Paulo",
+      "sig": "e2a5e81d343dafdc37e7faf417ea2ab8b5bd9a0ed4fc10726004b56302cc58b2",
+      "requestHashHex": "56e350f9cd924ae61cb30ea3472e498a00803469407f6b9fc25f953e45b6e756",
+      "clientDataHashBase64": "VuNQ+c2SSuYcsw6jRy5JigCANGlAf2ufwl+VPkW251Y="
     },
     {
       "name": "macos",
@@ -133,5 +145,47 @@
     "nonce": "v3.prj_0123456789ab.1800000000000.1800000300.0123456789abcdef0123456789abcdef.12.cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
     "bits": 12,
     "solution": "1904"
-  }
+  },
+  "reject": [
+    {
+      "name": "code in both fired and unavailable",
+      "platform": "android",
+      "components": [
+        {
+          "key": "android.integrity",
+          "value": "1:root:root"
+        }
+      ]
+    },
+    {
+      "name": "ios code on android",
+      "platform": "android",
+      "components": [
+        {
+          "key": "android.integrity",
+          "value": "1:jailbreak:"
+        }
+      ]
+    },
+    {
+      "name": "uppercase code",
+      "platform": "ios",
+      "components": [
+        {
+          "key": "ios.integrity",
+          "value": "1:HOOK:"
+        }
+      ]
+    },
+    {
+      "name": "duplicate code",
+      "platform": "android",
+      "components": [
+        {
+          "key": "android.integrity",
+          "value": "1:root,root:"
+        }
+      ]
+    }
+  ]
 }

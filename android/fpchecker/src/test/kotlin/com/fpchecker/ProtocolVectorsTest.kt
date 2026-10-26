@@ -82,4 +82,25 @@ class ProtocolVectorsTest {
         assertEquals(12, Pow.leadingZeroBits(byteArrayOf(0x00, 0x0f)))
         assertEquals(16, Pow.leadingZeroBits(byteArrayOf(0x00, 0x00)))
     }
+
+    @Test
+    fun androidRejectVectorsFailTheSdkValidator() {
+        val reject = vectors.getJSONArray("reject")
+        var checked = 0
+        for (i in 0 until reject.length()) {
+            val case = reject.getJSONObject(i)
+            if (case.getString("platform") != "android") continue
+            val comps = componentsOf(case) + Component(ComponentRules.ID, "1a2b3c4d5e6f7081")
+            assertTrue(case.getString("name"), ComponentRules.validate(comps).isNotEmpty())
+            checked++
+        }
+        assertTrue("expected android reject vectors", checked >= 3)
+    }
+
+    @Test
+    fun integrityVectorCarriesBothNewKeys() {
+        val case = androidCases().first { it.getString("platform") == "android" }
+        val keys = componentsOf(case).map { it.key }
+        assertTrue("android.integrity" in keys && "android.setupDay" in keys)
+    }
 }
