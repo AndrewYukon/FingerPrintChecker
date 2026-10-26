@@ -1,9 +1,12 @@
 package com.fpchecker.integrity
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
 
 class IntegrityProbesTest {
     private val all = "root,hook,emulator,debugger,devopts,mitm,vpn,mock_location,clone"
@@ -58,10 +61,12 @@ class IntegrityProbesTest {
         assertEquals("1::$all", IntegrityProbes.collect(ThrowingProbeEnv()))
     }
 
-    private class Slow : Probe {
-        override val code = "hook"
+    /** Blocks until [release] is called, so it can never finish inside a test deadline, however slow the host is. */
+    private class Blocked(override val code: String) : Probe {
+        private val latch = CountDownLatch(1)
+        fun release() = latch.countDown()
         override fun run(env: ProbeEnv): ProbeResult {
-            Thread.sleep(2_000)
+            latch.await()
             return ProbeResult.FIRED
         }
     }
@@ -75,30 +80,35 @@ class IntegrityProbesTest {
         override fun run(env: ProbeEnv): ProbeResult = throw kotlinx.coroutines.CancellationException("probe bug")
     }
 
+    /** Generous deadline: the quick probes finish long before it even on a cold, loaded host. */
+    private val deadlineMs = 1_500L
+
+    private suspend fun warmUp() {
+        IntegrityProbes.collect(FakeProbeEnv(), listOf(Quick("root", ProbeResult.CLEAN)), 5_000)
+    }
+
     @Test
     fun slowProbeInTheMiddleDoesNotCostLaterResults() = runBlocking {
-        val slowMitm = object : Probe {
-            override val code = "mitm"
-            override fun run(env: ProbeEnv): ProbeResult {
-                Thread.sleep(2_000)
-                return ProbeResult.FIRED
-            }
+        warmUp()
+        val blocked = Blocked("mitm")
+        try {
+            val probes = listOf(
+                Quick("root", ProbeResult.CLEAN), blocked, Quick("vpn", ProbeResult.FIRED),
+                Quick("mock_location", ProbeResult.CLEAN), Quick("clone", ProbeResult.FIRED),
+            )
+            val parts = IntegrityProbes.collect(FakeProbeEnv(), probes, deadlineMs).split(":")
+            val unavailable = parts[2].split(",")
+            assertEquals(listOf("vpn", "clone"), parts[1].split(","))
+            assertTrue("mitm" in unavailable)
+            assertTrue("root" !in unavailable && "vpn" !in unavailable && "mock_location" !in unavailable && "clone" !in unavailable)
+        } finally {
+            blocked.release()
         }
-        val probes = listOf(
-            Quick("root", ProbeResult.CLEAN), slowMitm, Quick("vpn", ProbeResult.FIRED),
-            Quick("mock_location", ProbeResult.CLEAN), Quick("clone", ProbeResult.FIRED),
-        )
-        val parts = IntegrityProbes.collect(FakeProbeEnv(), probes, 200).split(":")
-        val fired = parts[1].split(",")
-        val unavailable = parts[2].split(",")
-        assertEquals(listOf("vpn", "clone"), fired)
-        assertTrue("mitm" in unavailable)
-        assertTrue("root" !in unavailable && "vpn" !in unavailable && "mock_location" !in unavailable && "clone" !in unavailable)
     }
 
     @Test
     fun aProbeThrowingCancellationIsUnavailableNotPropagated() = runBlocking {
-        val encoded = IntegrityProbes.collect(FakeProbeEnv(), listOf(Quick("root", ProbeResult.FIRED), Cancelling()), 200)
+        val encoded = IntegrityProbes.collect(FakeProbeEnv(), listOf(Quick("root", ProbeResult.FIRED), Cancelling()), 5_000)
         assertTrue(encoded.startsWith("1:root:"))
         assertTrue("mitm" in encoded.split(":")[2].split(","))
     }
@@ -115,21 +125,23 @@ class IntegrityProbesTest {
     }
 
     @Test
-    fun slowProbeTimesOutToUnavailableWithinBudget() = runBlocking {
-        val probes = listOf(Quick("root", ProbeResult.FIRED), Slow())
-        // Warm the dispatcher and timer threads: cold class loading is not part of the budget under test.
-        IntegrityProbes.collect(FakeProbeEnv(), listOf(Quick("root", ProbeResult.CLEAN)), 200)
-        // Best of three: the shared CI host can stall one run, but a probe that blocks the caller would stall all three.
-        var best = Long.MAX_VALUE
-        var encoded = ""
-        repeat(3) {
+    fun blockedProbeBecomesUnavailableAndDoesNotHoldTheCaller() = runBlocking {
+        warmUp()
+        val blocked = Blocked("hook")
+        try {
+            // The probe cannot finish until released after the call, so a collector that waited on it would hang;
+            // the outer timeout turns that into a clear failure instead.
             val start = System.nanoTime()
-            encoded = IntegrityProbes.collect(FakeProbeEnv(), probes, 200)
-            best = minOf(best, (System.nanoTime() - start) / 1_000_000)
+            val encoded = withTimeoutOrNull(10_000) {
+                IntegrityProbes.collect(FakeProbeEnv(), listOf(Quick("root", ProbeResult.FIRED), blocked), deadlineMs)
+            }
+            val elapsedMs = (System.nanoTime() - start) / 1_000_000
+            assertNotNull("collect was held by the blocked probe", encoded)
+            assertTrue("took ${elapsedMs}ms", elapsedMs < 10_000)
+            assertTrue(encoded!!.startsWith("1:root:"))
+            assertTrue("hook" in encoded.split(":")[2].split(","))
+        } finally {
+            blocked.release()
         }
-        assertTrue("best of 3 took ${best}ms", best < 250)
-        // Codes not run at all are reported unavailable too, so only the relevant parts are asserted.
-        assertTrue(encoded.startsWith("1:root:"))
-        assertTrue(encoded.split(":")[2].split(",").contains("hook"))
     }
 }

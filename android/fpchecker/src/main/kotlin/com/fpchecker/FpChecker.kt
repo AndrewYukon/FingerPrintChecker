@@ -97,10 +97,6 @@ public class FpChecker(context: Context, private val config: FpCheckerConfig) {
         }
     }
 
-    /**
-     * Starts the integrity probes (and the Play Integrity provider warm-up) in the background so they overlap
-     * with the challenge round trip; [block] awaits the probe value when it builds the components.
-     */
     /** Never throws except on caller cancellation: probes must not be able to abort identify. */
     private suspend fun collectProbes(): String {
         if (!config.integrityProbes) return IntegrityProbes.disabled()
@@ -115,6 +111,10 @@ public class FpChecker(context: Context, private val config: FpCheckerConfig) {
         }
     }
 
+    /**
+     * Starts the integrity probes (and the Play Integrity provider warm-up) in the background so they overlap
+     * with the challenge round trip; [block] awaits the probe value when it builds the components.
+     */
     private suspend fun <T> withProbes(block: suspend (Deferred<String>) -> T): T = coroutineScope {
         val probes = async(Dispatchers.IO) {
             collectProbes()

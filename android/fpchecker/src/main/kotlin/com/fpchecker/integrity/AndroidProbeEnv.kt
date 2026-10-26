@@ -119,7 +119,8 @@ internal class AndroidProbeEnv(context: Context) : ProbeEnv {
         // isLocationEnabled exists from API 28; below that the cached fix is read directly.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && !lm.isLocationEnabled) return null
         var read = 0
-        for (provider in lm.getProviders(true)) {
+        val providers = lm.getProviders(true)
+        for (provider in providers) {
             // A coarse-only grant makes "gps" throw; the other providers must still be read.
             val location = try {
                 lm.getLastKnownLocation(provider)
@@ -129,7 +130,7 @@ internal class AndroidProbeEnv(context: Context) : ProbeEnv {
             read++
             if (location != null && isMock(location)) return true
         }
-        return if (read == 0 && lm.getProviders(true).isNotEmpty()) null else false
+        return if (read == 0 && providers.isNotEmpty()) null else false
     }
 
     @Suppress("DEPRECATION") // isFromMockProvider is the only option below API 31
