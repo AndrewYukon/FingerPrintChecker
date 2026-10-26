@@ -8,9 +8,11 @@ protocol ProbeEnvironment: Sendable {
     func canWriteOutsideSandbox() -> Bool
     func loadedImageNames() -> [String]
     /// True when something accepts a TCP connection on 127.0.0.1:`port` within `timeout` seconds.
-    func canConnectLocal(port: UInt16, timeout: TimeInterval) -> Bool
+    /// `false` only for a refused or timed-out connection; `nil` when the check itself could not run.
+    func canConnectLocal(port: UInt16, timeout: TimeInterval) -> Bool?
     func environment(_ name: String) -> String?
-    func isTraced() -> Bool
+    /// `nil` when the process flags cannot be read (failed read is unavailable, never clean).
+    func isTraced() -> Bool?
     /// The system proxy settings dictionary (includes `__SCOPED__`), or `nil` when unreadable.
     func proxySettings() -> [String: Any]?
     /// `isSimulatedBySoftware` of the cached location; `nil` when it cannot be read without prompting.

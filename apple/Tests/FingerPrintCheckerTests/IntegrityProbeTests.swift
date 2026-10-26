@@ -8,16 +8,17 @@ private final class FakeEnv: ProbeEnvironment, @unchecked Sendable {
     var images = [String]()
     var openPorts = Set<UInt16>()
     var vars = [String: String]()
-    var traced = false
+    var traced: Bool? = false
+    var connectFails = false
     var proxy: [String: Any]? = ["HTTPEnable": 0, "__SCOPED__": ["en0": [String: Any]()]]
     var simulated: Bool?
 
     func fileExists(_ path: String) -> Bool { files.contains(path) }
     func canWriteOutsideSandbox() -> Bool { writable }
     func loadedImageNames() -> [String] { images }
-    func canConnectLocal(port: UInt16, timeout: TimeInterval) -> Bool { openPorts.contains(port) }
+    func canConnectLocal(port: UInt16, timeout: TimeInterval) -> Bool? { connectFails ? nil : openPorts.contains(port) }
     func environment(_ name: String) -> String? { vars[name] }
-    func isTraced() -> Bool { traced }
+    func isTraced() -> Bool? { traced }
     func proxySettings() -> [String: Any]? { proxy }
     func locationSimulated() -> Bool? { simulated }
 }
@@ -96,6 +97,15 @@ final class IntegrityProbeTests: XCTestCase {
         XCTAssertEqual(try run(DebuggerProbe(), FakeEnv()), .clean)
     }
 
+    func testFailedReadsAreUnavailableNotClean() throws {
+        let traceFail = FakeEnv(); traceFail.traced = nil
+        XCTAssertEqual(try run(DebuggerProbe(), traceFail), .unavailable)
+        let connectFail = FakeEnv(); connectFail.connectFails = true
+        XCTAssertEqual(try run(HookProbe(), connectFail), .unavailable)
+        connectFail.images = ["/usr/lib/FridaGadget.dylib"]
+        XCTAssertEqual(try run(HookProbe(), connectFail), .fired)
+    }
+
     // MARK: mitm
     func testMitmFiredByHttpProxy() throws {
         let env = FakeEnv(); env.proxy = ["HTTPEnable": 1]
@@ -111,7 +121,7 @@ final class IntegrityProbeTests: XCTestCase {
 
     // MARK: vpn (M21)
     func testVpnFiredByLegacyTunnelInterfaces() throws {
-        for iface in ["ipsec0", "ppp0", "tun0", "tap0"] {
+        for iface in ["ppp0", "tun0", "tap0"] {
             let env = FakeEnv(); env.proxy = ["__SCOPED__": [iface: [String: Any]()]]
             XCTAssertEqual(try run(VpnProbe(), env), .fired, iface)
         }
@@ -225,5 +235,34 @@ final class IntegrityProbeTests: XCTestCase {
     func testIntegrityKeysAreNotIdentity() {
         let errors = ComponentRules.validate(platform: .ios, components: [FPComponent(key: "ios.integrity", value: "1::")])
         XCTAssertTrue(errors.contains("no identity key"))
+    }
+
+    // MARK: runtime-resolved CoreLocation reader
+    func testCachedLocationReaderThreeStates() {
+        XCTAssertEqual(CachedLocationReader.simulated(manager: FakeManager(status: 4, simulated: true)), true)
+        XCTAssertEqual(CachedLocationReader.simulated(manager: FakeManager(status: 3, simulated: false)), false)
+        XCTAssertNil(CachedLocationReader.simulated(manager: FakeManager(status: 0, simulated: true)))
+        XCTAssertNil(CachedLocationReader.simulated(manager: FakeManager(status: 4, simulated: nil)))
+        XCTAssertNil(CachedLocationReader.simulated(manager: FakeManager(status: 4, simulated: true, hasLocation: false)))
+        XCTAssertNil(CachedLocationReader.simulated(manager: NSObject()))  // no keys at all: no exception
+    }
+}
+
+@objc private final class FakeSource: NSObject {
+    @objc let isSimulatedBySoftware: Bool
+    init(_ value: Bool) { isSimulatedBySoftware = value }
+}
+
+@objc private final class FakeFix: NSObject {
+    @objc let sourceInformation: FakeSource?
+    init(_ source: FakeSource?) { sourceInformation = source }
+}
+
+@objc private final class FakeManager: NSObject {
+    @objc let authorizationStatus: Int
+    @objc let location: FakeFix?
+    init(status: Int, simulated: Bool?, hasLocation: Bool = true) {
+        authorizationStatus = status
+        location = hasLocation ? FakeFix(simulated.map(FakeSource.init)) : nil
     }
 }

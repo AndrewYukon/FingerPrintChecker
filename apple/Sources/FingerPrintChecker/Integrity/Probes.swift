@@ -13,6 +13,14 @@ private func anyOf(_ checks: [() throws -> Bool]) -> ProbeResult {
     return failed ? .unavailable : .clean
 }
 
+private struct ReadUnavailable: Error {}
+
+/// A failed read (`nil`) throws so `anyOf` records it as unavailable instead of clean.
+private func require(_ value: Bool?) throws -> Bool {
+    guard let value else { throw ReadUnavailable() }
+    return value
+}
+
 private func tri(_ value: Bool?) -> ProbeResult {
     switch value {
     case .none: return .unavailable
@@ -53,7 +61,7 @@ struct HookProbe: Probe {
                 let lower = name.lowercased()
                 return hookImageMarkers.contains { lower.contains($0) }
             } },
-            { env.canConnectLocal(port: fridaPort, timeout: portTimeout) },
+            { try require(env.canConnectLocal(port: fridaPort, timeout: portTimeout)) },
         ])
     }
 }
@@ -67,7 +75,7 @@ struct EmulatorProbe: Probe {
 
 struct DebuggerProbe: Probe {
     let code = "debugger"
-    func run(_ env: ProbeEnvironment) throws -> ProbeResult { anyOf([{ env.isTraced() }]) }
+    func run(_ env: ProbeEnvironment) throws -> ProbeResult { anyOf([{ try require(env.isTraced()) }]) }
 }
 
 struct MitmProbe: Probe {
@@ -79,11 +87,11 @@ struct MitmProbe: Probe {
     }
 }
 
-/// Version 1 counts only legacy tunnel interfaces. `utun*` is also used by iCloud Private Relay, Tailscale and
+/// Version 1 counts only legacy tunnel interfaces (no `ipsec*`: Wi-Fi Calling uses it without any VPN). `utun*` is also used by iCloud Private Relay, Tailscale and
 /// system services, so it is not evidence by itself and is deliberately ignored here (M21).
 struct VpnProbe: Probe {
     let code = "vpn"
-    static let prefixes = ["ipsec", "ppp", "tap", "tun"]
+    static let prefixes = ["ppp", "tap", "tun"]
     func run(_ env: ProbeEnvironment) throws -> ProbeResult {
         guard let scoped = env.proxySettings()?["__SCOPED__"] as? [String: Any] else { return .unavailable }
         return scoped.keys.contains { key in Self.prefixes.contains { key.hasPrefix($0) } } ? .fired : .clean

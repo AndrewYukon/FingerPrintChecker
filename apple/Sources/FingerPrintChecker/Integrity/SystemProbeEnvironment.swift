@@ -1,9 +1,6 @@
 import CFNetwork
 import Foundation
 import MachO
-#if os(iOS)
-import CoreLocation
-#endif
 
 /// Real device readings. Nothing here prompts the user, requests a permission or reports a coordinate.
 struct SystemProbeEnvironment: ProbeEnvironment {
@@ -27,12 +24,12 @@ struct SystemProbeEnvironment: ProbeEnvironment {
     }
 
     /// Non-blocking connect to 127.0.0.1 bounded by `poll`.
-    func canConnectLocal(port: UInt16, timeout: TimeInterval) -> Bool {
+    func canConnectLocal(port: UInt16, timeout: TimeInterval) -> Bool? {
         let fd = socket(AF_INET, SOCK_STREAM, 0)
-        guard fd >= 0 else { return false }
+        guard fd >= 0 else { return nil }
         defer { close(fd) }
         let flags = fcntl(fd, F_GETFL, 0)
-        guard flags >= 0, fcntl(fd, F_SETFL, flags | O_NONBLOCK) >= 0 else { return false }
+        guard flags >= 0, fcntl(fd, F_SETFL, flags | O_NONBLOCK) >= 0 else { return nil }
         var address = sockaddr_in()
         address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
         address.sin_family = sa_family_t(AF_INET)
@@ -44,12 +41,12 @@ struct SystemProbeEnvironment: ProbeEnvironment {
             }
         }
         if result == 0 { return true }
-        guard errno == EINPROGRESS else { return false }
+        guard errno == EINPROGRESS else { return false }  // refused outright
         var pollFd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
         guard poll(&pollFd, 1, Int32(timeout * 1000)) > 0 else { return false }
         var error: Int32 = 0
         var length = socklen_t(MemoryLayout<Int32>.size)
-        guard getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &length) == 0 else { return false }
+        guard getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &length) == 0 else { return nil }
         return error == 0
     }
 
@@ -57,11 +54,11 @@ struct SystemProbeEnvironment: ProbeEnvironment {
         ProcessInfo.processInfo.environment[name]
     }
 
-    func isTraced() -> Bool {
+    func isTraced() -> Bool? {
         var info = kinfo_proc()
         var size = MemoryLayout<kinfo_proc>.stride
         var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
-        guard sysctl(&mib, UInt32(mib.count), &info, &size, nil, 0) == 0 else { return false }
+        guard sysctl(&mib, UInt32(mib.count), &info, &size, nil, 0) == 0 else { return nil }
         return (info.kp_proc.p_flag & P_TRACED) != 0
     }
 
@@ -70,18 +67,34 @@ struct SystemProbeEnvironment: ProbeEnvironment {
     }
 
     /// Only when the host app already holds location authorisation, and only the cached fix: never asks,
-    /// never starts updates, never reads the coordinates.
+    /// never starts updates, never reads the coordinates. CoreLocation is deliberately not linked: the class
+    /// is looked up at runtime, so the host app gets no CoreLocation autolink and no privacy prompt surface.
     func locationSimulated() -> Bool? {
         #if os(iOS)
-        guard #available(iOS 15.0, *) else { return nil }
-        let manager = CLLocationManager()
-        switch manager.authorizationStatus {
-        case .authorizedWhenInUse, .authorizedAlways: break
-        default: return nil
-        }
-        return manager.location?.sourceInformation?.isSimulatedBySoftware
+        guard let type = NSClassFromString("CLLocationManager") as? NSObject.Type else { return nil }
+        return CachedLocationReader.simulated(manager: type.init())
         #else
         return nil
         #endif
+    }
+}
+
+/// Reads `isSimulatedBySoftware` of a `CLLocationManager`-shaped object by key-value coding. Every key is
+/// guarded with `responds(to:)` so a missing member is "unavailable", never an `NSUnknownKeyException`.
+enum CachedLocationReader {
+    private static let authorizedWhenInUse = 4
+    private static let authorizedAlways = 3
+
+    static func simulated(manager: NSObject) -> Bool? {
+        guard let status = value(manager, "authorizationStatus") as? NSNumber,
+              [authorizedWhenInUse, authorizedAlways].contains(status.intValue) else { return nil }
+        guard let location = value(manager, "location") as? NSObject else { return nil }
+        guard let source = value(location, "sourceInformation") as? NSObject else { return nil }
+        return (value(source, "isSimulatedBySoftware") as? NSNumber)?.boolValue
+    }
+
+    private static func value(_ object: NSObject, _ key: String) -> Any? {
+        guard object.responds(to: NSSelectorFromString(key)) else { return nil }
+        return object.value(forKey: key)
     }
 }

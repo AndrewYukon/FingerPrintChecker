@@ -99,13 +99,16 @@ public final class FingerPrintChecker: Sendable {
         guard let sealKey = config.sealKey, !sealKey.isEmpty else {
             return .failure(reason: "seal_key_missing", httpStatus: 0)
         }
+        // Probes (300 ms budget) overlap the network round trip instead of following it. On an early failure the
+        // task is simply not awaited; it is bounded and its result is dropped.
+        let collection = Task { [collector, config] in await collector.collect(useDeviceCheck: config.useDeviceCheck) }
         let nonce: String
         switch await fetchNonce() {
         case .nonce(let value): nonce = value
         case .failed(let failure): return failure
         }
 
-        let signals = await collector.collect(useDeviceCheck: config.useDeviceCheck)
+        let signals = await collection.value
         guard ComponentRules.validate(platform: platform, components: signals.components).isEmpty else {
             return .failure(reason: "no_device_id", httpStatus: 0)
         }
