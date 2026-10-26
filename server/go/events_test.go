@@ -1,6 +1,8 @@
 package fpchecker
 
 import (
+	"encoding/json"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -145,5 +147,30 @@ func TestUnknownVpnMethodAndWrongTypesDoNotFail(t *testing.T) {
 	}
 	if e.Data.Signals.Mobile.Rooted != nil || e.Data.Signals.Mobile.FactoryResetAt == nil || len(e.Data.Signals.Vpn.Methods) != 2 {
 		t.Fatalf("%+v", e.Data.Signals)
+	}
+}
+
+func TestMobileSignalsMarshalKeepsWireNames(t *testing.T) {
+	in := `{"emulator":false,"attested":true,"integrity":"basic","rooted":true,"hooked":false,"debugger":false,` +
+		`"developerMode":true,"mitm":false,"vpn":true,"locationSpoofed":false,"clonedApp":true,"factoryResetAt":"2026-10-01"}`
+	var m MobileSignals
+	if err := json.Unmarshal([]byte(in), &m); err != nil {
+		t.Fatal(err)
+	}
+	out, err := json.Marshal(&m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want, got map[string]any
+	_ = json.Unmarshal([]byte(in), &want)
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("round trip changed wire names: %s", out)
+	}
+	var back MobileSignals
+	if err := json.Unmarshal(out, &back); err != nil || !reflect.DeepEqual(m, back) {
+		t.Fatalf("re-decode differs: %v %+v", err, back)
 	}
 }

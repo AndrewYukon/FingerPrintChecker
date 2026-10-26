@@ -65,18 +65,18 @@ func (v *VpnSignal) UnmarshalJSON(b []byte) error {
 // off, unsupported platform). Not a guarantee either way. FactoryResetAt is reserved and
 // currently always nil.
 type MobileSignals struct {
-	Emulator        *bool
-	Attested        *bool
-	Integrity       string // strong | basic | failed | "" when unknown
-	Rooted          *bool
-	Hooked          *bool
-	Debugger        *bool
-	DeveloperMode   *bool
-	Mitm            *bool
-	Vpn             *bool
-	LocationSpoofed *bool
-	ClonedApp       *bool
-	FactoryResetAt  *string
+	Emulator        *bool   `json:"emulator"`
+	Attested        *bool   `json:"attested"`
+	Integrity       string  `json:"integrity,omitempty"` // strong | basic | failed | "" when unknown
+	Rooted          *bool   `json:"rooted"`
+	Hooked          *bool   `json:"hooked"`
+	Debugger        *bool   `json:"debugger"`
+	DeveloperMode   *bool   `json:"developerMode"`
+	Mitm            *bool   `json:"mitm"`
+	Vpn             *bool   `json:"vpn"`
+	LocationSpoofed *bool   `json:"locationSpoofed"`
+	ClonedApp       *bool   `json:"clonedApp"`
+	FactoryResetAt  *string `json:"factoryResetAt"`
 }
 
 func triBool(raw json.RawMessage) *bool {

@@ -57,11 +57,11 @@ describe('mobile integrity signals', () => {
     expect(parseWebhookEvent(ev({})).data.signals).toBeUndefined();
   });
 
-  it('a non-boolean value is read as null, an unknown vpn method does not throw', () => {
+  it('a non-boolean value is read as null, an unknown vpn method is dropped without throwing', () => {
     const e = parseWebhookEvent(ev({ signals: { vpn: { result: true, methods: ['os_vpn', 'future'] }, mobile: { rooted: 'yes', factoryResetAt: 5 } } }));
     expect(e.data.signals?.mobile?.rooted).toBeNull();
     expect(e.data.signals?.mobile?.factoryResetAt).toBeNull();
-    expect(e.data.signals?.vpn?.methods).toEqual(['os_vpn', 'future']);
+    expect(e.data.signals?.vpn?.methods).toEqual(['os_vpn']);
   });
 });
 

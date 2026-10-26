@@ -10,8 +10,9 @@ export interface RuleAction {
   rulesetVersion: number;
 }
 
-/** How the VPN signal was reached. `os_vpn` is the device reporting an active VPN. Open: ignore a value you do not know. */
-export type VpnMethod = 'timezone_mismatch' | 'ip_range' | 'relay' | 'os_vpn' | (string & {});
+/** How the VPN signal was reached. `os_vpn` is the device reporting an active VPN. Values this SDK does not know are dropped when parsing. */
+export const VPN_METHODS = ['timezone_mismatch', 'ip_range', 'relay', 'os_vpn'] as const;
+export type VpnMethod = (typeof VPN_METHODS)[number];
 
 /**
  * Device-state signals of an android, ios or macos event. Each flag has three states:
@@ -120,10 +121,17 @@ function parseMobile(v: unknown): MobileSignals | null | undefined {
   };
 }
 
+function parseVpn(v: unknown): EventSignals['vpn'] | undefined {
+  if (!isObject(v)) return undefined;
+  const methods = Array.isArray(v.methods) ? v.methods.filter((m): m is VpnMethod => VPN_METHODS.includes(m as VpnMethod)) : [];
+  return { ...v, result: tri(v.result), methods };
+}
+
 function parseSignals(v: unknown): EventSignals | undefined {
   if (!isObject(v)) return undefined;
   const mobile = parseMobile(v.mobile);
-  return { ...v, ...(mobile !== undefined ? { mobile } : {}) } as EventSignals;
+  const vpn = parseVpn(v.vpn);
+  return { ...v, ...(vpn !== undefined ? { vpn } : {}), ...(mobile !== undefined ? { mobile } : {}) } as EventSignals;
 }
 
 /**
