@@ -73,6 +73,8 @@ class IntegrityProbesTest {
     @Test
     fun slowProbeTimesOutToUnavailableWithinBudget() = runBlocking {
         val probes = listOf(Quick("root", ProbeResult.FIRED), Slow())
+        // Warm the dispatcher and timer threads: cold class loading is not part of the budget under test.
+        IntegrityProbes.collect(FakeProbeEnv(), listOf(Quick("root", ProbeResult.CLEAN)), 200)
         val start = System.nanoTime()
         val encoded = IntegrityProbes.collect(FakeProbeEnv(), probes, 200)
         val elapsedMs = (System.nanoTime() - start) / 1_000_000
