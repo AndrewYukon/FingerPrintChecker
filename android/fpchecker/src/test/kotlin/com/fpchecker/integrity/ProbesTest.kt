@@ -135,4 +135,45 @@ class ProbesTest {
         val result = runCatching { CloneProbe.run(ThrowingProbeEnv()) }
         assertEquals(true, result.isFailure)
     }
+
+    @Test
+    fun hookGadgetAndLibFridaMarkersFire() {
+        assertEquals(fired, HookProbe.run(FakeProbeEnv(texts = mapOf("/proc/self/maps" to "7f00 r-xp /data/app/libfrida-gadget.config.so"))))
+        assertEquals(fired, HookProbe.run(FakeProbeEnv(texts = mapOf("/proc/self/maps" to "7f00 r-xp /x/frida-gadget-64.so"))))
+    }
+
+    @Test
+    fun streamedMapsFindsMarkerPastHalfAMegabyte() {
+        val filler = "7f00 r-xp /system/lib/libc.so\n".repeat(30_000)
+        assertEquals(true, filler.length > 512 * 1024)
+        val reader = java.io.BufferedReader(java.io.StringReader(filler + "7f01 r-xp /x/frida-agent-64.so\n"))
+        assertEquals(true, readerContainsAny(reader, listOf("frida-agent", "frida-gadget", "libfrida")))
+        assertEquals(false, readerContainsAny(java.io.BufferedReader(java.io.StringReader(filler)), listOf("frida-agent")))
+    }
+
+    @Test
+    fun mockVerdictNeedsAtLeastOneFix() {
+        assertEquals(null, mockLocationVerdict(emptyList()))
+        assertEquals(null, mockLocationVerdict(listOf(null, null)))
+        assertEquals(false, mockLocationVerdict(listOf(null, false)))
+        assertEquals(true, mockLocationVerdict(listOf(false, true)))
+    }
+
+    @Test
+    fun cloneAdoptedStorageIsStandard() {
+        assertEquals(clean, CloneProbe.run(FakeProbeEnv(data = "/mnt/expand/1234-abcd/user/0/com.x")))
+        assertEquals(clean, CloneProbe.run(FakeProbeEnv(data = "/mnt/expand/1234-abcd/data/com.x")))
+        assertEquals(fired, CloneProbe.run(FakeProbeEnv(data = "/mnt/expand/1234-abcd/user/0/com.lbe/com.x")))
+    }
+
+    @Test
+    fun processCacheLoadsOnceIncludingFailures() {
+        val cache = ProcessCache<String?>()
+        var calls = 0
+        assertEquals("1", cache.getOrLoad("k") { calls++; "1" })
+        assertEquals("1", cache.getOrLoad("k") { calls++; "2" })
+        assertEquals(1, calls)
+        repeat(2) { assertEquals(true, runCatching { cache.getOrLoad("bad") { calls++; throw java.io.IOException("x") } }.isFailure) }
+        assertEquals(2, calls)
+    }
 }

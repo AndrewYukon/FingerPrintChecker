@@ -9,6 +9,9 @@ internal interface ProbeEnv {
 
     /** Up to [maxBytes] of the file as text, or null when it does not exist. */
     fun readText(path: String, maxBytes: Int): String?
+
+    /** True when any line of the file contains one of [markers]; streamed, no size cap. False when the file is absent. */
+    fun fileContainsAny(path: String, markers: List<String>): Boolean
     fun prop(name: String): String?
     fun globalSetting(name: String): String?
 

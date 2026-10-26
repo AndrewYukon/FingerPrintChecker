@@ -20,6 +20,7 @@ internal open class FakeProbeEnv(
 ) : ProbeEnv {
     override fun fileExists(path: String) = path in files
     override fun readText(path: String, maxBytes: Int) = texts[path]
+    override fun fileContainsAny(path: String, markers: List<String>) = texts[path]?.let { text -> markers.any { text.contains(it) } } ?: false
     override fun prop(name: String) = props[name]
     override fun globalSetting(name: String) = settings[name]
     override fun canConnectLocal(port: Int, timeoutMs: Int) = frida && port == 27042
@@ -41,6 +42,7 @@ internal class ThrowingProbeEnv : ProbeEnv {
     private fun boom(): Nothing = throw SecurityException("denied")
     override fun fileExists(path: String): Boolean = boom()
     override fun readText(path: String, maxBytes: Int): String? = boom()
+    override fun fileContainsAny(path: String, markers: List<String>): Boolean = boom()
     override fun prop(name: String): String? = boom()
     override fun globalSetting(name: String): String? = boom()
     override fun canConnectLocal(port: Int, timeoutMs: Int): Boolean = boom()

@@ -46,10 +46,10 @@ internal object IntegrityProbes {
 
     private fun runSafely(probe: Probe, env: ProbeEnv): ProbeResult = try {
         probe.run(env)
-    } catch (e: VirtualMachineError) {
+    } catch (e: OutOfMemoryError) {
         throw e
     } catch (_: Throwable) {
-        // Includes CancellationException thrown by a probe: that is the probe failing, not the caller cancelling.
+        // Includes StackOverflowError and CancellationException thrown by a probe: that is the probe failing, not the caller cancelling.
         ProbeResult.UNAVAILABLE
     }
 }

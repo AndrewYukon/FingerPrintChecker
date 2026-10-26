@@ -9,10 +9,10 @@ private fun anyOf(vararg checks: () -> Boolean): ProbeResult {
     for (check in checks) {
         try {
             if (check()) return ProbeResult.FIRED
-        } catch (e: VirtualMachineError) {
+        } catch (e: OutOfMemoryError) {
             throw e
         } catch (_: Throwable) {
-            // Includes LinkageError from class probing; evidence from the other checks must survive.
+            // Includes LinkageError from class probing and StackOverflowError; evidence from the other checks must survive.
             failed = true
         }
     }
@@ -25,7 +25,7 @@ private fun tri(value: Boolean?): ProbeResult = when (value) {
     false -> ProbeResult.CLEAN
 }
 
-private const val MAPS_LIMIT = 512 * 1024
+private val HOOK_MAPS_MARKERS = listOf("frida-agent", "frida-gadget", "libfrida")
 private const val MOUNTS_LIMIT = 64 * 1024
 private const val FRIDA_PORT = 27042
 private const val PORT_TIMEOUT_MS = 100
@@ -42,7 +42,7 @@ internal object RootProbe : Probe {
 internal object HookProbe : Probe {
     override val code = "hook"
     override fun run(env: ProbeEnv) = anyOf(
-        { env.readText("/proc/self/maps", MAPS_LIMIT)?.contains("frida-agent") == true },
+        { env.fileContainsAny("/proc/self/maps", HOOK_MAPS_MARKERS) },
         { env.classExists("de.robv.android.xposed.XposedBridge") },
         { env.canConnectLocal(FRIDA_PORT, PORT_TIMEOUT_MS) },
     )
@@ -85,6 +85,15 @@ internal object VpnProbe : Probe {
     override fun run(env: ProbeEnv) = tri(env.vpnActive())
 }
 
+/**
+ * Decides mock_location from the cached fixes the device returned: one flag per non-null fix (true = mock).
+ * No fix at all (no provider, every read denied or empty) is unknown, never clean.
+ */
+internal fun mockLocationVerdict(fixes: List<Boolean?>): Boolean? {
+    val seen = fixes.filterNotNull()
+    return if (seen.isEmpty()) null else seen.any { it }
+}
+
 internal object MockLocationProbe : Probe {
     override val code = "mock_location"
     override fun run(env: ProbeEnv) = tri(env.lastLocationMock())
@@ -98,7 +107,12 @@ internal object CloneProbe : Probe {
     override fun run(env: ProbeEnv): ProbeResult {
         val pkg = env.packageName()
         val dir = env.dataDir().trimEnd('/')
-        val standard = dir == "/data/data/$pkg" || Regex("^/data/user/[0-9]+/${Regex.escape(pkg)}$").matches(dir)
+        val escaped = Regex.escape(pkg)
+        val standard = dir == "/data/data/$pkg" ||
+            Regex("^/data/user/[0-9]+/$escaped$").matches(dir) ||
+            // Adopted (SD-card) storage keeps the same layout under /mnt/expand/<volume uuid>.
+            Regex("^/mnt/expand/[^/]+/user/[0-9]+/$escaped$").matches(dir) ||
+            Regex("^/mnt/expand/[^/]+/data/$escaped$").matches(dir)
         val userId = env.uid() / 100_000
         return if (!standard || userId in CLONE_USERS) ProbeResult.FIRED else ProbeResult.CLEAN
     }

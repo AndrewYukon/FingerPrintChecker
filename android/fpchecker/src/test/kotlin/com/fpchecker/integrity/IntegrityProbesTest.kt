@@ -144,4 +144,22 @@ class IntegrityProbesTest {
             blocked.release()
         }
     }
+
+    @Test
+    fun stackOverflowInAProbeIsUnavailable() = runBlocking {
+        val overflow = object : Probe {
+            override val code = "hook"
+            override fun run(env: ProbeEnv): ProbeResult = throw StackOverflowError()
+        }
+        val encoded = IntegrityProbes.collect(FakeProbeEnv(), listOf(Quick("root", ProbeResult.FIRED), overflow), 5_000)
+        assertEquals("1:root:${IntegrityProbes.CODES.filter { it != "root" }.joinToString(",")}", encoded)
+    }
+
+    @Test
+    fun stackOverflowInOneCheckKeepsOtherEvidence() {
+        val env = object : FakeProbeEnv(frida = true) {
+            override fun fileContainsAny(path: String, markers: List<String>): Boolean = throw StackOverflowError()
+        }
+        assertEquals(ProbeResult.FIRED, HookProbe.run(env))
+    }
 }
