@@ -290,7 +290,7 @@ debugger and hooking items only.
 - **Factory reset date.** The field `factoryResetAt` exists in the server types but is reserved: SDK 0.7.0 does not
   detect factory resets, so it is always `null`.
 - **No new permissions.** The SDK adds no `uses-permission`, no `<queries>`, and does not list the apps on the device.
-  A location check uses only a location permission your app already holds.
+  A location check uses only a location permission your app already holds, and on Android the device-VPN check runs only when your app already holds `ACCESS_NETWORK_STATE` (the SDK adds no permission); otherwise `vpn` is `null`.
 
 Server side, filter the events API by `rooted`, `hooked`, `emulator`, `mitm`, `locationSpoofed` and `clonedApp`
 (`true` / `false`), and read `signals.mobile` and `signals.vpn.methods` (which may contain `os_vpn`). Server SDKs 0.3.0 type these fields.
@@ -360,7 +360,7 @@ What leaves the device (iOS / macOS):
   attestation/assertion objects, when enabled.
 
 The SDK stores one timestamp in UserDefaults (App Attest back-off). No advertising id, contacts or accounts are read, and no coordinates are sent. The package ships a `PrivacyInfo.xcprivacy` declaring
-Device ID collection (not linked, not used for tracking) and no required-reason APIs. Disclose this in your App Privacy details.
+Device ID collection (not linked, not used for tracking) and its one required-reason API use (`UserDefaults`, reason `CA92.1`, for the App Attest back-off timestamp). Disclose this in your App Privacy details.
 
 What the integrity probes add (SDK 0.7.0): only device-state booleans (detected / not detected / not checked) and a
 probe version number, used for security and fraud prevention, not for tracking. The SDK does not collect or send

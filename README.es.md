@@ -164,7 +164,7 @@ ubicaciones simuladas (falsificadas) y una copia clonada o en espacio paralelo d
   Llegan a **tu servidor** solo mediante la API de eventos (`signals.mobile`) y los webhooks, y pueden alimentar las reglas del proyecto. Véase [SDK de servidor](#resultados-sellados-sdk-de-servidor-y-paquetes-web).
 - **Tres estados.** `true` = detectado, `false` = comprobado y sin hallazgos, `null` = no comprobado (SDK antiguo, sondas desactivadas, elemento que no puede ejecutarse en este dispositivo o sistema). La detección es de mejor esfuerzo y no es una garantía en ningún sentido.
 - **Fecha de restablecimiento de fábrica.** El campo `factoryResetAt` existe en los tipos del servidor pero está reservado: el SDK 0.7.0 no detecta restablecimientos de fábrica, así que siempre es `null`.
-- **Sin permisos nuevos.** El SDK no añade `uses-permission` ni `<queries>` y no enumera las apps del dispositivo. La comprobación de ubicación solo usa un permiso de ubicación que tu app ya tenga.
+- **Sin permisos nuevos.** El SDK no añade `uses-permission` ni `<queries>` y no enumera las apps del dispositivo. La comprobación de ubicación solo usa un permiso de ubicación que tu app ya tenga, y en Android la comprobación de VPN del dispositivo solo se ejecuta si tu app ya tiene `ACCESS_NETWORK_STATE` (el SDK no añade ningún permiso); si no, `vpn` es `null`.
 
 En el servidor, filtra la API de eventos por `rooted`, `hooked`, `emulator`, `mitm`, `locationSpoofed` y `clonedApp` (`true` / `false`) y lee
 `signals.mobile` y `signals.vpn.methods` (puede contener `os_vpn`). Los SDK de servidor 0.3.0 tipan estos campos.
@@ -220,7 +220,7 @@ Qué sale del dispositivo (iOS / macOS):
 - Identificador de zona horaria, modelo de hardware (por ejemplo `iPhone17,1`, `Mac15,3`), versión del sistema operativo, indicador de simulador (iOS).
 - Un SHA-256 del token de DeviceCheck (el token en sí se envía para que el servidor pueda consultar a Apple), y el id de clave y los objetos de atestación/aserción de App Attest, cuando están activados.
 
-El SDK guarda una marca de tiempo en UserDefaults (espera de App Attest). No se lee ningún id de publicidad, contactos ni cuentas, y no se envían coordenadas. El paquete incluye un `PrivacyInfo.xcprivacy` que declara la recopilación de Device ID (sin vincular al usuario, no usado para seguimiento) y ninguna API que requiera declarar motivo. Divulga esto en los detalles de Privacidad de la app.
+El SDK guarda una marca de tiempo en UserDefaults (espera de App Attest). No se lee ningún id de publicidad, contactos ni cuentas, y no se envían coordenadas. El paquete incluye un `PrivacyInfo.xcprivacy` que declara la recopilación de Device ID (sin vincular al usuario, no usado para seguimiento) y su único uso de una API con motivo obligatorio (`UserDefaults`, motivo `CA92.1`, para la marca de tiempo de espera de App Attest). Divulga esto en los detalles de Privacidad de la app.
 
 Lo que añaden las sondas de integridad (SDK 0.7.0): solo booleanos de estado del dispositivo (detectado / no detectado / no comprobado) y un número de versión de las sondas, usados para seguridad y prevención del fraude, no para seguimiento.
 El SDK no recopila ni envía coordenadas, la lista de apps instaladas, certificados, direcciones de proxy ni rutas de archivos. En **Seguridad de los datos** de Google Play se mantiene la respuesta existente "ID de dispositivo u otros ID"

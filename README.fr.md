@@ -165,7 +165,7 @@ un VPN actif, des positions simulées (falsifiées) et une copie clonée ou en e
   Ils n'arrivent sur **votre serveur** que par l'API d'événements (`signals.mobile`) et les webhooks, et peuvent alimenter les règles du projet. Voir [SDK serveur](#résultats-scellés-sdk-serveur-et-paquets-web).
 - **Trois états.** `true` = détecté, `false` = vérifié et rien trouvé, `null` = non vérifié (ancien SDK, sondes désactivées, élément qui ne peut pas s'exécuter sur cet appareil ou ce système). La détection est faite au mieux et n'est une garantie dans aucun sens.
 - **Date de réinitialisation.** Le champ `factoryResetAt` existe dans les types serveur mais il est réservé : le SDK 0.7.0 ne détecte pas les réinitialisations d'usine, il vaut donc toujours `null`.
-- **Aucune nouvelle permission.** Le SDK n'ajoute ni `uses-permission` ni `<queries>` et n'énumère pas les apps de l'appareil. La vérification de position n'utilise qu'une permission de localisation que votre app détient déjà.
+- **Aucune nouvelle permission.** Le SDK n'ajoute ni `uses-permission` ni `<queries>` et n'énumère pas les apps de l'appareil. La vérification de position n'utilise qu'une permission de localisation que votre app détient déjà, et sur Android la vérification VPN de l'appareil ne s'exécute que si votre app détient déjà `ACCESS_NETWORK_STATE` (le SDK n'ajoute aucune permission) ; sinon `vpn` vaut `null`.
 
 Côté serveur, filtrez l'API d'événements par `rooted`, `hooked`, `emulator`, `mitm`, `locationSpoofed` et `clonedApp` (`true` / `false`) et lisez
 `signals.mobile` et `signals.vpn.methods` (qui peut contenir `os_vpn`). Les SDK serveur 0.3.0 typent ces champs.
@@ -221,7 +221,7 @@ Ce qui quitte l'appareil (iOS / macOS) :
 - Identifiant du fuseau horaire, modèle matériel (par exemple `iPhone17,1`, `Mac15,3`), version de l'OS, indicateur de simulateur (iOS).
 - Un SHA-256 du jeton DeviceCheck (le jeton lui-même est envoyé afin que le serveur puisse interroger Apple), ainsi que l'identifiant de clé et les objets d'attestation/assertion App Attest, lorsqu'ils sont activés.
 
-Le SDK stocke un horodatage dans UserDefaults (temporisation App Attest). Aucun identifiant publicitaire, contact ou compte n'est lu, et aucune coordonnée n'est envoyée. Le paquet inclut un `PrivacyInfo.xcprivacy` déclarant la collecte du Device ID (non lié à l'utilisateur, non utilisé pour le suivi) et aucune API à raison obligatoire. Déclarez-le dans vos détails de Confidentialité des apps.
+Le SDK stocke un horodatage dans UserDefaults (temporisation App Attest). Aucun identifiant publicitaire, contact ou compte n'est lu, et aucune coordonnée n'est envoyée. Le paquet inclut un `PrivacyInfo.xcprivacy` déclarant la collecte du Device ID (non lié à l'utilisateur, non utilisé pour le suivi) et son unique usage d'une API à raison obligatoire (`UserDefaults`, raison `CA92.1`, pour l'horodatage de temporisation App Attest). Déclarez-le dans vos détails de Confidentialité des apps.
 
 Ce qu'ajoutent les sondes d'intégrité (SDK 0.7.0) : uniquement des booléens d'état de l'appareil (détecté / non détecté / non vérifié) et un numéro de version des sondes, utilisés pour la sécurité et la prévention de la fraude, pas pour le suivi.
 Le SDK ne collecte ni n'envoie de coordonnées, la liste des apps installées, de certificats, d'adresses de proxy ni de chemins de fichiers. Pour la **Sécurité des données** de Google Play, la réponse existante « Identifiants d'appareil ou autres » reste valable

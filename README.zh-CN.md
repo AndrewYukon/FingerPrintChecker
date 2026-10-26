@@ -159,7 +159,7 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
   它们只会通过事件 API（`signals.mobile`）和 webhook 到达**你的服务器**，并可用于项目规则。见[服务端 SDK](#封装结果服务端-sdk-与-web-包)。
 - **三种状态。** `true` = 检测到，`false` = 已检查且未发现，`null` = 未检查（旧版 SDK、检测已关闭、该项在此设备或系统上无法运行）。检测尽力而为，两个方向都不是保证。
 - **恢复出厂日期。** 字段 `factoryResetAt` 存在于服务端类型中，但属于保留字段：SDK 0.7.0 不检测恢复出厂，因此它始终为 `null`。
-- **不增加权限。** SDK 不增加 `uses-permission`、不增加 `<queries>`，也不枚举设备上的应用。定位检查只使用你的应用已经持有的定位权限。
+- **不增加权限。** SDK 不增加 `uses-permission`、不增加 `<queries>`，也不枚举设备上的应用。定位检查只使用你的应用已经持有的定位权限；在 Android 上，设备 VPN 检查只在你的应用已持有 `ACCESS_NETWORK_STATE` 时运行（SDK 不增加权限），否则 `vpn` 为 `null`。
 
 在服务端，可按 `rooted`、`hooked`、`emulator`、`mitm`、`locationSpoofed`、`clonedApp`（`true` / `false`）过滤事件 API，并读取
 `signals.mobile` 与 `signals.vpn.methods`（其中可能出现 `os_vpn`）。服务端 SDK 0.3.0 为这些字段提供了类型。
@@ -214,7 +214,7 @@ SDK 不会读取广告 id、账号、联系人、电话号码或 IMEI，也从�
 - 时区标识符、硬件型号（例如 `iPhone17,1`、`Mac15,3`）、操作系统版本、模拟器标志（iOS）。
 - DeviceCheck 令牌的 SHA-256（令牌本身也会发送，以便服务器向 Apple 查询），以及在启用时的 App Attest 密钥 id 和认证/断言对象。
 
-SDK 在 UserDefaults 中只存储一个时间戳（App Attest 退避）。不会读取广告 id、联系人或账号，也不发送坐标。该包附带 `PrivacyInfo.xcprivacy`，声明收集设备 ID（不关联用户、不用于跟踪），并且不使用任何需声明原因的 API。请在你的 App Privacy 详情中披露这些内容。
+SDK 在 UserDefaults 中只存储一个时间戳（App Attest 退避）。不会读取广告 id、联系人或账号，也不发送坐标。该包附带 `PrivacyInfo.xcprivacy`，声明收集设备 ID（不关联用户、不用于跟踪），并且只使用一个需声明原因的 API（`UserDefaults`，原因 `CA92.1`，用于 App Attest 退避时间戳）。请在你的 App Privacy 详情中披露这些内容。
 
 完整性检测新增的内容（SDK 0.7.0）：只有设备状态布尔值（检测到 / 未检测到 / 未检查）和一个检测版本号，用于安全与反欺诈，不用于跟踪。
 SDK 不收集也不发送坐标、已安装应用列表、证书、代理地址或文件路径。Google Play **数据安全**表单仍沿用已有的“设备或其他 ID”答案

@@ -26,7 +26,7 @@ empty (the SDK does not detect factory resets).
 | Booleans and one probe version number, nothing else | Coordinates, the list of installed apps, certificate contents, proxy addresses, file paths, process names |
 
 The SDK adds no permission and no `<queries>` entry. A location check only uses a location permission your app already
-holds, runs on the device, and sends one boolean. The values are used to detect fraud and abuse and are not used for
+holds, runs on the device, and sends one boolean. On Android the device-VPN check runs only when your app already holds `ACCESS_NETWORK_STATE` (otherwise `vpn` is `null`). The values are used to detect fraud and abuse and are not used for
 tracking, advertising or profiling. They are not returned to the app: your server reads them through the events API and
 webhooks. Set `integrityProbes` to `false` to stop collecting them; the SDK then reports every item as "not checked".
 
