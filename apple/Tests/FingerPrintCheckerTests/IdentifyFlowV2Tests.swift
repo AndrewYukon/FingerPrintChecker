@@ -62,7 +62,7 @@ final class IdentifyFlowV2Tests: XCTestCase {
         XCTAssertEqual(json["platform"] as? String, "ios")
         XCTAssertEqual(json["intentToken"] as? String, "fpi1.a+b&c=")
         XCTAssertEqual(json["challenge"] as? String, "v4.c1")
-        XCTAssertEqual(json["agentVersion"] as? String, "ios-0.5.0")
+        XCTAssertEqual(json["agentVersion"] as? String, "ios-0.7.0")
         XCTAssertNil(json["sig"])
         XCTAssertNil(json["nonce"])
         XCTAssertNil(json["proof"])
@@ -147,7 +147,7 @@ final class IdentifyFlowV2Tests: XCTestCase {
             .identify(intentToken: "t")
         let json = try body(transport.requests.last)
         let canonical = try CanonicalV2.bytes(
-            platform: "ios", agentVersion: "ios-0.5.0", challenge: "v4.c1",
+            platform: "ios", agentVersion: "ios-0.7.0", challenge: "v4.c1",
             components: FakeCollectorV2().components)
         XCTAssertEqual(service.lastClientDataHash, FPCrypto.sha256(canonical))
         XCTAssertEqual(service.lastClientDataHash?.count, 32)

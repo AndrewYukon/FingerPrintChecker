@@ -52,7 +52,7 @@ public final class FingerPrintChecker: Sendable {
     public convenience init(config: FPConfig) {
         self.init(
             config: config, platform: .current, transport: URLSessionTransport(),
-            collector: SystemSignalCollector(),
+            collector: SystemSignalCollector(integrityProbes: config.integrityProbes),
             appAttest: config.useAppAttest
                 ? AppAttestCoordinator(
                     service: SystemAppAttestService(), store: KeychainAppAttestKeyStore(),

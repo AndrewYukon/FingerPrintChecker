@@ -74,4 +74,21 @@ final class ComponentRulesTests: XCTestCase {
             ComponentRules.build(platform: .ios, raw: raw).first { $0.key == "ios.deviceCheck" }?.value,
             expected)
     }
+
+    func testValidatorChecksIntegrityValues() {
+        let id = FPComponent(key: "ios.keychainId", value: "A1B2C3D4-E5F6-4711-8899-AABBCCDDEEFF")
+        func errs(_ v: String, _ p: FPPlatform = .ios) -> [String] {
+            let idc = p == .ios ? id : FPComponent(key: "macos.keychainId", value: id.value)
+            return ComponentRules.validate(platform: p, components: [idc, FPComponent(key: p.key("integrity"), value: v)])
+        }
+        for v in ["1::", "1:hook:", "1::vpn", "1:jailbreak,hook:vpn,mock_location", "2:hook:"] {
+            XCTAssertEqual(errs(v), [], v)
+        }
+        let long = "1:" + Array(repeating: "hook", count: 60).joined(separator: ",") + ":"
+        for v in ["1:hook:hook", "1:hook,hook:", "1:root:", "1:HOOK:", "x:", "1:hook", "1:hook:vpn,", "2:newcode:", "1234:hook:", "0:hook:", long] {
+            XCTAssertFalse(errs(v).isEmpty, v)
+        }
+        XCTAssertFalse(errs("1:jailbreak:", .macos).isEmpty, "ios code on macos")
+        XCTAssertEqual(errs("1:hook:debugger", .macos), [])
+    }
 }

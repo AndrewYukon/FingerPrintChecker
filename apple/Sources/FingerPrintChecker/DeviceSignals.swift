@@ -19,6 +19,8 @@ protocol SignalCollecting: Sendable {
 
 struct SystemSignalCollector: SignalCollecting {
     static let deviceCheckTimeout = 8.0
+    /// `false` sends the "all unavailable" value instead of running probes (``FPConfig/integrityProbes``).
+    var integrityProbes = true
 
     func collect(useDeviceCheck: Bool) async -> CollectedSignals {
         let platform = FPPlatform.current
@@ -34,6 +36,9 @@ struct SystemSignalCollector: SignalCollecting {
         raw.model = Self.machine()
         raw.simulator = Self.isSimulator
         #endif
+        raw.integrity = integrityProbes
+            ? await IntegrityProbes.collect(env: SystemProbeEnvironment(), platform: platform)
+            : IntegrityProbes.disabled(platform: platform)
         if useDeviceCheck { raw.deviceCheckToken = await Self.deviceCheckToken() }
         return CollectedSignals(
             components: ComponentRules.build(platform: platform, raw: raw),
