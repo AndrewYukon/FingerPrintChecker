@@ -1,13 +1,13 @@
 package com.fpchecker.integrity
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
 
 /** Encodes the `android.integrity` component: `<version>:<fired csv>:<unavailable csv>`, codes in [CODES] order. */
 internal object IntegrityProbes {
@@ -27,22 +27,18 @@ internal object IntegrityProbes {
     suspend fun collect(env: ProbeEnv, timeoutMs: Long = 300): String = collect(env, ALL_PROBES, timeoutMs)
 
     /**
-     * Probes run in parallel on the IO pool inside one shared deadline. A probe that throws or misses the
-     * deadline is UNAVAILABLE. The probe scope is deliberately not joined: a blocked read must not hold the caller.
+     * Probes run in parallel on the IO pool and share one deadline. We wait once for all of them, then read
+     * whatever finished: a probe that threw, or had not finished at the deadline, is UNAVAILABLE, and a slow probe
+     * never costs the results of the others. The probe scope is deliberately not joined: a blocked read must not
+     * hold the caller.
      */
     suspend fun collect(env: ProbeEnv, probes: List<Probe>, timeoutMs: Long): String {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
-            val deadline = System.nanoTime() + timeoutMs * 1_000_000
-            val running: List<Pair<Probe, Deferred<ProbeResult>>> = probes.map { probe ->
-                probe to scope.async { runSafely(probe, env) }
-            }
-            val results = HashMap<String, ProbeResult>()
-            for ((probe, job) in running) {
-                val remainingMs = ((deadline - System.nanoTime()) / 1_000_000).coerceAtLeast(0)
-                results[probe.code] = withTimeoutOrNull(remainingMs) { job.await() } ?: ProbeResult.UNAVAILABLE
-            }
-            return encode(results)
+            val finished = ConcurrentHashMap<String, ProbeResult>()
+            val jobs = probes.map { probe -> scope.launch { finished[probe.code] = runSafely(probe, env) } }
+            withTimeoutOrNull(timeoutMs) { jobs.joinAll() }
+            return encode(HashMap(finished))
         } finally {
             scope.cancel()
         }
@@ -50,9 +46,10 @@ internal object IntegrityProbes {
 
     private fun runSafely(probe: Probe, env: ProbeEnv): ProbeResult = try {
         probe.run(env)
-    } catch (e: CancellationException) {
+    } catch (e: VirtualMachineError) {
         throw e
     } catch (_: Throwable) {
+        // Includes CancellationException thrown by a probe: that is the probe failing, not the caller cancelling.
         ProbeResult.UNAVAILABLE
     }
 }

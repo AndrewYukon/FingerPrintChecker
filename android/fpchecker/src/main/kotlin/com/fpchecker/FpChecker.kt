@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import com.fpchecker.integrity.AndroidProbeEnv
 import com.fpchecker.integrity.IntegrityProbes
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -100,9 +101,23 @@ public class FpChecker(context: Context, private val config: FpCheckerConfig) {
      * Starts the integrity probes (and the Play Integrity provider warm-up) in the background so they overlap
      * with the challenge round trip; [block] awaits the probe value when it builds the components.
      */
+    /** Never throws except on caller cancellation: probes must not be able to abort identify. */
+    private suspend fun collectProbes(): String {
+        if (!config.integrityProbes) return IntegrityProbes.disabled()
+        return try {
+            IntegrityProbes.collect(AndroidProbeEnv(appContext))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: VirtualMachineError) {
+            throw e
+        } catch (_: Throwable) {
+            IntegrityProbes.disabled()
+        }
+    }
+
     private suspend fun <T> withProbes(block: suspend (Deferred<String>) -> T): T = coroutineScope {
         val probes = async(Dispatchers.IO) {
-            if (config.integrityProbes) IntegrityProbes.collect(AndroidProbeEnv(appContext)) else IntegrityProbes.disabled()
+            collectProbes()
         }
         val warm = launch { integrity?.warmUp() }
         try {

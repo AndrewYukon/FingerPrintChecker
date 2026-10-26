@@ -9,7 +9,10 @@ private fun anyOf(vararg checks: () -> Boolean): ProbeResult {
     for (check in checks) {
         try {
             if (check()) return ProbeResult.FIRED
-        } catch (_: Exception) {
+        } catch (e: VirtualMachineError) {
+            throw e
+        } catch (_: Throwable) {
+            // Includes LinkageError from class probing; evidence from the other checks must survive.
             failed = true
         }
     }

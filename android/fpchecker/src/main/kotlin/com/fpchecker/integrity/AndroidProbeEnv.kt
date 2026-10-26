@@ -13,6 +13,7 @@ import android.os.Debug
 import android.os.Process
 import android.provider.Settings
 import java.io.File
+import java.io.IOException
 import java.net.ConnectException
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -49,11 +50,20 @@ internal class AndroidProbeEnv(context: Context) : ProbeEnv {
         else -> getprop(name)
     }
 
+    private companion object {
+        const val GETPROP_TIMEOUT_MS = 300L
+    }
+
     private fun getprop(name: String): String? {
         val process = ProcessBuilder("/system/bin/getprop", name).redirectErrorStream(true).start()
+        var out: String? = null
+        val reader = Thread { out = try { process.inputStream.bufferedReader().use { it.readText().trim() } } catch (_: Exception) { null } }
+        reader.isDaemon = true
         try {
-            val out = process.inputStream.bufferedReader().use { it.readText().trim() }
-            return out.ifEmpty { null }
+            reader.start()
+            reader.join(GETPROP_TIMEOUT_MS)
+            if (reader.isAlive) throw IOException("getprop timed out")
+            return out?.ifEmpty { null }
         } finally {
             process.destroy()
         }
@@ -108,11 +118,18 @@ internal class AndroidProbeEnv(context: Context) : ProbeEnv {
         val lm = ctx.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         // isLocationEnabled exists from API 28; below that the cached fix is read directly.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && !lm.isLocationEnabled) return null
+        var read = 0
         for (provider in lm.getProviders(true)) {
-            val location = lm.getLastKnownLocation(provider) ?: continue
-            if (isMock(location)) return true
+            // A coarse-only grant makes "gps" throw; the other providers must still be read.
+            val location = try {
+                lm.getLastKnownLocation(provider)
+            } catch (_: SecurityException) {
+                continue
+            }
+            read++
+            if (location != null && isMock(location)) return true
         }
-        return false
+        return if (read == 0 && lm.getProviders(true).isNotEmpty()) null else false
     }
 
     @Suppress("DEPRECATION") // isFromMockProvider is the only option below API 31

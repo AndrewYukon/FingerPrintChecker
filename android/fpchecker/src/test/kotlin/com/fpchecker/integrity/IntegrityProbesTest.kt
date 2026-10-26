@@ -70,6 +70,50 @@ class IntegrityProbesTest {
         override fun run(env: ProbeEnv) = result
     }
 
+    private class Cancelling : Probe {
+        override val code = "mitm"
+        override fun run(env: ProbeEnv): ProbeResult = throw kotlinx.coroutines.CancellationException("probe bug")
+    }
+
+    @Test
+    fun slowProbeInTheMiddleDoesNotCostLaterResults() = runBlocking {
+        val slowMitm = object : Probe {
+            override val code = "mitm"
+            override fun run(env: ProbeEnv): ProbeResult {
+                Thread.sleep(2_000)
+                return ProbeResult.FIRED
+            }
+        }
+        val probes = listOf(
+            Quick("root", ProbeResult.CLEAN), slowMitm, Quick("vpn", ProbeResult.FIRED),
+            Quick("mock_location", ProbeResult.CLEAN), Quick("clone", ProbeResult.FIRED),
+        )
+        val parts = IntegrityProbes.collect(FakeProbeEnv(), probes, 200).split(":")
+        val fired = parts[1].split(",")
+        val unavailable = parts[2].split(",")
+        assertEquals(listOf("vpn", "clone"), fired)
+        assertTrue("mitm" in unavailable)
+        assertTrue("root" !in unavailable && "vpn" !in unavailable && "mock_location" !in unavailable && "clone" !in unavailable)
+    }
+
+    @Test
+    fun aProbeThrowingCancellationIsUnavailableNotPropagated() = runBlocking {
+        val encoded = IntegrityProbes.collect(FakeProbeEnv(), listOf(Quick("root", ProbeResult.FIRED), Cancelling()), 200)
+        assertTrue(encoded.startsWith("1:root:"))
+        assertTrue("mitm" in encoded.split(":")[2].split(","))
+    }
+
+    @Test
+    fun linkageErrorInOneCheckKeepsEvidenceFromAnother() {
+        val env = object : FakeProbeEnv(files = setOf("/system/xbin/su")) {
+            override fun classExists(name: String): Boolean = throw NoClassDefFoundError(name)
+        }
+        assertEquals(ProbeResult.FIRED, HookProbe.run(object : FakeProbeEnv(frida = true) {
+            override fun classExists(name: String): Boolean = throw NoClassDefFoundError(name)
+        }))
+        assertEquals(ProbeResult.UNAVAILABLE, HookProbe.run(env))
+    }
+
     @Test
     fun slowProbeTimesOutToUnavailableWithinBudget() = runBlocking {
         val probes = listOf(Quick("root", ProbeResult.FIRED), Slow())

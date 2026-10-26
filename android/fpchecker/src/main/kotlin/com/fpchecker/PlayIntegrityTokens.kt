@@ -34,7 +34,9 @@ internal class PlayIntegrityTokens(
                 currentProvider(forceFresh = false)
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
+            } catch (e: VirtualMachineError) {
+                throw e
+            } catch (_: Throwable) {
                 null
             }
         }
