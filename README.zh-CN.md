@@ -26,9 +26,9 @@
 | 平台 | 集成方式 | 状态 |
 |---|---|---|
 | **Web 应用**（任意浏览器） | FingerPrint Checker 浏览器 agent `fp-agent.min.js`，部署在你自己的域名下；见 [Web 应用](#web-应用) | 可用 |
-| **Android 应用**（Kotlin / Java） | Maven Central 上的 `com.fpchecker:fpchecker-android`，源码在 [`android/`](android) | 可用，0.5.0 |
-| **iOS 应用**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`，源码在 [`apple/`](apple) | 可用，0.5.0 |
-| macOS 应用（Swift Package） | 与 iOS 使用同一个包 | 可用，0.5.0 |
+| **Android 应用**（Kotlin / Java） | Maven Central 上的 `com.fpchecker:fpchecker-android`，源码在 [`android/`](android) | 可用，0.7.0 |
+| **iOS 应用**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`，源码在 [`apple/`](apple) | 可用，0.7.0 |
+| macOS 应用（Swift Package） | 与 iOS 使用同一个包 | 可用，0.7.0 |
 | 命令行工具 | 协议 + 示例见 [`cli/`](cli/README.md) | 示例 |
 
 所有平台的终点都一样：客户端拿到 `attestation`，只有持有密钥（secret key）的你的后端才去请求决策。原生 SDK 的传输格式在 [PROTOCOL.md](PROTOCOL.md) 中规定；一致性测试向量在 [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json)，每个 SDK 都必须能复现这些向量。
@@ -68,7 +68,7 @@ const decision = await response.json(); // { ok, eligible, action, reason }
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.5.0")
+    implementation("com.fpchecker:fpchecker-android:0.7.0")
 }
 ```
 
@@ -121,7 +121,7 @@ cd android
 Swift Package Manager：添加 `https://github.com/AndrewYukon/FingerPrintChecker`（product 为 `FingerPrintChecker`，iOS 14+、macOS 11+），或在 `Package.swift` 中：
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.5.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.7.0")
 ```
 
 ```swift
@@ -147,6 +147,22 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 - **DeviceCheck**：SDK 会发送一个 DeviceCheck 令牌，使 FingerPrint Checker 能按设备记住是否已经领取过。为此，请在你的 Apple Developer 账号中创建一个 DeviceCheck 密钥，并上传到你的 FingerPrint Checker 项目；没有它，该令牌会被忽略。
 - **已领取标记由你 Apple 团队下的所有应用共享。** Apple 对每个开发者团队的每台设备只保留两个 DeviceCheck 位，因此 FingerPrint Checker 用 bit 0 表示「这台设备已在该团队的某个应用中领取过免费试用（默认类型）」。代价是：在你的某个应用中领取过试用的设备，在同一团队的其他应用中也会被拒绝试用。请据此措辞拒绝提示（「此设备已使用过免费试用」），因为用户可能是在别处领取的。Bit 1 为保留位。要让两个应用互相独立，唯一的办法是把它们发布在不同的 Apple 开发者团队下。Android 的 Play Integrity Device Recall 同理：其位由同一个 Play 开发者账号下的所有应用共享。
 - 模拟器两项功能都不支持，并会报告 `ios.simulator=true`。
+
+## 设备完整性检测（SDK 0.7.0）
+
+从 0.7.0 起，SDK 还会检查它所运行的设备的状态，每一项给出“是 / 否 / 未检查”之一。在支持的设备类型上，它能发现：
+设备已 root 或越狱、存在 Hook 或插桩框架、模拟器、已附加调试器、开发者选项、拦截代理或不受信任的用户证书、正在使用的 VPN、
+模拟（伪造）定位，以及你的应用被克隆或运行在平行空间里。macOS 应用只报告调试器和 Hook 两项。
+
+- **开关。** Android 的 `FpCheckerConfig` 与 Swift 的 `FPConfig` 中的 `integrityProbes`（默认 `true`）。设为 `false` 时，SDK 不运行任何检测，所有项都报告为“未检查”。
+- **结果去哪里。** 结果随 identify 请求一起发送，但**绝不会返回给应用**：identify 应答、`sealedResult` 和 `attestation` 都不含这些内容。
+  它们只会通过事件 API（`signals.mobile`）和 webhook 到达**你的服务器**，并可用于项目规则。见[服务端 SDK](#封装结果服务端-sdk-与-web-包)。
+- **三种状态。** `true` = 检测到，`false` = 已检查且未发现，`null` = 未检查（旧版 SDK、检测已关闭、该项在此设备或系统上无法运行）。检测尽力而为，两个方向都不是保证。
+- **恢复出厂日期。** 字段 `factoryResetAt` 存在于服务端类型中，但属于保留字段：SDK 0.7.0 不检测恢复出厂，因此它始终为 `null`。
+- **不增加权限。** SDK 不增加 `uses-permission`、不增加 `<queries>`，也不枚举设备上的应用。定位检查只使用你的应用已经持有的定位权限。
+
+在服务端，可按 `rooted`、`hooked`、`emulator`、`mitm`、`locationSpoofed`、`clonedApp`（`true` / `false`）过滤事件 API，并读取
+`signals.mobile` 与 `signals.vpn.methods`（其中可能出现 `os_vpn`）。服务端 SDK 0.3.0 为这些字段提供了类型。
 
 ## 封装结果、服务端 SDK 与 Web 包
 
@@ -189,7 +205,7 @@ seal key 随你的应用一起分发，因此任何在设备上计算出的内�
 - SIM / 网络国家代码、时区、`Build.FINGERPRINT`、`Build.HARDWARE`、`Build.MODEL`、SDK 级别。
 - 如果启用，还有一个 Play Integrity 令牌（Google 签发的内容针对应用和设备，而非用户）。
 
-SDK 不会读取广告 id、账号、联系人、位置、电话号码或 IMEI。作为集成方，你有责任在你的隐私政策和 Play 数据安全表单中披露这些内容。
+SDK 不会读取广告 id、账号、联系人、电话号码或 IMEI，也从不发送坐标（见下文的完整性检测段落）。作为集成方，你有责任在你的隐私政策和 Play 数据安全表单中披露这些内容。
 
 离开设备的数据（iOS / macOS）：
 
@@ -198,7 +214,11 @@ SDK 不会读取广告 id、账号、联系人、位置、电话号码或 IMEI�
 - 时区标识符、硬件型号（例如 `iPhone17,1`、`Mac15,3`）、操作系统版本、模拟器标志（iOS）。
 - DeviceCheck 令牌的 SHA-256（令牌本身也会发送，以便服务器向 Apple 查询），以及在启用时的 App Attest 密钥 id 和认证/断言对象。
 
-SDK 在 UserDefaults 中只存储一个时间戳（App Attest 退避）。不会读取广告 id、位置、联系人或账号。该包附带 `PrivacyInfo.xcprivacy`，声明收集设备 ID（不关联用户、不用于跟踪），并且不使用任何需声明原因的 API。请在你的 App Privacy 详情中披露这些内容。
+SDK 在 UserDefaults 中只存储一个时间戳（App Attest 退避）。不会读取广告 id、联系人或账号，也不发送坐标。该包附带 `PrivacyInfo.xcprivacy`，声明收集设备 ID（不关联用户、不用于跟踪），并且不使用任何需声明原因的 API。请在你的 App Privacy 详情中披露这些内容。
+
+完整性检测新增的内容（SDK 0.7.0）：只有设备状态布尔值（检测到 / 未检测到 / 未检查）和一个检测版本号，用于安全与反欺诈，不用于跟踪。
+SDK 不收集也不发送坐标、已安装应用列表、证书、代理地址或文件路径。Google Play **数据安全**表单仍沿用已有的“设备或其他 ID”答案
+（用途：欺诈预防、安全和合规）；App Store **App 隐私**中没有新增的跟踪项，已有的设备 ID 条目（不用于跟踪）仍然适用。详见 [docs/PRIVACY.md](docs/PRIVACY.md)。
 
 ## 许可证
 

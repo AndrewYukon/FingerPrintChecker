@@ -28,9 +28,9 @@ FingerPrint Checker は、どれか 1 台が受け取った時点で残りをす
 | プラットフォーム | 統合方法 | ステータス |
 |---|---|---|
 | **Web アプリ**（任意のブラウザ） | FingerPrint Checker ブラウザエージェント `fp-agent.min.js` を自社ドメインから配信します。[Web アプリ](#web-アプリ)を参照 | 利用可能 |
-| **Android アプリ**（Kotlin / Java） | Maven Central の `com.fpchecker:fpchecker-android`、ソースは [`android/`](android) | 利用可能、0.5.0 |
-| **iOS アプリ**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`、ソースは [`apple/`](apple) | 利用可能、0.5.0 |
-| macOS アプリ（Swift Package） | iOS と同じパッケージ | 利用可能、0.5.0 |
+| **Android アプリ**（Kotlin / Java） | Maven Central の `com.fpchecker:fpchecker-android`、ソースは [`android/`](android) | 利用可能、0.7.0 |
+| **iOS アプリ**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`、ソースは [`apple/`](apple) | 利用可能、0.7.0 |
+| macOS アプリ（Swift Package） | iOS と同じパッケージ | 利用可能、0.7.0 |
 | コマンドラインツール | プロトコルとサンプルは [`cli/`](cli/README.md) | サンプル |
 
 どのプラットフォームでも最終的な流れは同じです。クライアントは `attestation` を受け取り、シークレットキーを持つ自社のバックエンドだけが判定を要求します。ネイティブ SDK のワイヤーフォーマットは [PROTOCOL.md](PROTOCOL.md) に定められており、適合性テストベクターは [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) にあります。すべての SDK はこれらを再現できなければなりません。
@@ -70,7 +70,7 @@ const decision = await response.json(); // { ok, eligible, action, reason }
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.5.0")
+    implementation("com.fpchecker:fpchecker-android:0.7.0")
 }
 ```
 
@@ -123,7 +123,7 @@ cd android
 Swift Package Manager：`https://github.com/AndrewYukon/FingerPrintChecker`（プロダクト `FingerPrintChecker`、iOS 14+、macOS 11+）を追加するか、`Package.swift` に次のように記述します。
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.5.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.7.0")
 ```
 
 ```swift
@@ -149,6 +149,23 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 - **DeviceCheck**：SDK は DeviceCheck トークンを送信し、FingerPrint Checker がデバイスごとに、すでに特典が受け取られたかどうかを記憶できるようにします。そのためには、Apple Developer アカウントで DeviceCheck キーを作成し、FingerPrint Checker のプロジェクトにアップロードしてください。アップロードしないと、トークンは無視されます。
 - **受け取り済みビットは、Apple チームのすべてのアプリで共有されます。** Apple は開発者チームごと・デバイスごとに DeviceCheck ビットを 2 つしか保持しないため、FingerPrint Checker は bit 0 を「このデバイスは、このチームのいずれかのアプリで無料トライアル（デフォルト種別）をすでに受け取った」という意味で使います。トレードオフとして、あるアプリでトライアルを受け取ったデバイスは、同じチームの他のアプリでもトライアルを拒否されます。ユーザーが別のアプリで受け取った可能性があるため、拒否メッセージもそれに合わせた文言にしてください（「このデバイスはすでに無料トライアルを利用しています」など）。Bit 1 は予約されています。2 つのアプリを独立に保つ唯一の方法は、別々の Apple デベロッパーチームで公開することです。Android の Play Integrity Device Recall も同様で、そのビットは 1 つの Play デベロッパーアカウントのすべてのアプリで共有されます。
 - シミュレーターはどちらの機能も持たず、`ios.simulator=true` を報告します。
+
+## デバイス整合性チェック（SDK 0.7.0）
+
+0.7.0 から SDK は、動作しているデバイスの状態も確認し、項目ごとに「はい / いいえ / 未確認」のいずれかを報告します。
+対応するデバイスでは、root 化または脱獄、フックや計測フレームワーク、エミュレーターやシミュレーター、接続されたデバッガー、
+開発者向けオプション、通信を傍受するプロキシや信頼されないユーザー証明書、有効な VPN、位置情報の偽装（モックロケーション）、
+アプリの複製や並行空間での実行を検出します。macOS アプリはデバッガーとフックの 2 項目のみ報告します。
+
+- **スイッチ。** Android の `FpCheckerConfig` と Swift の `FPConfig` にある `integrityProbes`（既定は `true`）。`false` にすると SDK はチェックを一切実行せず、全項目を「未確認」として報告します。
+- **結果の行き先。** 結果は identify リクエストと一緒に送信されますが、**アプリには返されません**。identify の応答、`sealedResult`、`attestation` には含まれません。
+  **お客様のサーバー**には、イベント API（`signals.mobile`）と webhook を通じてのみ届き、プロジェクトのルールに使えます。[サーバー SDK](#シール済み結果サーバー-sdkweb-パッケージ) を参照してください。
+- **3 つの状態。** `true` = 検出、`false` = 確認済みで該当なし、`null` = 未確認（古い SDK、チェック無効、このデバイスや OS では実行できない項目）。検出はベストエフォートで、どちらの方向にも保証ではありません。
+- **初期化日。** `factoryResetAt` はサーバー側の型に存在しますが予約済みです。SDK 0.7.0 は初期化を検出しないため、常に `null` です。
+- **権限の追加なし。** SDK は `uses-permission` も `<queries>` も追加せず、デバイス上のアプリを列挙しません。位置情報のチェックは、アプリがすでに持っている位置情報の権限だけを使います。
+
+サーバー側では、イベント API を `rooted`、`hooked`、`emulator`、`mitm`、`locationSpoofed`、`clonedApp`（`true` / `false`）で絞り込め、
+`signals.mobile` と `signals.vpn.methods`（`os_vpn` を含むことがあります）を読めます。サーバー SDK 0.3.0 がこれらのフィールドに型を付けます。
 
 ## シール済み結果、サーバー SDK、Web パッケージ
 
@@ -192,7 +209,7 @@ Cloudflare Worker proxy (English): [integrations/cloudflare-worker](integrations
 - SIM / ネットワークの国コード、タイムゾーン、`Build.FINGERPRINT`、`Build.HARDWARE`、`Build.MODEL`、SDK レベル。
 - 有効にした場合は Play Integrity トークン（Google が発行するもので、対象はユーザーではなくアプリとデバイスです）。
 
-SDK は広告 ID、アカウント、連絡先、位置情報、電話番号、IMEI を読み取りません。インテグレーターは、プライバシーポリシーと Play のデータセーフティフォームでこれを開示する責任があります。
+SDK は広告 ID、アカウント、連絡先、電話番号、IMEI を読み取らず、座標も送信しません（下の整合性チェックの段落を参照）。インテグレーターは、プライバシーポリシーと Play のデータセーフティフォームでこれを開示する責任があります。
 
 デバイスから外に出るデータ（iOS / macOS）：
 
@@ -201,7 +218,11 @@ SDK は広告 ID、アカウント、連絡先、位置情報、電話番号、I
 - タイムゾーン識別子、ハードウェアモデル（例：`iPhone17,1`、`Mac15,3`）、OS バージョン、シミュレーターフラグ（iOS）。
 - DeviceCheck トークンの SHA-256（サーバーが Apple に問い合わせられるよう、トークン自体も送信されます）、および有効な場合は App Attest のキー ID とアテステーション/アサーションオブジェクト。
 
-SDK は UserDefaults に 1 つのタイムスタンプ（App Attest のバックオフ）を保存します。広告 ID、位置情報、連絡先、アカウントは読み取りません。パッケージには `PrivacyInfo.xcprivacy` が同梱されており、デバイス ID の収集（ユーザーに紐付けず、トラッキングには使用しない）を宣言し、理由の申告が必要な API は使用していません。App Privacy の詳細でこれを開示してください。
+SDK は UserDefaults に 1 つのタイムスタンプ（App Attest のバックオフ）を保存します。広告 ID、連絡先、アカウントは読み取らず、座標も送信しません。パッケージには `PrivacyInfo.xcprivacy` が同梱されており、デバイス ID の収集（ユーザーに紐付けず、トラッキングには使用しない）を宣言し、理由の申告が必要な API は使用していません。App Privacy の詳細でこれを開示してください。
+
+整合性チェックで追加されるもの（SDK 0.7.0）：デバイス状態の真偽値（検出 / 未検出 / 未確認）とチェックのバージョン番号のみで、セキュリティと不正防止に使い、トラッキングには使いません。
+SDK は座標、インストール済みアプリの一覧、証明書、プロキシのアドレス、ファイルパスを収集も送信もしません。Google Play の **データセーフティ** では既存の「デバイスまたはその他の ID」の回答
+（目的：不正行為の防止、セキュリティ、コンプライアンス）のままで、App Store の **App のプライバシー** でも新たなトラッキング項目はなく、既存のデバイス ID（トラッキングに使用しない）の記載がそのまま当てはまります。詳細は [docs/PRIVACY.md](docs/PRIVACY.md)。
 
 ## ライセンス
 

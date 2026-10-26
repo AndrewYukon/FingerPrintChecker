@@ -596,3 +596,16 @@ func TestBaseURLRejectsQueryAndFragment(t *testing.T) {
 		}
 	}
 }
+
+func TestMobileSignalFiltersForwarded(t *testing.T) {
+	var gotQuery string
+	rec := &recorder{serve: func(w http.ResponseWriter, r *http.Request) { gotQuery = r.URL.RawQuery; _, _ = w.Write([]byte(`{}`)) }}
+	c, _ := newTestClient(t, rec)
+	_, err := c.SearchEvents(context.Background(), Query{"rooted": true, "hooked": false, "emulator": true, "mitm": true, "locationSpoofed": false, "clonedApp": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotQuery != "clonedApp=true&emulator=true&hooked=false&locationSpoofed=false&mitm=true&rooted=true" {
+		t.Fatal(gotQuery)
+	}
+}

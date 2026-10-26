@@ -1,4 +1,5 @@
 import { FpCheckerApiError } from './errors.js';
+import type { SearchEventsQuery } from './events.js';
 
 export type Json = Record<string, unknown>;
 /** Any 2xx body, including `{ ok: false, error|reason }` refusals. */
@@ -73,7 +74,7 @@ export class FpChecker {
   relateSubjects(body: Json) { return this.#call({ method: 'POST', path: '/v1/subjects/relation', body }); }
   sendFeedback(body: Json) { return this.#call({ method: 'POST', path: '/v1/feedback', body }); }
   getClaimFlags(query: QueryParams = {}) { return this.#call({ method: 'GET', path: '/v1/claims/flags', query }); }
-  searchEvents(query: QueryParams = {}) { return this.#call({ method: 'GET', path: '/v1/events', query }); }
+  searchEvents(query: SearchEventsQuery = {}) { return this.#call({ method: 'GET', path: '/v1/events', query }); }
   getEvent(eventId: string) { return this.#call({ method: 'GET', path: `/v1/events/${enc(eventId)}` }); }
   updateEvent(eventId: string, body: Json) {
     return this.#call({ method: 'PATCH', path: `/v1/events/${enc(eventId)}`, body });

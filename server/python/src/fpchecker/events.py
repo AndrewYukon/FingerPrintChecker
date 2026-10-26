@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 
 @dataclass(frozen=True)
@@ -21,6 +21,26 @@ class RuleAction:
 
 
 @dataclass(frozen=True)
+class MobileSignals:
+    """Device-state signals of an android, ios or macos event. Each flag is True (detected), False (checked,
+    nothing found) or None (not checked: old SDK, probes switched off, unsupported platform). Not a guarantee
+    either way. ``factory_reset_at`` is reserved and currently always None."""
+
+    emulator: Optional[bool] = None
+    attested: Optional[bool] = None
+    integrity: Optional[str] = None
+    rooted: Optional[bool] = None
+    hooked: Optional[bool] = None
+    debugger: Optional[bool] = None
+    developer_mode: Optional[bool] = None
+    mitm: Optional[bool] = None
+    vpn: Optional[bool] = None
+    location_spoofed: Optional[bool] = None
+    cloned_app: Optional[bool] = None
+    factory_reset_at: Optional[str] = None
+
+
+@dataclass(frozen=True)
 class WebhookEvent:
     """``rule_action`` and ``proxied`` are None when the payload lacks them (queued before server 0.45.0);
     ``rule_action_present`` tells a JSON null from a missing key."""
@@ -29,6 +49,8 @@ class WebhookEvent:
     proxied: Optional[bool] = None
     rule_action: Optional[RuleAction] = None
     rule_action_present: bool = False
+    mobile: Optional[MobileSignals] = None
+    vpn_methods: Tuple[str, ...] = ()
     raw: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -58,6 +80,35 @@ def _parse_rule_action(v: Any) -> Optional[RuleAction]:
     )
 
 
+def _tri(v: Any) -> Optional[bool]:
+    return v if isinstance(v, bool) else None
+
+
+def _parse_mobile(v: Any) -> Optional[MobileSignals]:
+    if not isinstance(v, dict):
+        return None
+    integrity = v.get("integrity")
+    return MobileSignals(
+        emulator=_tri(v.get("emulator")),
+        attested=_tri(v.get("attested")),
+        integrity=integrity if integrity in ("strong", "basic", "failed") else None,
+        rooted=_tri(v.get("rooted")),
+        hooked=_tri(v.get("hooked")),
+        debugger=_tri(v.get("debugger")),
+        developer_mode=_tri(v.get("developerMode")),
+        mitm=_tri(v.get("mitm")),
+        vpn=_tri(v.get("vpn")),
+        location_spoofed=_tri(v.get("locationSpoofed")),
+        cloned_app=_tri(v.get("clonedApp")),
+        factory_reset_at=_opt_str(v.get("factoryResetAt")),
+    )
+
+
+def _parse_vpn_methods(v: Any) -> Tuple[str, ...]:
+    methods = v.get("methods") if isinstance(v, dict) else None
+    return tuple(m for m in methods if isinstance(m, str)) if isinstance(methods, list) else ()
+
+
 def parse_webhook_event(raw_body: Union[str, bytes]) -> WebhookEvent:
     """Parse a webhook body (verify its signature first)."""
     body = json.loads(raw_body)
@@ -65,11 +116,14 @@ def parse_webhook_event(raw_body: Union[str, bytes]) -> WebhookEvent:
     if not isinstance(data, dict) or not isinstance(data.get("visitorId"), str):
         raise ValueError("parse_webhook_event: not a webhook event")
     proxied = data.get("proxied")
+    signals = data.get("signals") if isinstance(data.get("signals"), dict) else {}
     return WebhookEvent(
         visitor_id=data["visitorId"],
         proxied=proxied if isinstance(proxied, bool) else None,
         rule_action=_parse_rule_action(data.get("ruleAction")),
         rule_action_present="ruleAction" in data,
+        mobile=_parse_mobile(signals.get("mobile")),
+        vpn_methods=_parse_vpn_methods(signals.get("vpn")),
         raw=body,
     )
 

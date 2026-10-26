@@ -48,3 +48,28 @@ def test_eligibility_rule_id():
     a = parse_eligibility_answer({"ok": True, "eligible": False, "action": "deny", "reason": "rule_deny", "ruleId": "r_1"})
     assert a.rule_id == "r_1" and a.reason == "rule_deny" and a.eligible is False
     assert parse_eligibility_answer({"ok": True, "eligible": True, "reason": "brand_new"}).rule_id is None
+
+
+def test_ok_mobile_signals_vector_verifies_and_parses():
+    c = next(x for x in V["cases"] if x["name"] == "ok_mobile_signals")
+    verify_webhook_signature(c["body"].encode(), c["header"], V["secret"], now=c["now"])
+    e = parse_webhook_event(c["body"])
+    m = e.mobile
+    assert (m.rooted, m.hooked, m.developer_mode, m.vpn, m.location_spoofed, m.factory_reset_at) == (
+        True, False, True, True, None, None)
+    assert "os_vpn" in e.vpn_methods
+
+
+def test_old_payload_new_fields_are_none():
+    m = parse_webhook_event(_ev(signals={"mobile": {"emulator": False, "attested": True, "integrity": "strong"}})).mobile
+    assert m.rooted is None and m.cloned_app is None and m.factory_reset_at is None
+    assert parse_webhook_event(_ev(signals={"mobile": None})).mobile is None
+    e = parse_webhook_event(_ev())
+    assert e.mobile is None and e.vpn_methods == ()
+
+
+def test_non_boolean_reads_as_none_and_unknown_vpn_method_kept():
+    e = parse_webhook_event(_ev(signals={"vpn": {"result": True, "methods": ["os_vpn", "future"]},
+                                         "mobile": {"rooted": "yes", "factoryResetAt": 5}}))
+    assert e.mobile.rooted is None and e.mobile.factory_reset_at is None
+    assert e.vpn_methods == ("os_vpn", "future")

@@ -10,6 +10,49 @@ export interface RuleAction {
   rulesetVersion: number;
 }
 
+/** How the VPN signal was reached. `os_vpn` is the device reporting an active VPN. Open: ignore a value you do not know. */
+export type VpnMethod = 'timezone_mismatch' | 'ip_range' | 'relay' | 'os_vpn' | (string & {});
+
+/**
+ * Device-state signals of an android, ios or macos event. Each flag has three states:
+ * `true` = detected, `false` = checked and nothing found, `null` = not checked
+ * (old SDK, probes switched off, not supported on this platform). Not a guarantee either way.
+ */
+export interface MobileSignals {
+  emulator: boolean | null;
+  attested: boolean | null;
+  integrity: 'strong' | 'basic' | 'failed' | null;
+  rooted: boolean | null;
+  hooked: boolean | null;
+  debugger: boolean | null;
+  developerMode: boolean | null;
+  mitm: boolean | null;
+  vpn: boolean | null;
+  locationSpoofed: boolean | null;
+  clonedApp: boolean | null;
+  /** Reserved: the SDK does not report factory resets, so this is currently always null. */
+  factoryResetAt: string | null;
+}
+
+/** Event signals this SDK types; every other signal is kept untyped. */
+export interface EventSignals {
+  vpn?: { result: boolean | null; methods: VpnMethod[] };
+  /** Null for web events. */
+  mobile?: MobileSignals | null;
+  [k: string]: unknown;
+}
+
+/** Filters of `searchEvents`. The signal filters match the event's `signals`; unknown keys are passed through. */
+export interface SearchEventsQuery {
+  rooted?: boolean;
+  hooked?: boolean;
+  emulator?: boolean;
+  mitm?: boolean;
+  locationSpoofed?: boolean;
+  clonedApp?: boolean;
+  [k: string]: string | number | boolean | undefined | null;
+}
+
 /** An event as delivered in a webhook body. Unknown fields are kept. */
 export interface WebhookEvent {
   id?: string;
@@ -20,6 +63,8 @@ export interface WebhookEvent {
     proxied?: boolean;
     /** Null when the ruleset is disabled; missing in payloads queued before server 0.45.0. */
     ruleAction?: RuleAction | null;
+    /** Missing in payloads queued before server 0.43.0. */
+    signals?: EventSignals;
     [k: string]: unknown;
   };
   [k: string]: unknown;
@@ -52,6 +97,35 @@ function parseRuleAction(v: unknown): RuleAction | null | undefined {
   };
 }
 
+const tri = (v: unknown): boolean | null => (typeof v === 'boolean' ? v : null);
+const INTEGRITY = ['strong', 'basic', 'failed'] as const;
+
+function parseMobile(v: unknown): MobileSignals | null | undefined {
+  if (v === undefined) return undefined;
+  if (!isObject(v)) return null;
+  const integrity = INTEGRITY.find((x) => x === v.integrity) ?? null;
+  return {
+    emulator: tri(v.emulator),
+    attested: tri(v.attested),
+    integrity,
+    rooted: tri(v.rooted),
+    hooked: tri(v.hooked),
+    debugger: tri(v.debugger),
+    developerMode: tri(v.developerMode),
+    mitm: tri(v.mitm),
+    vpn: tri(v.vpn),
+    locationSpoofed: tri(v.locationSpoofed),
+    clonedApp: tri(v.clonedApp),
+    factoryResetAt: typeof v.factoryResetAt === 'string' ? v.factoryResetAt : null,
+  };
+}
+
+function parseSignals(v: unknown): EventSignals | undefined {
+  if (!isObject(v)) return undefined;
+  const mobile = parseMobile(v.mobile);
+  return { ...v, ...(mobile !== undefined ? { mobile } : {}) } as EventSignals;
+}
+
 /**
  * Parse a webhook body (verify its signature first). `proxied` and `ruleAction`
  * are optional: older payloads lack them. Unknown rule types do not throw.
@@ -63,6 +137,7 @@ export function parseWebhookEvent(rawBody: string | Uint8Array): WebhookEvent {
     throw new TypeError('parseWebhookEvent: not a webhook event');
   const { data } = body;
   const ruleAction = parseRuleAction(data.ruleAction);
+  const signals = parseSignals(data.signals);
   return {
     ...body,
     data: {
@@ -70,6 +145,7 @@ export function parseWebhookEvent(rawBody: string | Uint8Array): WebhookEvent {
       visitorId: data.visitorId,
       ...(typeof data.proxied === 'boolean' ? { proxied: data.proxied } : {}),
       ...(ruleAction !== undefined ? { ruleAction } : {}),
+      ...(signals !== undefined ? { signals } : {}),
     },
   } as WebhookEvent;
 }

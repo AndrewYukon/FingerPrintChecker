@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: FPChecker API
-  version: 0.45.0
+  version: 0.46.0
   summary: The customer-facing HTTP API of FPChecker.
   description: |
     Identify a device, decide whether it may claim or use something, and read what was seen.
@@ -780,6 +780,24 @@ paths:
         - name: virtualMachine
           in: query
           schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: rooted
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: hooked
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: emulator
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: mitm
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: locationSpoofed
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: clonedApp
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
         - name: start
           in: query
           description: ISO 8601 date or time. Default the last 7 days (or the retention, if shorter). The span cannot exceed the project's retention.
@@ -943,7 +961,7 @@ paths:
               schema: { $ref: '#/components/schemas/Health' }
               examples:
                 alive:
-                  value: { ok: true, version: 0.45.0, env: production, commit: 6bd97c0 }
+                  value: { ok: true, version: 0.46.0, env: production, commit: 6bd97c0 }
   /status:
     get:
       operationId: getStatus
@@ -959,7 +977,7 @@ paths:
               schema: { $ref: '#/components/schemas/Status' }
               examples:
                 up:
-                  value: { ok: true, version: 0.45.0, maintenance: false, checks: { api: true, database: true, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
+                  value: { ok: true, version: 0.46.0, maintenance: false, checks: { api: true, database: true, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
         '503':
           description: Not able to serve.
           content:
@@ -967,7 +985,7 @@ paths:
               schema: { $ref: '#/components/schemas/Status' }
               examples:
                 down:
-                  value: { ok: false, version: 0.45.0, maintenance: false, checks: { api: true, database: false, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
+                  value: { ok: false, version: 0.46.0, maintenance: false, checks: { api: true, database: false, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
 webhooks:
   event:
     post:
@@ -1534,7 +1552,7 @@ components:
             result: { type: [boolean, 'null'] }
             methods:
               type: array
-              items: { type: string, enum: [timezone_mismatch, ip_range, relay] }
+              items: { type: string, enum: [timezone_mismatch, ip_range, relay, os_vpn], description: 'New values may be added; ignore a value you do not know. `os_vpn` is the device reporting an active VPN (android, ios).' }
         proxy:
           type: object
           required: [result, type]
@@ -1585,6 +1603,15 @@ components:
                 emulator: { type: [boolean, 'null'] }
                 attested: { type: [boolean, 'null'] }
                 integrity: { enum: [strong, basic, failed, null] }
+                rooted: { type: [boolean, 'null'], description: &tri 'Three states: `true` = detected, `false` = checked and nothing found, `null` = not checked (old SDK, probes switched off, or not supported on this platform). Not a guarantee either way.' }
+                hooked: { type: [boolean, 'null'], description: *tri }
+                debugger: { type: [boolean, 'null'], description: *tri }
+                developerMode: { type: [boolean, 'null'], description: *tri }
+                mitm: { type: [boolean, 'null'], description: *tri }
+                vpn: { type: [boolean, 'null'], description: *tri }
+                locationSpoofed: { type: [boolean, 'null'], description: *tri }
+                clonedApp: { type: [boolean, 'null'], description: *tri }
+                factoryResetAt: { type: [string, 'null'], pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$', description: 'UTC date of the last device setup (android only); `null` when unknown.' }
     RuleAction:
       type: object
       required: [type, rulesetVersion]

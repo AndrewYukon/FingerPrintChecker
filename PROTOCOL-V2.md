@@ -51,6 +51,13 @@ A v1 nonce cannot be used on `/v2/identify` and a `v4.` challenge cannot be used
 Exactly as v1: same keys per platform, same per-component rules. Native free text may not contain `|`.
 Native components never carry `hash` (only the web agent sends it).
 
+Since SDK 0.7.0 native requests also carry the integrity component (`android.integrity`, `ios.integrity`,
+`macos.integrity`), a sealed component with no `kind` that never takes part in the visitor identity. Its value is
+`<probeVersion>:<fired codes>:<unavailable codes>`, for example `1:root,hook:mock_location`, or `1::` when everything
+was checked and nothing was found. The value pattern, the code sets per platform and the rule that a malformed value is
+`bad_request` are in [PROTOCOL.md](PROTOCOL.md) section 3b. A request without it is still valid (older SDKs).
+With a platform proof the component is covered by the request binding like every other component.
+
 ## 4. Canonical bytes (JCS)
 
 The canonical object is:

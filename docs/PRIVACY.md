@@ -13,6 +13,23 @@ and fpchecker processes this data on your behalf, for the purpose you configure.
 | iOS | a random id kept in the Keychain (this device only), `identifierForVendor`, time zone, model (`iPhone17,1`), OS version, simulator flag, an App Attest attestation / assertion, a DeviceCheck token | advertising id (IDFA), location, contacts |
 | macOS | `IOPlatformUUID`, a random Keychain id, time zone, model, OS version, App Attest (macOS 27+), DeviceCheck (where supported) | serial number, MAC address |
 
+### Device integrity probes (SDK 0.7.0 and later)
+
+With `integrityProbes` on (the default), the SDK adds one more value to the request: a probe version number and, per
+check, whether it fired, was clean, or could not be run. In practice these are device-state booleans (rooted or
+jailbroken, hooking framework, emulator or simulator, debugger attached, developer options, interception proxy or
+untrusted user certificate, active VPN, mock location, cloned app), plus a reserved date field that is currently always
+empty (the SDK does not detect factory resets).
+
+| Sent | Never sent |
+|---|---|
+| Booleans and one probe version number, nothing else | Coordinates, the list of installed apps, certificate contents, proxy addresses, file paths, process names |
+
+The SDK adds no permission and no `<queries>` entry. A location check only uses a location permission your app already
+holds, runs on the device, and sends one boolean. The values are used to detect fraud and abuse and are not used for
+tracking, advertising or profiling. They are not returned to the app: your server reads them through the events API and
+webhooks. Set `integrityProbes` to `false` to stop collecting them; the SDK then reports every item as "not checked".
+
 The server stores keyed hashes of the identifiers, not the identifiers themselves, plus the IP
 address and coarse network data (country, ASN) of each request. Device rows expire after the retention period
 without activity; a user's deletion request is made by you, for your project, to fpchecker.
@@ -35,6 +52,11 @@ Answer for the SDK's part:
 | Encrypted in transit? | **Yes** (HTTPS only) |
 | Can users request deletion? | **Yes**, through you |
 
+The integrity probes add no new Data safety data type. Declare them under the same **Device or other IDs** answer
+(purpose: fraud prevention, security and compliance), or, if you prefer to list them separately, as **App info and
+performance → Diagnostics** collected for security, not shared, not used for advertising. No location data type is
+needed: no coordinates are collected.
+
 If you also send the attestation's `visitorId` with your own account data, declare that in your
 own answers (it is then linked to the user by you).
 
@@ -49,6 +71,10 @@ covers the Play services side.
 | Used for tracking? | **No.** The SDK does not combine it with other companies' data or share it with data brokers (App Tracking Transparency does not apply). |
 | Linked to the user's identity? | **No** for the SDK alone. **Yes** if your backend stores the `visitorId` with an account. |
 | Purposes | **App Functionality** (Apple lists fraud prevention and security under it) |
+
+The integrity probes add no data type to App Privacy: they are device-state booleans used for fraud prevention and
+security, they are not used for tracking, and no coordinates, app list, certificates or proxy addresses leave the device.
+Keep the answers above; if you list diagnostic data separately, choose **Other Diagnostic Data**, not linked, not tracking.
 
 The Swift package ships a `PrivacyInfo.xcprivacy` declaring the collected Device ID
 (not linked, not tracking, App Functionality) and its required-reason API use

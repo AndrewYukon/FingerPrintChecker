@@ -96,6 +96,31 @@ If `DCDevice.current.isSupported` and `generateToken` succeeds, let `token` be t
 component `<platform>.deviceCheck = lowercase-hex(SHA-256(UTF-8(token)))` BEFORE sealing and send `token` as the top-level body
 field `deviceCheckToken`. A token without the matching component is ignored. Omit both when unavailable.
 
+## 3b. Integrity component (`*.integrity`, SDK 0.7.0 and later)
+
+One sealed component carries the result of the on-device integrity checks: `android.integrity`, `ios.integrity`,
+`macos.integrity`. It has no `kind`: it never takes part in the visitor identity.
+
+```
+<probeVersion>:<fired>:<unavailable>          e.g.  1:root,hook:mock_location     1::
+```
+
+- `probeVersion` is a number (SDK 0.7.0 sends `1`). `fired` and `unavailable` are comma separated lists of codes
+  (lower-case letters and `_`), either may be empty. Pattern `^[0-9]{1,3}:([a-z_]+(,[a-z_]+)*)?:([a-z_]+(,[a-z_]+)*)?$`,
+  at most 256 characters.
+- A code in `fired` was detected. A code in `unavailable` could not be checked (no permission, not supported on this
+  device or OS, timeout, error). Every other known code was checked and nothing was found. A code never appears in both
+  lists or twice.
+- Codes of probe version 1: android `root`, `hook`, `emulator`, `debugger`, `devopts`, `mitm`, `vpn`, `mock_location`,
+  `clone`; ios `jailbreak`, `hook`, `emulator`, `debugger`, `mitm`, `vpn`, `mock_location`; macos `debugger`, `hook`.
+  A code that does not belong to the platform, a malformed value or a duplicate makes the whole request `bad_request`.
+- With `integrityProbes` switched off the SDK still sends the component, with every code of the platform in
+  `unavailable` (`1::root,hook,...`), so a switched-off app is told apart from a client that dropped the component.
+- The three states reach your server as `true` (detected), `false` (checked, nothing found) and `null` (not checked) in
+  `signals.mobile`. They are never part of the identify response, the sealed result or the attestation; read them with
+  the events API or webhooks.
+- `android.setupDay` is reserved and not sent by SDK 0.7.0. `signals.mobile.factoryResetAt` is therefore always `null`.
+
 ## 4. Canonical form and seal
 
 ```

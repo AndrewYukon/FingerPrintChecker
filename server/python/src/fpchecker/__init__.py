@@ -2,6 +2,7 @@
 from .client import FpChecker
 from .events import (
     EligibilityAnswer,
+    MobileSignals,
     RuleAction,
     WebhookEvent,
     parse_eligibility_answer,
@@ -11,10 +12,11 @@ from .errors import FpCheckerApiError, SealedResultError, WebhookSignatureError
 from .sealed import unseal_result
 from .webhook import verify_webhook_signature
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "EligibilityAnswer",
+    "MobileSignals",
     "RuleAction",
     "WebhookEvent",
     "parse_eligibility_answer",

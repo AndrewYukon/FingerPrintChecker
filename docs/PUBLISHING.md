@@ -25,6 +25,17 @@ Rules for every step below:
 | Android SDK | Maven Central | `com.fpchecker:fpchecker-android` | 0.5.0 | `android/fpchecker` |
 | Apple SDK | Swift Package Manager (git tag) | `https://github.com/AndrewYukon/FingerPrintChecker` | 0.6.0 | `apple/`, `Package.swift` |
 
+Pending release 0.7.0 (device integrity probes). Not published yet; publish only after fp-guard 0.46.0 is live in production,
+because an older server rejects the new `*.integrity` component:
+
+| Package | Registry | Version | Tag / command |
+|---|---|---|---|
+| Android SDK | Maven Central | 0.7.0 | `com.fpchecker:fpchecker-android:0.7.0` |
+| Apple SDK | Swift Package Manager (git tag) | 0.7.0 | tag `0.7.0` |
+| Node.js server SDK | npm | 0.3.0 | `@fingerprintchecker/node` |
+| Python server SDK | PyPI | 0.3.0 | `fingerprintchecker` |
+| Go server SDK | Go proxy (git tag) | v0.3.0 | tag `server/go/v0.3.0` |
+
 ## npm
 
 ### One-time setup
