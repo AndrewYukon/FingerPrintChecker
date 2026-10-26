@@ -1,5 +1,5 @@
 {
-  "name": "@fpchecker/node",
+  "name": "@fingerprintchecker/node",
   "version": "0.1.0",
   "description": "FingerPrintChecker server SDK for Node.js: API client, sealed result decryption, webhook signature verification.",
   "license": "Apache-2.0",

@@ -156,12 +156,12 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 
 | 包 | 位置 | 安装 |
 |---|---|---|
-| Node.js 服务端 SDK，`@fpchecker/node` | [`server/node`](server/node) | `npm install @fpchecker/node` |
+| Node.js 服务端 SDK，`@fingerprintchecker/node` | [`server/node`](server/node) | `npm install @fingerprintchecker/node` |
 | Python 服务端 SDK，`fpchecker` | [`server/python`](server/python) | `pip install fingerprintchecker` |
 | Go 服务端 SDK | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
-| 浏览器 agent 加载器，`@fpchecker/agent` | [`web/agent`](web/agent) | `npm install @fpchecker/agent` |
-| React 封装，`@fpchecker/react` | [`web/react`](web/react) | `npm install @fpchecker/react` |
-| Vue 封装，`@fpchecker/vue` | [`web/vue`](web/vue) | `npm install @fpchecker/vue` |
+| 浏览器 agent 加载器，`@fingerprintchecker/agent` | [`web/agent`](web/agent) | `npm install @fingerprintchecker/agent` |
+| React 封装，`@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
+| Vue 封装，`@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
 这些包尚未发布到 npm 和 PyPI。发布前请从 GitHub 安装：克隆本仓库后执行 `npm install ./web/agent`（或 `./server/node` 等）/
 `pip install ./server/python`；Go 用 `go get github.com/AndrewYukon/FingerPrintChecker/server/go@main`。

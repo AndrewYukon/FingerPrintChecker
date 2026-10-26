@@ -1,9 +1,9 @@
-# @fpchecker/agent
+# @fingerprintchecker/agent
 
 Browser agent for [FingerPrintChecker](https://fpchecker.com). Loads the agent once per page, calls `identify`, and can keep a short-lived result cache.
 
 ```ts
-import { load } from '@fpchecker/agent';
+import { load } from '@fingerprintchecker/agent';
 
 const fp = await load({ publishableKey: 'pk_live_...' });
 // intentToken comes from your server (POST /v2/intents)
@@ -47,7 +47,7 @@ By default the agent is bundled in this package as a string and injected as an i
 const fp = await load({ publishableKey, scriptUrl: '/static/fp-agent.min.js' });
 ```
 
-Either self-host a copy of `node_modules/@fpchecker/agent/vendor/fp-agent.min.js` (it matches this package version), or use `https://fpchecker.com/static/fp-agent.min.js`. The hosted file tracks the website's agent version, not this package's, and needs `https://fpchecker.com` in `script-src`. If the script fails to load, `load()` rejects with `code: 'load_failed'`, the element is removed, and a later `load()` tries again.
+Either self-host a copy of `node_modules/@fingerprintchecker/agent/vendor/fp-agent.min.js` (it matches this package version), or use `https://fpchecker.com/static/fp-agent.min.js`. The hosted file tracks the website's agent version, not this package's, and needs `https://fpchecker.com` in `script-src`. If the script fails to load, `load()` rejects with `code: 'load_failed'`, the element is removed, and a later `load()` tries again.
 
 Also allow the API endpoint in `connect-src` (`https://api.fpchecker.com` by default).
 

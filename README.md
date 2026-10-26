@@ -281,12 +281,12 @@ When your project has a sealing key, identify answers carry an optional `sealedR
 
 | Package | Where | Install |
 |---|---|---|
-| Server SDK for Node.js, `@fpchecker/node` | [`server/node`](server/node) | `npm install @fpchecker/node` |
+| Server SDK for Node.js, `@fingerprintchecker/node` | [`server/node`](server/node) | `npm install @fingerprintchecker/node` |
 | Server SDK for Python, `fpchecker` | [`server/python`](server/python) | `pip install fingerprintchecker` |
 | Server SDK for Go | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
-| Browser agent loader, `@fpchecker/agent` | [`web/agent`](web/agent) | `npm install @fpchecker/agent` |
-| React wrapper, `@fpchecker/react` | [`web/react`](web/react) | `npm install @fpchecker/react` |
-| Vue wrapper, `@fpchecker/vue` | [`web/vue`](web/vue) | `npm install @fpchecker/vue` |
+| Browser agent loader, `@fingerprintchecker/agent` | [`web/agent`](web/agent) | `npm install @fingerprintchecker/agent` |
+| React wrapper, `@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
+| Vue wrapper, `@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
 These packages are not published to npm and PyPI yet. Until they are, install them from GitHub: clone this repository and run
 `npm install ./web/agent` (or `./server/node`, ...) / `pip install ./server/python`, or use

@@ -4,7 +4,7 @@ import { expect, it } from 'vitest';
 
 it('the real vendored agent evaluates and exposes identifyV2 + IdentifyV2Error', () => {
   const src = readFileSync(resolve(__dirname, '../vendor/fp-agent.min.js'), 'utf8');
-  expect(src.startsWith('/* @fpchecker/agent vendored file. Source: fp-guard commit bb6baee, agent 0.10.0')).toBe(true);
+  expect(src.startsWith('/* @fingerprintchecker/agent vendored file. Source: fp-guard commit bb6baee, agent 0.10.0')).toBe(true);
   delete (window as { FpGuardAgent?: unknown }).FpGuardAgent;
   const el = document.createElement('script');
   el.textContent = src;

@@ -1,7 +1,7 @@
 'use client';
 
-import { FpCheckerAgentError, load } from '@fpchecker/agent';
-import type { FpAgent, IdentifyOptions, IdentifyResult, LoadOptions } from '@fpchecker/agent';
+import { FpCheckerAgentError, load } from '@fingerprintchecker/agent';
+import type { FpAgent, IdentifyOptions, IdentifyResult, LoadOptions } from '@fingerprintchecker/agent';
 import {
   createContext,
   useCallback,
@@ -13,7 +13,7 @@ import {
   type ReactNode,
 } from 'react';
 
-export type { IdentifyOptions, IdentifyResult, LoadOptions } from '@fpchecker/agent';
+export type { IdentifyOptions, IdentifyResult, LoadOptions } from '@fingerprintchecker/agent';
 
 export interface FpCheckerState {
   identify(opts: IdentifyOptions): Promise<IdentifyResult>;

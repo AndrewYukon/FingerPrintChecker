@@ -1,9 +1,9 @@
-# @fpchecker/node
+# @fingerprintchecker/node
 
 Server SDK for [FingerPrintChecker](https://fpchecker.com). Zero runtime dependencies (built-in `fetch` and `node:crypto`), Node 18+, ESM and CommonJS.
 
 ```ts
-import { FpChecker, unsealResult, verifyWebhookSignature, FpCheckerApiError } from '@fpchecker/node';
+import { FpChecker, unsealResult, verifyWebhookSignature, FpCheckerApiError } from '@fingerprintchecker/node';
 
 const fp = new FpChecker({ secretKey: process.env.FPCHECKER_SECRET_KEY! });
 

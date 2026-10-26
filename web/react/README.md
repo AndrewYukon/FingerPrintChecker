@@ -1,20 +1,20 @@
-# @fpchecker/react
+# @fingerprintchecker/react
 
-React provider and hook for [FingerPrintChecker](https://fpchecker.com). Built on `@fpchecker/agent`. Requires React 18 or newer.
+React provider and hook for [FingerPrintChecker](https://fpchecker.com). Built on `@fingerprintchecker/agent`. Requires React 18 or newer.
 
 ```bash
-npm install @fpchecker/react
+npm install @fingerprintchecker/react
 ```
 
 ```tsx
-import { FpCheckerProvider, useFpChecker } from '@fpchecker/react';
+import { FpCheckerProvider, useFpChecker } from '@fingerprintchecker/react';
 
 <FpCheckerProvider publishableKey="pk_live_...">
   <App />
 </FpCheckerProvider>
 ```
 
-The provider accepts the same options as `load()` from `@fpchecker/agent`: `publishableKey`, optional `endpoint`, optional `scriptUrl`. The agent loads in the browser after mount; nothing loads during server rendering.
+The provider accepts the same options as `load()` from `@fingerprintchecker/agent`: `publishableKey`, optional `endpoint`, optional `scriptUrl`. The agent loads in the browser after mount; nothing loads during server rendering.
 
 ```tsx
 const { identify, data, error, isLoading } = useFpChecker();
@@ -33,7 +33,7 @@ The package files start with `'use client'`, so they can be imported from client
 ```tsx
 // app/fp-provider.tsx
 'use client';
-import { FpCheckerProvider } from '@fpchecker/react';
+import { FpCheckerProvider } from '@fingerprintchecker/react';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return <FpCheckerProvider publishableKey={process.env.NEXT_PUBLIC_FPCHECKER_KEY!}>{children}</FpCheckerProvider>;
@@ -58,7 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 ```tsx
 // app/signup/signup-button.tsx
 'use client';
-import { useFpChecker } from '@fpchecker/react';
+import { useFpChecker } from '@fingerprintchecker/react';
 
 export function SignupButton({ intentToken }: { intentToken: string }) {
   const { identify, isLoading, error } = useFpChecker();

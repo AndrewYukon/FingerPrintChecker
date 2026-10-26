@@ -1,23 +1,23 @@
-# @fpchecker/vue
+# @fingerprintchecker/vue
 
-Vue plugin and composable for [FingerPrintChecker](https://fpchecker.com). Built on `@fpchecker/agent`. Requires Vue 3.3 or newer.
+Vue plugin and composable for [FingerPrintChecker](https://fpchecker.com). Built on `@fingerprintchecker/agent`. Requires Vue 3.3 or newer.
 
 ```bash
-npm install @fpchecker/vue
+npm install @fingerprintchecker/vue
 ```
 
 ```ts
 import { createApp } from 'vue';
-import { fpChecker } from '@fpchecker/vue';
+import { fpChecker } from '@fingerprintchecker/vue';
 
 createApp(App).use(fpChecker, { publishableKey: 'pk_live_...' }).mount('#app');
 ```
 
-The plugin accepts the same options as `load()` from `@fpchecker/agent`: `publishableKey`, optional `endpoint`, optional `scriptUrl`. The agent loads in the browser on mount (or on the first `identify`); nothing loads during server rendering.
+The plugin accepts the same options as `load()` from `@fingerprintchecker/agent`: `publishableKey`, optional `endpoint`, optional `scriptUrl`. The agent loads in the browser on mount (or on the first `identify`); nothing loads during server rendering.
 
 ```vue
 <script setup lang="ts">
-import { useFpChecker } from '@fpchecker/vue';
+import { useFpChecker } from '@fingerprintchecker/vue';
 
 const props = defineProps<{ intentToken: string }>();
 const { identify, data, error, isLoading } = useFpChecker(); // data, error, isLoading are refs
@@ -40,7 +40,7 @@ The plugin is safe to install on the server: it never loads the agent during SSR
 
 ```ts
 // plugins/fpchecker.ts
-import { fpChecker } from '@fpchecker/vue';
+import { fpChecker } from '@fingerprintchecker/vue';
 
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.use(fpChecker, { publishableKey: useRuntimeConfig().public.fpcheckerKey });

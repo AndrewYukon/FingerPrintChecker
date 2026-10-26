@@ -1,5 +1,7 @@
 # Publishing
 
+npm org is `fingerprintchecker` (the `@fpchecker` scope was unavailable), so all npm packages are `@fingerprintchecker/*`.
+
 Owner-only steps to publish every package in this repository. Nothing here runs in CI; CI only tests and builds
 (`.github/workflows/packages.yml`).
 
@@ -14,10 +16,10 @@ Rules for every step below:
 
 | Package | Registry | Name | Version | Source |
 |---|---|---|---|---|
-| Browser agent loader | npm | `@fpchecker/agent` | 0.1.0 | `web/agent` |
-| React wrapper | npm | `@fpchecker/react` | 0.1.0 | `web/react` |
-| Vue wrapper | npm | `@fpchecker/vue` | 0.1.0 | `web/vue` |
-| Node.js server SDK | npm | `@fpchecker/node` | 0.1.0 | `server/node` |
+| Browser agent loader | npm | `@fingerprintchecker/agent` | 0.1.0 | `web/agent` |
+| React wrapper | npm | `@fingerprintchecker/react` | 0.1.0 | `web/react` |
+| Vue wrapper | npm | `@fingerprintchecker/vue` | 0.1.0 | `web/vue` |
+| Node.js server SDK | npm | `@fingerprintchecker/node` | 0.1.0 | `server/node` |
 | Python server SDK | PyPI | `fingerprintchecker` (import `fpchecker`) | 0.1.0 | `server/python` |
 | Go server SDK | Go proxy (git tag) | `github.com/AndrewYukon/FingerPrintChecker/server/go` | v0.1.0 | `server/go` |
 | Android SDK | Maven Central | `com.fpchecker:fpchecker-android` | 0.5.0 | `android/fpchecker` |
@@ -54,8 +56,8 @@ npm test --workspace web/agent --workspace web/react --workspace web/vue
 For the package you are about to publish (`web/agent` is the example):
 
 1. Version fields. `grep '"version"' web/agent/package.json`, and for react and vue also the dependency on the agent:
-   `grep '@fpchecker/agent' web/react/package.json web/vue/package.json` must be a range the published agent satisfies
-   (`^0.1.0` matches 0.1.0). `npm view @fpchecker/<name> version` must say "not found" (first publish) or an older version.
+   `grep '@fingerprintchecker/agent' web/react/package.json web/vue/package.json` must be a range the published agent satisfies
+   (`^0.1.0` matches 0.1.0). `npm view @fingerprintchecker/<name> version` must say "not found" (first publish) or an older version.
 2. Vendor provenance (agent only). `head -c 300 web/agent/vendor/fp-agent.min.js` must show the source commit and version in its first
    line comment, and the file must be the unmodified copy of the agent that fpchecker.com serves:
    `curl -s https://fpchecker.com/static/fp-agent.min.js | shasum -a 256` against `shasum -a 256 web/agent/vendor/fp-agent.min.js`.
@@ -66,11 +68,11 @@ For the package you are about to publish (`web/agent` is the example):
 
 ### Publish, in this order
 
-The wrappers depend on the agent, so the agent must exist on the registry first. `@fpchecker/node` is independent and goes last.
+The wrappers depend on the agent, so the agent must exist on the registry first. `@fingerprintchecker/node` is independent and goes last.
 
-1. `@fpchecker/agent`
-2. `@fpchecker/react` and `@fpchecker/vue` (either order)
-3. `@fpchecker/node`
+1. `@fingerprintchecker/agent`
+2. `@fingerprintchecker/react` and `@fingerprintchecker/vue` (either order)
+3. `@fingerprintchecker/node`
 
 Publish with a temporary npmrc that reads the token from the environment, so the token is never on the command line:
 
@@ -93,8 +95,8 @@ rm -f "$NPMRC"
 
 If npm asks for a one-time password, the token was not created with "Bypass 2FA"; create a new one rather than typing codes into scripts.
 
-Verify: `npm view @fpchecker/agent version` (and react, vue, node) prints `0.1.0`; then in an empty directory
-`npm install @fpchecker/react` succeeds.
+Verify: `npm view @fingerprintchecker/agent version` (and react, vue, node) prints `0.1.0`; then in an empty directory
+`npm install @fingerprintchecker/react` succeeds.
 
 ### Next version
 

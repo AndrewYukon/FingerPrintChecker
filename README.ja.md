@@ -158,12 +158,12 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 
 | パッケージ | 場所 | インストール |
 |---|---|---|
-| Node.js サーバー SDK、`@fpchecker/node` | [`server/node`](server/node) | `npm install @fpchecker/node` |
+| Node.js サーバー SDK、`@fingerprintchecker/node` | [`server/node`](server/node) | `npm install @fingerprintchecker/node` |
 | Python サーバー SDK、`fpchecker` | [`server/python`](server/python) | `pip install fingerprintchecker` |
 | Go サーバー SDK | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
-| ブラウザ agent ローダー、`@fpchecker/agent` | [`web/agent`](web/agent) | `npm install @fpchecker/agent` |
-| React ラッパー、`@fpchecker/react` | [`web/react`](web/react) | `npm install @fpchecker/react` |
-| Vue ラッパー、`@fpchecker/vue` | [`web/vue`](web/vue) | `npm install @fpchecker/vue` |
+| ブラウザ agent ローダー、`@fingerprintchecker/agent` | [`web/agent`](web/agent) | `npm install @fingerprintchecker/agent` |
+| React ラッパー、`@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
+| Vue ラッパー、`@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
 これらのパッケージはまだ npm / PyPI に公開されていません。公開までは GitHub からインストールしてください。このリポジトリをクローンし、
 `npm install ./web/agent`（または `./server/node` など）/ `pip install ./server/python` を実行します。Go は

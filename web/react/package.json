@@ -1,5 +1,5 @@
 {
-  "name": "@fpchecker/react",
+  "name": "@fingerprintchecker/react",
   "version": "0.1.0",
   "description": "React provider and hook for FingerPrintChecker.",
   "license": "Apache-2.0",
@@ -18,7 +18,7 @@
     "test": "vitest run",
     "prepack": "npm run build"
   },
-  "dependencies": { "@fpchecker/agent": "^0.1.0" },
+  "dependencies": { "@fingerprintchecker/agent": "^0.1.0" },
   "peerDependencies": { "react": ">=18" },
   "devDependencies": {
     "@testing-library/react": "^16.0.0",

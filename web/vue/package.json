@@ -1,5 +1,5 @@
 {
-  "name": "@fpchecker/vue",
+  "name": "@fingerprintchecker/vue",
   "version": "0.1.0",
   "description": "Vue plugin and composable for FingerPrintChecker.",
   "license": "Apache-2.0",
@@ -18,7 +18,7 @@
     "test": "vitest run",
     "prepack": "npm run build"
   },
-  "dependencies": { "@fpchecker/agent": "^0.1.0" },
+  "dependencies": { "@fingerprintchecker/agent": "^0.1.0" },
   "peerDependencies": { "vue": ">=3.3" },
   "devDependencies": {
     "@vue/test-utils": "^2.4.6",

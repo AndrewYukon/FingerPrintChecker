@@ -1,5 +1,5 @@
 {
-  "name": "@fpchecker/agent",
+  "name": "@fingerprintchecker/agent",
   "version": "0.1.0",
   "description": "FingerPrintChecker browser agent: loads the agent once per page, identifies the visitor, optional short-lived result cache.",
   "license": "Apache-2.0",

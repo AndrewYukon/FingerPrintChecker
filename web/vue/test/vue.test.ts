@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const identifyMock = vi.fn();
 const loadMock = vi.fn();
-vi.mock('@fpchecker/agent', async (orig) => ({
-  ...(await orig<typeof import('@fpchecker/agent')>()),
+vi.mock('@fingerprintchecker/agent', async (orig) => ({
+  ...(await orig<typeof import('@fingerprintchecker/agent')>()),
   load: (o: unknown) => loadMock(o),
 }));
 

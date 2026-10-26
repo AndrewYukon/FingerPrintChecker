@@ -3,8 +3,8 @@ import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 const loadMock = vi.fn();
-vi.mock('@fpchecker/agent', async (orig) => ({
-  ...(await orig<typeof import('@fpchecker/agent')>()),
+vi.mock('@fingerprintchecker/agent', async (orig) => ({
+  ...(await orig<typeof import('@fingerprintchecker/agent')>()),
   load: (o: unknown) => loadMock(o),
 }));
 

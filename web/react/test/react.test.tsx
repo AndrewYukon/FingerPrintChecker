@@ -5,8 +5,8 @@ import { StrictMode, useEffect, type ReactNode } from 'react';
 
 const identifyMock = vi.fn();
 const loadMock = vi.fn();
-vi.mock('@fpchecker/agent', async (orig) => ({
-  ...(await orig<typeof import('@fpchecker/agent')>()),
+vi.mock('@fingerprintchecker/agent', async (orig) => ({
+  ...(await orig<typeof import('@fingerprintchecker/agent')>()),
   load: (o: unknown) => loadMock(o),
 }));
 
