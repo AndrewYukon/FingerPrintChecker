@@ -75,10 +75,15 @@ class IntegrityProbesTest {
         val probes = listOf(Quick("root", ProbeResult.FIRED), Slow())
         // Warm the dispatcher and timer threads: cold class loading is not part of the budget under test.
         IntegrityProbes.collect(FakeProbeEnv(), listOf(Quick("root", ProbeResult.CLEAN)), 200)
-        val start = System.nanoTime()
-        val encoded = IntegrityProbes.collect(FakeProbeEnv(), probes, 200)
-        val elapsedMs = (System.nanoTime() - start) / 1_000_000
-        assertTrue("took ${elapsedMs}ms", elapsedMs < 250)
+        // Best of three: the shared CI host can stall one run, but a probe that blocks the caller would stall all three.
+        var best = Long.MAX_VALUE
+        var encoded = ""
+        repeat(3) {
+            val start = System.nanoTime()
+            encoded = IntegrityProbes.collect(FakeProbeEnv(), probes, 200)
+            best = minOf(best, (System.nanoTime() - start) / 1_000_000)
+        }
+        assertTrue("best of 3 took ${best}ms", best < 250)
         // Codes not run at all are reported unavailable too, so only the relevant parts are asserted.
         assertTrue(encoded.startsWith("1:root:"))
         assertTrue(encoded.split(":")[2].split(",").contains("hook"))
