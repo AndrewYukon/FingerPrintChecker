@@ -60,6 +60,7 @@ Only these paths, everything else is 404:
 - Added headers: `X-FPC-Proxy-Secret`, `X-FPC-Client-IP` (from `CF-Connecting-IP`), `X-FPC-Client-Country`, `X-FPC-Client-Timezone`, `X-FPC-Client-City`, `X-FPC-Client-ASN` (from Cloudflare's request data) and `X-FPC-Forwarded-Host`. Headers the Worker cannot determine are left out.
 - `X-FPC-Client-City` is percent-encoded with `encodeURIComponent` because city names can be non-ASCII; the server decodes it.
 - Any `X-FPC-*` header sent by the browser is removed first, so a visitor cannot pre-set these values.
+- Query strings are not forwarded on API routes (the supported endpoints do not use them).
 - Cookies are never forwarded: `Cookie` is dropped on the way up and `Set-Cookie` on the way down.
 
 ## Development

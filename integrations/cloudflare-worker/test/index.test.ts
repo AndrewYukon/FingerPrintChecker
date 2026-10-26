@@ -169,4 +169,40 @@ describe("proxy", () => {
     await call(req("/_a/agent.js"), e);
     expect(sent().url).toBe("https://cdn.example.test/a.js");
   });
+
+  it("ignores the query string for the agent.js cache key", async () => {
+    upstream.mockImplementation(async () => new Response("/*a*/", { status: 200 }));
+    await call(req("/fpc/agent.js?x=1"));
+    await call(req("/fpc/agent.js?x=2"));
+    await call(req("/fpc/agent.js"));
+    expect(upstream).toHaveBeenCalledTimes(1);
+  });
+
+  it("builds agent.js response headers explicitly", async () => {
+    upstream.mockImplementation(async () => new Response("/*a*/", {
+      status: 200,
+      headers: { "content-type": "text/javascript", vary: "Accept-Encoding", "set-cookie": "a=1", "x-extra": "1" },
+    }));
+    const res = await call(req("/fpc/agent.js"));
+    expect([...res.headers.keys()].sort()).toEqual(["cache-control", "content-type"]);
+    expect(res.headers.get("cache-control")).toBe("public, max-age=3600");
+  });
+
+  it.each(["/fpc/../admin", "/fpc/v2/identify/../../x", "/fpc/v2%2Fidentify", "/fpc//v2/identify/x", "/fpc/%2e%2e/v2/identify"])(
+    "path abuse %s never reaches the API route",
+    async (p) => {
+      const res = await call(req(p, { method: "POST", body: "{}" }, cf));
+      if (upstream.mock.calls.length) expect(sent().url).toMatch(/^https:\/\/api\.fpchecker\.com\/v[12]\/(challenge|identify)$/);
+      else expect(res.status).toBe(404);
+    },
+  );
+
+  it("strips mixed-case X-FPC headers", async () => {
+    await call(req("/fpc/v2/identify", {
+      method: "POST", body: "{}",
+      headers: { "X-FPC-Client-IP": "6.6.6.6", "X-Fpc-Proxy-Secret": "guess", "cf-connecting-ip": "203.0.113.9" },
+    }, cf));
+    expect(sent().headers.get("x-fpc-client-ip")).toBe("203.0.113.9");
+    expect(sent().headers.get("x-fpc-proxy-secret")).toBe("s3cret");
+  });
 });

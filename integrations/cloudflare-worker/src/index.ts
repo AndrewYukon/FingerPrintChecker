@@ -53,7 +53,9 @@ function downstream(res: Response): Response {
 
 async function serveAgent(env: Env, ctx: ExecutionContext, request: Request): Promise<Response> {
   const cache = caches.default;
-  const key = new Request(request.url, { method: "GET" });
+  const url = new URL(request.url);
+  // Key on origin + path only, so query strings cannot bypass or churn the cache.
+  const key = new Request(`${url.origin}${url.pathname}`, { method: "GET" });
   const hit = await cache.match(key);
   if (hit) return hit;
   let upstream: Response;
@@ -62,9 +64,14 @@ async function serveAgent(env: Env, ctx: ExecutionContext, request: Request): Pr
   } catch {
     return text("fpchecker proxy: agent unavailable", 502);
   }
-  const res = downstream(upstream);
-  if (upstream.status !== 200) return res;
-  res.headers.set("cache-control", `public, max-age=${AGENT_CACHE_SECONDS}`);
+  if (upstream.status !== 200) return downstream(upstream);
+  const res = new Response(upstream.body, {
+    status: 200,
+    headers: {
+      "content-type": upstream.headers.get("content-type") || "text/javascript; charset=utf-8",
+      "cache-control": `public, max-age=${AGENT_CACHE_SECONDS}`,
+    },
+  });
   ctx.waitUntil(cache.put(key, res.clone()));
   return res;
 }
