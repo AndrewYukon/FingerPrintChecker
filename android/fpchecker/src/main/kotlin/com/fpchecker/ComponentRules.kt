@@ -1,5 +1,6 @@
 package com.fpchecker
 
+import com.fpchecker.integrity.IntegrityProbes
 import java.util.Locale
 
 /**
@@ -20,11 +21,15 @@ internal object ComponentRules {
     const val HARDWARE = "android.hardware"
     const val SDK_INT = "android.sdkInt"
     const val MODEL = "android.model"
+    const val INTEGRITY = "android.integrity"
+    const val SETUP_DAY = "android.setupDay"
 
     private val HEX16 = Regex("^[0-9a-f]{16}$")
     private val HEX64 = Regex("^[0-9a-f]{64}$")
     private val COUNTRY = Regex("^[a-z]{2}$")
     private val SDK = Regex("^[0-9]{1,3}$")
+    private val SETUP_DAY_FORMAT = Regex("^[0-9]{1,6}$")
+    private val INTEGRITY_FORMAT = Regex("^[0-9]{1,3}:([a-z_]+(,[a-z_]+)*)?:([a-z_]+(,[a-z_]+)*)?$")
 
     private val MAX_LEN = mapOf(
         BUILD_FINGERPRINT to 256, HARDWARE to 64, MODEL to 64, TIMEZONE to MAX_VALUE,
@@ -75,12 +80,27 @@ internal object ComponentRules {
                 MEDIA_DRM_ID -> if (!HEX64.matches(value) || value.all { it == '0' }) errors += "$key bad format"
                 SIM_COUNTRY, NETWORK_COUNTRY -> if (value.isNotEmpty() && !COUNTRY.matches(value)) errors += "$key bad format"
                 SDK_INT -> if (!SDK.matches(value)) errors += "$key bad format"
+                SETUP_DAY -> if (!SETUP_DAY_FORMAT.matches(value)) errors += "$key bad format"
+                INTEGRITY -> errors += integrityErrors(value)
                 TIMEZONE, BUILD_FINGERPRINT, HARDWARE, MODEL -> if (value.isEmpty()) errors += "$key empty"
                 else -> errors += "unknown key $key"
             }
         }
         if (components.none { it.key in IDENTITY_KEYS }) errors += "no identity key"
         return errors
+    }
+
+    /** Mirrors the server: version >= 1, known codes only, no duplicates, fired and unavailable disjoint. */
+    private fun integrityErrors(value: String): List<String> {
+        if (!INTEGRITY_FORMAT.matches(value)) return listOf("$INTEGRITY bad format")
+        val parts = value.split(":")
+        val fired = parts[1].split(",").filter { it.isNotEmpty() }
+        val unavailable = parts[2].split(",").filter { it.isNotEmpty() }
+        val known = IntegrityProbes.CODES.toSet()
+        val bad = fired.size != fired.toSet().size || unavailable.size != unavailable.toSet().size ||
+            !known.containsAll(fired) || !known.containsAll(unavailable) || fired.any { it in unavailable } ||
+            parts[0].toInt() < 1
+        return if (bad) listOf("$INTEGRITY bad codes") else emptyList()
     }
 
     /**
@@ -98,6 +118,8 @@ internal object ComponentRules {
         optionalText(raw.hardware, 64)?.let { out += Component(HARDWARE, it) }
         if (raw.sdkInt in 1..999) out += Component(SDK_INT, raw.sdkInt.toString())
         optionalText(raw.model, 64)?.let { out += Component(MODEL, it) }
+        raw.integrity?.takeIf { integrityErrors(it).isEmpty() }?.let { out += Component(INTEGRITY, it) }
+        raw.setupDay?.toString()?.takeIf { SETUP_DAY_FORMAT.matches(it) }?.let { out += Component(SETUP_DAY, it) }
         return out
     }
 
@@ -119,4 +141,6 @@ internal data class RawSignals(
     val hardware: String?,
     val sdkInt: Int,
     val model: String?,
+    val integrity: String? = null,
+    val setupDay: Int? = null,
 )

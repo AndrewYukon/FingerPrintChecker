@@ -27,6 +27,19 @@ internal class PlayIntegrityTokens(
     private val lock = Mutex()
     private var provider: StandardIntegrityTokenProvider? = null
 
+    /** Prepares the provider ahead of the request so the token call is fast. Failures are ignored. */
+    suspend fun warmUp() {
+        withTimeoutOrNull(timeoutMillis) {
+            try {
+                currentProvider(forceFresh = false)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
     suspend fun token(requestHash: String): String? =
         withTimeoutOrNull(timeoutMillis) {
             try {
