@@ -150,27 +150,134 @@
     {
       "name": "code in both fired and unavailable",
       "platform": "android",
+      "base": "android-full",
       "components": [
+        {
+          "key": "android.id",
+          "value": "1a2b3c4d5e6f7081"
+        },
+        {
+          "key": "android.mediaDrmId",
+          "value": "4773d12e2371bb935b9a0f5439b4a1c3ad3f2414b86980f8418d1cfabdfadfef"
+        },
+        {
+          "key": "android.simCountry",
+          "value": ""
+        },
+        {
+          "key": "android.networkCountry",
+          "value": "de"
+        },
+        {
+          "key": "android.timezone",
+          "value": "Europe/Berlin"
+        },
+        {
+          "key": "android.buildFingerprint",
+          "value": "google/panther/panther:14/AP1A.240305.019/11228894:user/release-keys"
+        },
+        {
+          "key": "android.hardware",
+          "value": "panther"
+        },
+        {
+          "key": "android.sdkInt",
+          "value": "34"
+        },
+        {
+          "key": "android.model",
+          "value": "Pixel 7"
+        },
         {
           "key": "android.integrity",
           "value": "1:root:root"
+        },
+        {
+          "key": "android.setupDay",
+          "value": "20000"
         }
       ]
     },
     {
       "name": "ios code on android",
       "platform": "android",
+      "base": "android-full",
       "components": [
+        {
+          "key": "android.id",
+          "value": "1a2b3c4d5e6f7081"
+        },
+        {
+          "key": "android.mediaDrmId",
+          "value": "4773d12e2371bb935b9a0f5439b4a1c3ad3f2414b86980f8418d1cfabdfadfef"
+        },
+        {
+          "key": "android.simCountry",
+          "value": ""
+        },
+        {
+          "key": "android.networkCountry",
+          "value": "de"
+        },
+        {
+          "key": "android.timezone",
+          "value": "Europe/Berlin"
+        },
+        {
+          "key": "android.buildFingerprint",
+          "value": "google/panther/panther:14/AP1A.240305.019/11228894:user/release-keys"
+        },
+        {
+          "key": "android.hardware",
+          "value": "panther"
+        },
+        {
+          "key": "android.sdkInt",
+          "value": "34"
+        },
+        {
+          "key": "android.model",
+          "value": "Pixel 7"
+        },
         {
           "key": "android.integrity",
           "value": "1:jailbreak:"
+        },
+        {
+          "key": "android.setupDay",
+          "value": "20000"
         }
       ]
     },
     {
       "name": "uppercase code",
       "platform": "ios",
+      "base": "ios",
       "components": [
+        {
+          "key": "ios.keychainId",
+          "value": "A1B2C3D4-E5F6-4711-8899-AABBCCDDEEFF"
+        },
+        {
+          "key": "ios.idfv",
+          "value": "0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e"
+        },
+        {
+          "key": "ios.model",
+          "value": "iPhone17,1"
+        },
+        {
+          "key": "ios.osVersion",
+          "value": "26.1"
+        },
+        {
+          "key": "ios.timezone",
+          "value": "America/Sao_Paulo"
+        },
+        {
+          "key": "ios.simulator",
+          "value": "false"
+        },
         {
           "key": "ios.integrity",
           "value": "1:HOOK:"
@@ -180,10 +287,204 @@
     {
       "name": "duplicate code",
       "platform": "android",
+      "base": "android-full",
       "components": [
+        {
+          "key": "android.id",
+          "value": "1a2b3c4d5e6f7081"
+        },
+        {
+          "key": "android.mediaDrmId",
+          "value": "4773d12e2371bb935b9a0f5439b4a1c3ad3f2414b86980f8418d1cfabdfadfef"
+        },
+        {
+          "key": "android.simCountry",
+          "value": ""
+        },
+        {
+          "key": "android.networkCountry",
+          "value": "de"
+        },
+        {
+          "key": "android.timezone",
+          "value": "Europe/Berlin"
+        },
+        {
+          "key": "android.buildFingerprint",
+          "value": "google/panther/panther:14/AP1A.240305.019/11228894:user/release-keys"
+        },
+        {
+          "key": "android.hardware",
+          "value": "panther"
+        },
+        {
+          "key": "android.sdkInt",
+          "value": "34"
+        },
+        {
+          "key": "android.model",
+          "value": "Pixel 7"
+        },
         {
           "key": "android.integrity",
           "value": "1:root,root:"
+        },
+        {
+          "key": "android.setupDay",
+          "value": "20000"
+        }
+      ]
+    },
+    {
+      "name": "non-numeric version",
+      "platform": "android",
+      "base": "android-full",
+      "components": [
+        {
+          "key": "android.id",
+          "value": "1a2b3c4d5e6f7081"
+        },
+        {
+          "key": "android.mediaDrmId",
+          "value": "4773d12e2371bb935b9a0f5439b4a1c3ad3f2414b86980f8418d1cfabdfadfef"
+        },
+        {
+          "key": "android.simCountry",
+          "value": ""
+        },
+        {
+          "key": "android.networkCountry",
+          "value": "de"
+        },
+        {
+          "key": "android.timezone",
+          "value": "Europe/Berlin"
+        },
+        {
+          "key": "android.buildFingerprint",
+          "value": "google/panther/panther:14/AP1A.240305.019/11228894:user/release-keys"
+        },
+        {
+          "key": "android.hardware",
+          "value": "panther"
+        },
+        {
+          "key": "android.sdkInt",
+          "value": "34"
+        },
+        {
+          "key": "android.model",
+          "value": "Pixel 7"
+        },
+        {
+          "key": "android.integrity",
+          "value": "x::"
+        },
+        {
+          "key": "android.setupDay",
+          "value": "20000"
+        }
+      ]
+    },
+    {
+      "name": "unknown code",
+      "platform": "android",
+      "base": "android-full",
+      "components": [
+        {
+          "key": "android.id",
+          "value": "1a2b3c4d5e6f7081"
+        },
+        {
+          "key": "android.mediaDrmId",
+          "value": "4773d12e2371bb935b9a0f5439b4a1c3ad3f2414b86980f8418d1cfabdfadfef"
+        },
+        {
+          "key": "android.simCountry",
+          "value": ""
+        },
+        {
+          "key": "android.networkCountry",
+          "value": "de"
+        },
+        {
+          "key": "android.timezone",
+          "value": "Europe/Berlin"
+        },
+        {
+          "key": "android.buildFingerprint",
+          "value": "google/panther/panther:14/AP1A.240305.019/11228894:user/release-keys"
+        },
+        {
+          "key": "android.hardware",
+          "value": "panther"
+        },
+        {
+          "key": "android.sdkInt",
+          "value": "34"
+        },
+        {
+          "key": "android.model",
+          "value": "Pixel 7"
+        },
+        {
+          "key": "android.integrity",
+          "value": "2:newcode:"
+        },
+        {
+          "key": "android.setupDay",
+          "value": "20000"
+        }
+      ]
+    },
+    {
+      "name": "value of 257 characters",
+      "platform": "android",
+      "base": "android-full",
+      "components": [
+        {
+          "key": "android.id",
+          "value": "1a2b3c4d5e6f7081"
+        },
+        {
+          "key": "android.mediaDrmId",
+          "value": "4773d12e2371bb935b9a0f5439b4a1c3ad3f2414b86980f8418d1cfabdfadfef"
+        },
+        {
+          "key": "android.simCountry",
+          "value": ""
+        },
+        {
+          "key": "android.networkCountry",
+          "value": "de"
+        },
+        {
+          "key": "android.timezone",
+          "value": "Europe/Berlin"
+        },
+        {
+          "key": "android.buildFingerprint",
+          "value": "google/panther/panther:14/AP1A.240305.019/11228894:user/release-keys"
+        },
+        {
+          "key": "android.hardware",
+          "value": "panther"
+        },
+        {
+          "key": "android.sdkInt",
+          "value": "34"
+        },
+        {
+          "key": "android.model",
+          "value": "Pixel 7"
+        },
+        {
+          "key": "android.integrity",
+          "value": "1::aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "key": "android.setupDay",
+          "value": "20000"
         }
       ]
     }

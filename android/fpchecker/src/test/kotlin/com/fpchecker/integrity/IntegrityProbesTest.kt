@@ -88,12 +88,4 @@ class IntegrityProbesTest {
         assertTrue(encoded.startsWith("1:root:"))
         assertTrue(encoded.split(":")[2].split(",").contains("hook"))
     }
-
-    @Test
-    fun setupDayConvertsMillisToUtcDays() {
-        assertEquals(20_000, SetupDay.dayOf(20_000L * 86_400_000L + 5_000))
-        assertEquals(null, SetupDay.dayOf(0))
-        assertEquals(null, SetupDay.dayOf(-1))
-        assertEquals(null, SetupDay.dayOf(1_000_000L * 86_400_000L))
-    }
 }

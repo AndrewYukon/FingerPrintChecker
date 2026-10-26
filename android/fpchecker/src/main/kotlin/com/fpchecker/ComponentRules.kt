@@ -22,6 +22,7 @@ internal object ComponentRules {
     const val SDK_INT = "android.sdkInt"
     const val MODEL = "android.model"
     const val INTEGRITY = "android.integrity"
+    /** Validated because the shared vectors carry it, but never emitted: first-install time is the image build date, not the reset date. */
     const val SETUP_DAY = "android.setupDay"
 
     private val HEX16 = Regex("^[0-9a-f]{16}$")
@@ -119,7 +120,6 @@ internal object ComponentRules {
         if (raw.sdkInt in 1..999) out += Component(SDK_INT, raw.sdkInt.toString())
         optionalText(raw.model, 64)?.let { out += Component(MODEL, it) }
         raw.integrity?.takeIf { integrityErrors(it).isEmpty() }?.let { out += Component(INTEGRITY, it) }
-        raw.setupDay?.toString()?.takeIf { SETUP_DAY_FORMAT.matches(it) }?.let { out += Component(SETUP_DAY, it) }
         return out
     }
 
@@ -142,5 +142,4 @@ internal data class RawSignals(
     val sdkInt: Int,
     val model: String?,
     val integrity: String? = null,
-    val setupDay: Int? = null,
 )

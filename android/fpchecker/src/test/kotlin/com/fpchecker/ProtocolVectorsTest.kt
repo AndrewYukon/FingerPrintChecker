@@ -90,11 +90,13 @@ class ProtocolVectorsTest {
         for (i in 0 until reject.length()) {
             val case = reject.getJSONObject(i)
             if (case.getString("platform") != "android") continue
-            val comps = componentsOf(case) + Component(ComponentRules.ID, "1a2b3c4d5e6f7081")
-            assertTrue(case.getString("name"), ComponentRules.validate(comps).isNotEmpty())
+            val comps = componentsOf(case)
+            // Each case carries a valid identity, so the refusal must come from the integrity value itself.
+            val errors = ComponentRules.validate(comps)
+            assertTrue(case.getString("name"), errors.isNotEmpty() && errors.all { it.startsWith("android.integrity") })
             checked++
         }
-        assertTrue("expected android reject vectors", checked >= 3)
+        assertTrue("expected android reject vectors", checked >= 5)
     }
 
     @Test

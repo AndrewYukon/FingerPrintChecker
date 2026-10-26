@@ -6,7 +6,6 @@ import android.media.MediaDrm
 import android.os.Build
 import android.provider.Settings
 import android.telephony.TelephonyManager
-import com.fpchecker.integrity.SetupDay
 import java.util.TimeZone
 import java.util.UUID
 
@@ -27,7 +26,6 @@ internal object DeviceSignals {
             sdkInt = Build.VERSION.SDK_INT,
             model = safe { Build.MODEL },
             integrity = integrity,
-            setupDay = safe { SetupDay.read(context) },
         )
     }
 

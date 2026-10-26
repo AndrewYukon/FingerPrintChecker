@@ -17,8 +17,7 @@ class ComponentRulesTest {
         sdk: Int = 34,
         model: String? = "Pixel 7",
         integrity: String? = null,
-        setupDay: Int? = null,
-    ) = RawSignals(androidId, drm, sim, net, tz, fp, hw, sdk, model, integrity, setupDay)
+    ) = RawSignals(androidId, drm, sim, net, tz, fp, hw, sdk, model, integrity)
 
     private fun withIdentity(vararg extra: Component) =
         listOf(Component(ComponentRules.ID, "1a2b3c4d5e6f7081")) + extra
@@ -127,20 +126,19 @@ class ComponentRulesTest {
     }
 
     @Test
-    fun buildAddsIntegrityAndSetupDayOnlyWhenPresent() {
+    fun buildAddsIntegrityOnlyWhenPresentAndNeverSetupDay() {
         val without = ComponentRules.build(raw()).map { it.key }
         assertTrue("android.integrity" !in without && "android.setupDay" !in without)
-        val with = ComponentRules.build(raw(integrity = "1:root:vpn", setupDay = 20000))
+        val with = ComponentRules.build(raw(integrity = "1:root:vpn"))
         assertEquals("1:root:vpn", with.first { it.key == "android.integrity" }.value)
-        assertEquals("20000", with.first { it.key == "android.setupDay" }.value)
+        assertTrue("android.setupDay" !in with.map { it.key })
         assertEquals(emptyList<String>(), ComponentRules.validate(with))
     }
 
     @Test
     fun buildDropsAnInvalidIntegrityValueInsteadOfFailingTheRequest() {
-        val keys = ComponentRules.build(raw(integrity = "1:root:root", setupDay = 1_000_000)).map { it.key }
+        val keys = ComponentRules.build(raw(integrity = "1:root:root")).map { it.key }
         assertTrue("android.integrity" !in keys)
-        assertTrue("android.setupDay" !in keys)
     }
 
     @Test
