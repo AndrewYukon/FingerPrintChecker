@@ -105,7 +105,9 @@ public final class FingerPrintChecker: Sendable {
         let nonce: String
         switch await fetchNonce() {
         case .nonce(let value): nonce = value
-        case .failed(let failure): return failure
+        case .failed(let failure):
+            collection.cancel()
+            return failure
         }
 
         let signals = await collection.value

@@ -38,7 +38,9 @@ extension FingerPrintChecker {
         let challenge: String
         switch await fetchChallengeV2(intentToken: intentToken) {
         case .challenge(let value): challenge = value
-        case .failed(let failure): return failure
+        case .failed(let failure):
+            collection.cancel()
+            return failure
         }
 
         let signals = await collection.value

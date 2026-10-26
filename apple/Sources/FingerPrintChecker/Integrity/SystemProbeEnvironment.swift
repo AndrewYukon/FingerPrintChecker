@@ -41,13 +41,17 @@ struct SystemProbeEnvironment: ProbeEnvironment {
             }
         }
         if result == 0 { return true }
-        guard errno == EINPROGRESS else { return false }  // refused outright
+        if errno == ECONNREFUSED { return false }  // nothing listening
+        guard errno == EINPROGRESS else { return nil }  // any other errno: the check could not run
         var pollFd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
-        guard poll(&pollFd, 1, Int32(timeout * 1000)) > 0 else { return false }
+        let ready = poll(&pollFd, 1, Int32(timeout * 1000))
+        if ready < 0 { return nil }
+        if ready == 0 { return false }  // timed out: nothing answered
         var error: Int32 = 0
         var length = socklen_t(MemoryLayout<Int32>.size)
         guard getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &length) == 0 else { return nil }
-        return error == 0
+        if error == 0 { return true }
+        return error == ECONNREFUSED ? false : nil
     }
 
     func environment(_ name: String) -> String? {

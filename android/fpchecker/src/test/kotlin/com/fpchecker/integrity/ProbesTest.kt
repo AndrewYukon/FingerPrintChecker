@@ -167,13 +167,19 @@ class ProbesTest {
     }
 
     @Test
-    fun processCacheLoadsOnceIncludingFailures() {
+    fun processCacheLoadsOnceAndRetriesFailures() {
         val cache = ProcessCache<String?>()
         var calls = 0
         assertEquals("1", cache.getOrLoad("k") { calls++; "1" })
         assertEquals("1", cache.getOrLoad("k") { calls++; "2" })
         assertEquals(1, calls)
         repeat(2) { assertEquals(true, runCatching { cache.getOrLoad("bad") { calls++; throw java.io.IOException("x") } }.isFailure) }
-        assertEquals(2, calls)
+        assertEquals(3, calls)
+        assertEquals("ok", cache.getOrLoad("bad") { calls++; "ok" })
+        assertEquals("ok", cache.getOrLoad("bad") { calls++; "late" })
+        assertEquals(4, calls)
+        assertEquals(null, cache.getOrLoad("none") { calls++; null })
+        assertEquals(null, cache.getOrLoad("none") { calls++; "x" })
+        assertEquals(5, calls)
     }
 }

@@ -122,8 +122,8 @@ function parseMobile(v: unknown): MobileSignals | null | undefined {
 
 function parseVpn(v: unknown): EventSignals['vpn'] | undefined {
   if (!isObject(v)) return undefined;
-  const methods = Array.isArray(v.methods) ? v.methods.filter((m): m is VpnMethod => typeof m === 'string') : [];
-  return { ...v, result: tri(v.result), methods };
+  const methods = Array.isArray(v.methods) ? { methods: v.methods.filter((m): m is VpnMethod => typeof m === 'string') } : {};
+  return { ...v, ...('result' in v ? { result: tri(v.result) } : {}), ...methods } as EventSignals['vpn'];
 }
 
 function parseSignals(v: unknown): EventSignals | undefined {
