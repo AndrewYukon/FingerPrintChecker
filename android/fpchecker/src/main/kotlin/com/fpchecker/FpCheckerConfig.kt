@@ -7,6 +7,8 @@ package com.fpchecker
  * @property cloudProjectNumber your Google Cloud project number; enables the Play Integrity proof.
  * @property powDifficulty proof-of-work difficulty in leading zero bits (8..28), or null for none.
  * @property integrityTimeoutMillis maximum time to wait for a Play Integrity token.
+ * @property integrityProbes run the on-device integrity probes (root, hook, emulator, ...). When false the SDK still
+ *   sends the probe component, with every probe reported as unavailable.
  */
 public data class FpCheckerConfig @JvmOverloads constructor(
     val baseUrl: String = DEFAULT_BASE_URL,
@@ -15,6 +17,7 @@ public data class FpCheckerConfig @JvmOverloads constructor(
     val cloudProjectNumber: Long? = null,
     val powDifficulty: Int? = null,
     val integrityTimeoutMillis: Long = 5_000L,
+    val integrityProbes: Boolean = true,
 ) {
     init {
         require(baseUrl.startsWith("https://") || baseUrl.startsWith("http://")) { "baseUrl must be http(s)" }

@@ -13,7 +13,7 @@ import java.util.UUID
 internal object DeviceSignals {
     private val WIDEVINE_UUID = UUID.fromString("edef8ba9-79d6-4ace-a3c8-27dcd51d21ed")
 
-    fun read(context: Context): RawSignals {
+    fun read(context: Context, integrity: String? = null): RawSignals {
         val telephony = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
         return RawSignals(
             androidId = androidId(context),
@@ -25,6 +25,7 @@ internal object DeviceSignals {
             hardware = safe { Build.HARDWARE },
             sdkInt = Build.VERSION.SDK_INT,
             model = safe { Build.MODEL },
+            integrity = integrity,
         )
     }
 

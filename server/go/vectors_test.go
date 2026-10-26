@@ -117,8 +117,8 @@ func TestWebhookVectors(t *testing.T) {
 		} `json:"cases"`
 	}
 	loadJSON(t, "webhook-signature.json", &f)
-	if len(f.Cases) != 16 {
-		t.Fatalf("want 16 webhook cases, got %d", len(f.Cases))
+	if len(f.Cases) != 17 {
+		t.Fatalf("want 17 webhook cases, got %d", len(f.Cases))
 	}
 	ran := 0
 	for _, c := range f.Cases {
@@ -141,8 +141,8 @@ func TestWebhookVectors(t *testing.T) {
 			}
 		})
 	}
-	if ran != 16 {
-		t.Fatalf("ran %d of 16", ran)
+	if ran != 17 {
+		t.Fatalf("ran %d of 17", ran)
 	}
 }
 

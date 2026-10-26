@@ -173,6 +173,27 @@
       "canonical": "{\"agentVersion\":\"cli-go-0.2.0\",\"challenge\":\"v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0\",\"components\":[{\"key\":\"-\",\"value\":\"5\"},{\"key\":\".\",\"value\":\"6\"},{\"key\":\"9\",\"value\":\"4\"},{\"key\":\"B\",\"value\":\"2\"},{\"key\":\"_\",\"value\":\"3\"},{\"key\":\"b\",\"value\":\"1\"}],\"domain\":\"fpchecker.identify.v2\",\"platform\":\"cli\",\"protocolVersion\":2}",
       "requestBindingHex": "c93c41d503a737146cdf0351889f866de1a15ac8a6518bf961a034df19eaf906",
       "clientDataHashBase64": "yTxB1QOnNxRs3wNRiJ+GbeGhWsimUYv5YaA03xnq+QY="
+    },
+    {
+      "name": "android with integrity probe value",
+      "input": {
+        "platform": "android",
+        "agentVersion": "android-0.7.0",
+        "challenge": "v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+        "components": [
+          {
+            "key": "android.integrity",
+            "value": "1:root,hook:vpn"
+          },
+          {
+            "key": "android.setupDay",
+            "value": "20000"
+          }
+        ]
+      },
+      "canonical": "{\"agentVersion\":\"android-0.7.0\",\"challenge\":\"v4.prj_0123456789ab.1767225600.0.0123456789abcdef0123456789abcdef.00112233445566778899aabbccddeeff.0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0\",\"components\":[{\"key\":\"android.integrity\",\"value\":\"1:root,hook:vpn\"},{\"key\":\"android.setupDay\",\"value\":\"20000\"}],\"domain\":\"fpchecker.identify.v2\",\"platform\":\"android\",\"protocolVersion\":2}",
+      "requestBindingHex": "9113d8274366f626e3556d73dff197f0885969f55e1562272b242b76f1c625de",
+      "clientDataHashBase64": "kRPYJ0Nm9ibjVW1z3/GX8IhZafVeFWInKyQrdvHGJd4="
     }
   ],
   "reject": [

@@ -30,9 +30,9 @@ dispositivos reales (un Mac con tres navegadores, un iPhone, dos teléfonos Andr
 | Plataforma | Cómo integrarla | Estado |
 |---|---|---|
 | **Aplicaciones web** (cualquier navegador) | El agente de navegador de FingerPrint Checker `fp-agent.min.js`, servido desde tu propio dominio; consulta [Aplicaciones web](#aplicaciones-web) | Disponible |
-| **Aplicaciones Android** (Kotlin / Java) | `com.fpchecker:fpchecker-android` en Maven Central, código fuente en [`android/`](android) | Disponible, 0.5.0 |
-| **Aplicaciones iOS** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, código fuente en [`apple/`](apple) | Disponible, 0.5.0 |
-| Aplicaciones macOS (Swift Package) | El mismo paquete que iOS | Disponible, 0.5.0 |
+| **Aplicaciones Android** (Kotlin / Java) | `com.fpchecker:fpchecker-android` en Maven Central, código fuente en [`android/`](android) | Disponible, 0.7.0 |
+| **Aplicaciones iOS** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, código fuente en [`apple/`](apple) | Disponible, 0.7.0 |
+| Aplicaciones macOS (Swift Package) | El mismo paquete que iOS | Disponible, 0.7.0 |
 | Herramientas de línea de comandos | Protocolo + ejemplos en [`cli/`](cli/README.md) | Ejemplos |
 
 Todas las plataformas terminan igual: el cliente obtiene un `attestation`, y solo tu backend, que posee tu clave secreta, solicita una decisión. El formato de transmisión de los SDK nativos se especifica en [PROTOCOL.md](PROTOCOL.md); los vectores de conformidad están en [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) y todos los SDK deben reproducirlos.
@@ -72,7 +72,7 @@ Añade el origen de tu sitio a los orígenes permitidos del proyecto; de lo cont
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.5.0")
+    implementation("com.fpchecker:fpchecker-android:0.7.0")
 }
 ```
 
@@ -125,7 +125,7 @@ El APK de release queda sin firmar a menos que `fpcheckerStoreFile`, `fpcheckerS
 Swift Package Manager: añade `https://github.com/AndrewYukon/FingerPrintChecker` (producto `FingerPrintChecker`, iOS 14+, macOS 11+), o en `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.5.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.7.0")
 ```
 
 ```swift
@@ -151,6 +151,23 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 - **DeviceCheck**: el SDK envía un token de DeviceCheck para que FingerPrint Checker pueda recordar, por dispositivo, si ya se hizo un canje. Para ello, crea una clave de DeviceCheck en tu cuenta de Apple Developer y súbela a tu proyecto de FingerPrint Checker; sin ella, el token se ignora.
 - **El bit de canje lo comparten todas las aplicaciones de tu equipo de Apple.** Apple solo conserva dos bits de DeviceCheck por dispositivo y por equipo de desarrollo, así que FingerPrint Checker usa el bit 0 para significar «este dispositivo ya canjeó una prueba gratuita (tipo por defecto) en una de las aplicaciones de este equipo». La contrapartida: un dispositivo que canjeó la prueba en una de tus aplicaciones tendrá la prueba rechazada en tus otras aplicaciones del mismo equipo. Redacta el rechazo en consecuencia («este dispositivo ya ha usado una prueba gratuita»), ya que el usuario puede haberla canjeado en otra aplicación. El bit 1 está reservado. La única forma de mantener dos aplicaciones independientes es publicarlas bajo equipos de desarrollador de Apple distintos. El Device Recall de Play Integrity en Android funciona igual: sus bits los comparten todas las aplicaciones de una misma cuenta de desarrollador de Play.
 - Los simuladores no tienen ninguna de las dos funciones e informan `ios.simulator=true`.
+
+## Sondas de integridad del dispositivo (SDK 0.7.0)
+
+Desde la 0.7.0 el SDK también comprueba el estado del dispositivo en el que se ejecuta y informa una respuesta sí / no / no comprobado por cada elemento.
+En los tipos de dispositivo compatibles detecta: dispositivo con root o jailbreak, marcos de hooking o instrumentación, emulador o simulador,
+depurador conectado, opciones de desarrollador, proxy de interceptación o certificados de usuario no confiables, VPN activa,
+ubicaciones simuladas (falsificadas) y una copia clonada o en espacio paralelo de tu app. Una app de macOS solo informa del depurador y del hooking.
+
+- **Interruptor.** `integrityProbes` (por defecto `true`) en `FpCheckerConfig` de Android y en `FPConfig` de Swift. Con `false` el SDK no ejecuta ninguna sonda e informa todos los elementos como "no comprobado".
+- **Adónde van los resultados.** Se envían con la petición identify pero **nunca se devuelven a la app**: la respuesta de identify, el `sealedResult` y el `attestation` no los contienen.
+  Llegan a **tu servidor** solo mediante la API de eventos (`signals.mobile`) y los webhooks, y pueden alimentar las reglas del proyecto. Véase [SDK de servidor](#resultados-sellados-sdk-de-servidor-y-paquetes-web).
+- **Tres estados.** `true` = detectado, `false` = comprobado y sin hallazgos, `null` = no comprobado (SDK antiguo, sondas desactivadas, elemento que no puede ejecutarse en este dispositivo o sistema). La detección es de mejor esfuerzo y no es una garantía en ningún sentido.
+- **Fecha de restablecimiento de fábrica.** El campo `factoryResetAt` existe en los tipos del servidor pero está reservado: el SDK 0.7.0 no detecta restablecimientos de fábrica, así que siempre es `null`.
+- **Sin permisos nuevos.** El SDK no añade `uses-permission` ni `<queries>` y no enumera las apps del dispositivo. La comprobación de ubicación solo usa un permiso de ubicación que tu app ya tenga, y en Android la comprobación de VPN del dispositivo solo se ejecuta si tu app ya tiene `ACCESS_NETWORK_STATE` (el SDK no añade ningún permiso); si no, `vpn` es `null`.
+
+En el servidor, filtra la API de eventos por `rooted`, `hooked`, `emulator`, `mitm`, `locationSpoofed` y `clonedApp` (`true` / `false`) y lee
+`signals.mobile` y `signals.vpn.methods` (puede contener `os_vpn`). Los SDK de servidor 0.3.0 tipan estos campos.
 
 ## Resultados sellados, SDK de servidor y paquetes web
 
@@ -194,7 +211,7 @@ Qué sale del dispositivo (Android):
 - Códigos de país de la SIM / de la red, zona horaria, `Build.FINGERPRINT`, `Build.HARDWARE`, `Build.MODEL`, nivel de SDK.
 - Si está activado, un token de Play Integrity (que Google emite sobre la aplicación y el dispositivo, no sobre el usuario).
 
-El SDK no lee el id de publicidad, las cuentas, los contactos, la ubicación, el número de teléfono ni el IMEI. Como integrador, eres responsable de divulgarlo en tu política de privacidad y en el formulario de Seguridad de los datos de Play.
+El SDK no lee el id de publicidad, las cuentas, los contactos, el número de teléfono ni el IMEI, y nunca envía coordenadas (véase el párrafo sobre integridad más abajo). Como integrador, eres responsable de divulgarlo en tu política de privacidad y en el formulario de Seguridad de los datos de Play.
 
 Qué sale del dispositivo (iOS / macOS):
 
@@ -203,7 +220,11 @@ Qué sale del dispositivo (iOS / macOS):
 - Identificador de zona horaria, modelo de hardware (por ejemplo `iPhone17,1`, `Mac15,3`), versión del sistema operativo, indicador de simulador (iOS).
 - Un SHA-256 del token de DeviceCheck (el token en sí se envía para que el servidor pueda consultar a Apple), y el id de clave y los objetos de atestación/aserción de App Attest, cuando están activados.
 
-El SDK guarda una marca de tiempo en UserDefaults (espera de App Attest). No se lee ningún id de publicidad, ubicación, contactos ni cuentas. El paquete incluye un `PrivacyInfo.xcprivacy` que declara la recopilación de Device ID (sin vincular al usuario, no usado para seguimiento) y ninguna API que requiera declarar motivo. Divulga esto en los detalles de Privacidad de la app.
+El SDK guarda una marca de tiempo en UserDefaults (espera de App Attest). No se lee ningún id de publicidad, contactos ni cuentas, y no se envían coordenadas. El paquete incluye un `PrivacyInfo.xcprivacy` que declara la recopilación de Device ID (sin vincular al usuario, no usado para seguimiento) y su único uso de una API con motivo obligatorio (`UserDefaults`, motivo `CA92.1`, para la marca de tiempo de espera de App Attest). Divulga esto en los detalles de Privacidad de la app.
+
+Lo que añaden las sondas de integridad (SDK 0.7.0): solo booleanos de estado del dispositivo (detectado / no detectado / no comprobado) y un número de versión de las sondas, usados para seguridad y prevención del fraude, no para seguimiento.
+El SDK no recopila ni envía coordenadas, la lista de apps instaladas, certificados, direcciones de proxy ni rutas de archivos. En **Seguridad de los datos** de Google Play se mantiene la respuesta existente "ID de dispositivo u otros ID"
+(finalidad: prevención del fraude, seguridad y cumplimiento); en **Privacidad de la app** de App Store no hay nada nuevo que se use para seguimiento y la entrada existente de Device ID (no usado para seguimiento) sigue describiendo el SDK. Detalles: [docs/PRIVACY.md](docs/PRIVACY.md).
 
 ## Licencia
 

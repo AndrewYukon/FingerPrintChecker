@@ -33,9 +33,9 @@ devices (a Mac with three browsers, an iPhone, two Android phones, one home Wi-F
 | Platform | How to integrate | Status |
 |---|---|---|
 | **Web apps** (any browser) | The FingerPrint Checker browser agent `fp-agent.min.js`, served from your own domain; see [Web apps](#web-apps) | Available |
-| **Android apps** (Kotlin / Java) | `com.fpchecker:fpchecker-android` on Maven Central, source in [`android/`](android) | Available, 0.5.0 |
-| **iOS apps** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, source in [`apple/`](apple) | Available, 0.5.0 |
-| macOS apps (Swift Package) | Same package as iOS | Available, 0.5.0 |
+| **Android apps** (Kotlin / Java) | `com.fpchecker:fpchecker-android` on Maven Central, source in [`android/`](android) | Available, 0.7.0 |
+| **iOS apps** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, source in [`apple/`](apple) | Available, 0.7.0 |
+| macOS apps (Swift Package) | Same package as iOS | Available, 0.7.0 |
 | Command-line tools | Protocol + examples in [`cli/`](cli/README.md) | Examples |
 
 Every platform ends the same way: the client gets an `attestation`, and only your backend, holding your secret key,
@@ -172,7 +172,7 @@ Add your site's origin to the project's allowed origins, or the browser call is 
 ```kotlin
 // build.gradle.kts (Maven Central)
 dependencies {
-    implementation("com.fpchecker:fpchecker-android:0.5.0")
+    implementation("com.fpchecker:fpchecker-android:0.7.0")
 }
 ```
 
@@ -229,7 +229,7 @@ Swift Package Manager: add `https://github.com/AndrewYukon/FingerPrintChecker` (
 iOS 14+, macOS 11+), or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.5.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.7.0")
 ```
 
 ```swift
@@ -271,6 +271,34 @@ Concurrent `identify()` calls are serialised. `swift build && swift test` at the
   under separate Apple developer teams. Android's Play Integrity Device Recall works the same way: its bits are shared
   by all apps of one Play developer account.
 - Simulators have neither feature and report `ios.simulator=true`.
+
+## Device integrity probes (SDK 0.7.0)
+
+From 0.7.0 the SDK also checks the state of the device it runs on and reports one yes / no / not-checked answer per item.
+It detects, on the device types that support it: a rooted or jailbroken device, hooking or instrumentation frameworks,
+an emulator or simulator, an attached debugger, developer options, an interception proxy or untrusted user certificates,
+an active VPN, mock (spoofed) locations, and a cloned or parallel-space copy of your app. A macOS app reports the
+debugger and hooking items only.
+
+- **Switch.** `integrityProbes` (default `true`) in Android `FpCheckerConfig` and Swift `FPConfig`. With `false` the SDK
+  runs no probe and reports every item as "not checked".
+- **Where the results go.** They are sent with the identify request but are **never returned to the app**: the identify
+  response, the `sealedResult` and the `attestation` do not contain them. They reach **your server** only through the
+  events API (`signals.mobile`) and webhooks, and can drive project rules. See [Server SDKs](#sealed-results-server-sdks-and-web-packages).
+- **Three states.** `true` = detected, `false` = checked and nothing found, `null` = not checked (older SDK, probes
+  switched off, an item that cannot run on this device or OS). Detection is best effort and never a guarantee either way.
+- **Factory reset date.** The field `factoryResetAt` exists in the server types but is reserved: SDK 0.7.0 does not
+  detect factory resets, so it is always `null`.
+- **Testing on your own build.** A debuggable Android build and an iOS run launched from Xcode report `debugger = true`,
+  so your own test devices will show it. Release builds started normally do not.
+- **iOS VPN meaning.** On iOS `vpn = false` only means "no legacy tunnel interface (`ppp`, `tap`, `tun`) was found". Modern
+  VPN apps, Private Relay and Wi-Fi Calling use other interfaces (`utun*`, `ipsec*`), which are deliberately not counted, so
+  an iOS device can be on a VPN while `vpn` is `false`.
+- **No new permissions.** The SDK adds no `uses-permission`, no `<queries>`, and does not list the apps on the device.
+  A location check uses only a location permission your app already holds, and on Android the device-VPN check runs only when your app already holds `ACCESS_NETWORK_STATE` (the SDK adds no permission); otherwise `vpn` is `null`.
+
+Server side, filter the events API by `rooted`, `hooked`, `emulator`, `mitm`, `locationSpoofed` and `clonedApp`
+(`true` / `false`), and read `signals.mobile` and `signals.vpn.methods` (which may contain `os_vpn`). Server SDKs 0.3.0 type these fields.
 
 ## Sealed results, server SDKs and web packages
 
@@ -325,7 +353,7 @@ What leaves the device (Android):
 - SIM / network country codes, time zone, `Build.FINGERPRINT`, `Build.HARDWARE`, `Build.MODEL`, SDK level.
 - If enabled, a Play Integrity token (which Google issues about the app and device, not the user).
 
-The SDK does not read the advertising id, accounts, contacts, location, phone number or IMEI. As the integrator you are
+The SDK does not read the advertising id, accounts, contacts, phone number or IMEI, and never sends coordinates (see the integrity paragraph below). As the integrator you are
 responsible for disclosing this in your privacy policy and Play Data safety form.
 
 What leaves the device (iOS / macOS):
@@ -336,8 +364,15 @@ What leaves the device (iOS / macOS):
 - A SHA-256 of the DeviceCheck token (the token itself is sent so the server can query Apple), and App Attest key id and
   attestation/assertion objects, when enabled.
 
-The SDK stores one timestamp in UserDefaults (App Attest back-off). No advertising id, location, contacts or accounts are read. The package ships a `PrivacyInfo.xcprivacy` declaring
-Device ID collection (not linked, not used for tracking) and no required-reason APIs. Disclose this in your App Privacy details.
+The SDK stores one timestamp in UserDefaults (App Attest back-off). No advertising id, contacts or accounts are read, and no coordinates are sent. The package ships a `PrivacyInfo.xcprivacy` declaring
+Device ID collection (not linked, not used for tracking) and its one required-reason API use (`UserDefaults`, reason `CA92.1`, for the App Attest back-off timestamp). Disclose this in your App Privacy details.
+
+What the integrity probes add (SDK 0.7.0): only device-state booleans (detected / not detected / not checked) and a
+probe version number, used for security and fraud prevention, not for tracking. The SDK does not collect or send
+coordinates, the list of installed apps, certificates, proxy addresses or file paths. For Google Play **Data safety**
+this stays in the existing "Device or other IDs" answer (purpose: fraud prevention, security and compliance); for App Store
+**App Privacy** nothing new is tracked and the existing Device ID entry (not used for tracking) still describes the SDK.
+Details: [docs/PRIVACY.md](docs/PRIVACY.md).
 
 ## License
 

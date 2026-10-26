@@ -13,7 +13,7 @@ CASES = V["cases"]
 
 
 def test_vector_count_is_not_filtered():
-    assert len(CASES) == 16
+    assert len(CASES) == 17
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])

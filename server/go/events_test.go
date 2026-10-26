@@ -1,6 +1,8 @@
 package fpchecker
 
 import (
+	"encoding/json"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -71,5 +73,104 @@ func TestEligibilityRuleID(t *testing.T) {
 	b, _ := ParseEligibilityAnswer([]byte(`{"ok":true,"eligible":true,"reason":"brand_new"}`))
 	if b.RuleID != "" {
 		t.Fatal("ruleId must be empty")
+	}
+}
+
+func TestOkMobileSignalsVector(t *testing.T) {
+	var f struct {
+		Secret string `json:"secret"`
+		Cases  []struct {
+			Name, Body, Header string
+			Now                int64
+		} `json:"cases"`
+	}
+	loadJSON(t, "webhook-signature.json", &f)
+	found := false
+	for _, c := range f.Cases {
+		if c.Name != "ok_mobile_signals" {
+			continue
+		}
+		found = true
+		if err := VerifyWebhookSignature([]byte(c.Body), c.Header, f.Secret, 300*time.Second, time.Unix(c.Now, 0)); err != nil {
+			t.Fatal(err)
+		}
+		e, err := ParseWebhookEvent([]byte(c.Body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := e.Data.Signals.Mobile
+		if m == nil || !isTrue(m.Rooted) || !isFalse(m.Hooked) || !isTrue(m.DeveloperMode) || !isTrue(m.Vpn) ||
+			m.LocationSpoofed != nil || m.FactoryResetAt != nil {
+			t.Fatalf("bad mobile: %+v", m)
+		}
+		if !hasString(e.Data.Signals.Vpn.Methods, "os_vpn") {
+			t.Fatal("os_vpn missing")
+		}
+	}
+	if !found {
+		t.Fatal("vector ok_mobile_signals missing")
+	}
+}
+
+func isTrue(b *bool) bool  { return b != nil && *b }
+func isFalse(b *bool) bool { return b != nil && !*b }
+func hasString(xs []string, s string) bool {
+	for _, x := range xs {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
+func TestOldPayloadMobileFieldsAreNil(t *testing.T) {
+	e, err := ParseWebhookEvent(evBody(`,"signals":{"mobile":{"emulator":false,"attested":true,"integrity":"strong"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := e.Data.Signals.Mobile
+	if m == nil || m.Rooted != nil || m.ClonedApp != nil || m.FactoryResetAt != nil || !isFalse(m.Emulator) {
+		t.Fatalf("%+v", m)
+	}
+	for _, extra := range []string{``, `,"signals":{"mobile":null}`} {
+		e, err := ParseWebhookEvent(evBody(extra))
+		if err != nil || e.Data.Signals.Mobile != nil || len(e.Data.Signals.Vpn.Methods) != 0 {
+			t.Fatalf("%q: %+v %v", extra, e, err)
+		}
+	}
+}
+
+func TestUnknownVpnMethodAndWrongTypesDoNotFail(t *testing.T) {
+	e, err := ParseWebhookEvent(evBody(`,"signals":{"vpn":{"result":true,"methods":["os_vpn","future"]},"mobile":{"rooted":"yes","factoryResetAt":"2026-10-01"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e.Data.Signals.Mobile.Rooted != nil || e.Data.Signals.Mobile.FactoryResetAt == nil || len(e.Data.Signals.Vpn.Methods) != 2 {
+		t.Fatalf("%+v", e.Data.Signals)
+	}
+}
+
+func TestMobileSignalsMarshalKeepsWireNames(t *testing.T) {
+	in := `{"emulator":false,"attested":true,"integrity":"basic","rooted":true,"hooked":false,"debugger":false,` +
+		`"developerMode":true,"mitm":false,"vpn":true,"locationSpoofed":false,"clonedApp":true,"factoryResetAt":"2026-10-01"}`
+	var m MobileSignals
+	if err := json.Unmarshal([]byte(in), &m); err != nil {
+		t.Fatal(err)
+	}
+	out, err := json.Marshal(&m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want, got map[string]any
+	_ = json.Unmarshal([]byte(in), &want)
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("round trip changed wire names: %s", out)
+	}
+	var back MobileSignals
+	if err := json.Unmarshal(out, &back); err != nil || !reflect.DeepEqual(m, back) {
+		t.Fatalf("re-decode differs: %v %+v", err, back)
 	}
 }

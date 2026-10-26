@@ -16,7 +16,11 @@ class ComponentRulesTest {
         hw: String? = "panther",
         sdk: Int = 34,
         model: String? = "Pixel 7",
-    ) = RawSignals(androidId, drm, sim, net, tz, fp, hw, sdk, model)
+        integrity: String? = null,
+    ) = RawSignals(androidId, drm, sim, net, tz, fp, hw, sdk, model, integrity)
+
+    private fun withIdentity(vararg extra: Component) =
+        listOf(Component(ComponentRules.ID, "1a2b3c4d5e6f7081")) + extra
 
     @Test
     fun androidIdIsLowercasedAndLeftPadded() {
@@ -119,5 +123,50 @@ class ComponentRulesTest {
         assertEquals("a/b", comps["android.buildFingerprint"])
         assertEquals("h/w", comps["android.hardware"])
         assertEquals("Pixel/7", comps["android.model"])
+    }
+
+    @Test
+    fun buildAddsIntegrityOnlyWhenPresentAndNeverSetupDay() {
+        val without = ComponentRules.build(raw()).map { it.key }
+        assertTrue("android.integrity" !in without && "android.setupDay" !in without)
+        val with = ComponentRules.build(raw(integrity = "1:root:vpn"))
+        assertEquals("1:root:vpn", with.first { it.key == "android.integrity" }.value)
+        assertTrue("android.setupDay" !in with.map { it.key })
+        assertEquals(emptyList<String>(), ComponentRules.validate(with))
+    }
+
+    @Test
+    fun buildDropsAnInvalidIntegrityValueInsteadOfFailingTheRequest() {
+        val keys = ComponentRules.build(raw(integrity = "1:root:root")).map { it.key }
+        assertTrue("android.integrity" !in keys)
+    }
+
+    @Test
+    fun validatorAcceptsWellFormedIntegrityValues() {
+        for (v in listOf("1::", "1:root:", "1::vpn", "1:root,hook:vpn,mock_location", "2:root:")) {
+            assertEquals(v, emptyList<String>(), ComponentRules.validate(withIdentity(Component("android.integrity", v))))
+        }
+    }
+
+    @Test
+    fun validatorRejectsMalformedIntegrityValues() {
+        val long = "1:" + "root,".repeat(60).trimEnd(',') + ":"
+        for (v in listOf("1:root:root", "1:root,root:", "1:jailbreak:", "1:HOOK:", "x:", "1:root", "1:root:hook,", "2:newcode:", "1234:root:", long)) {
+            assertTrue(v, ComponentRules.validate(withIdentity(Component("android.integrity", v))).isNotEmpty())
+        }
+    }
+
+    @Test
+    fun validatorChecksSetupDay() {
+        assertEquals(emptyList<String>(), ComponentRules.validate(withIdentity(Component("android.setupDay", "20000"))))
+        for (v in listOf("", "-1", "1234567", "2e4", "abc")) {
+            assertTrue(v, ComponentRules.validate(withIdentity(Component("android.setupDay", v))).isNotEmpty())
+        }
+    }
+
+    @Test
+    fun integrityKeysAreNotIdentityKeys() {
+        val errors = ComponentRules.validate(listOf(Component("android.integrity", "1::"), Component("android.setupDay", "20000")))
+        assertTrue(errors.contains("no identity key"))
     }
 }

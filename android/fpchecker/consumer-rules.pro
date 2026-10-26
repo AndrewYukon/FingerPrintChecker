@@ -5,3 +5,7 @@
 -keep class com.fpchecker.FpResult { *; }
 -keep class com.fpchecker.FpResult$* { *; }
 -keep interface com.fpchecker.FpCallback { *; }
+-keep class com.fpchecker.FpIdentifyResult { *; }
+-keep class com.fpchecker.FpIdentifyResult$* { *; }
+-keep interface com.fpchecker.FpIdentifyCallback { *; }
+-keep class com.fpchecker.FpEventOptions { *; }

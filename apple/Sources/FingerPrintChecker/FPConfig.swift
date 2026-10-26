@@ -15,6 +15,10 @@ public struct FPConfig: Sendable {
     public var useAppAttest: Bool
     /// Attach a DeviceCheck token when the device supports it.
     public var useDeviceCheck: Bool
+    /// Run the on-device integrity probes (jailbreak, hook, emulator, debugger, proxy, VPN, mock location).
+    /// When `false` the SDK still sends the component with every probe marked unavailable, so a project that
+    /// switched probes off is distinguishable from a client that stripped them.
+    public var integrityProbes: Bool
 
     public static let defaultBaseURL = URL(string: "https://api.fpchecker.com")!
 
@@ -24,7 +28,8 @@ public struct FPConfig: Sendable {
         sealKey: String? = nil,
         powDifficulty: Int? = nil,
         useAppAttest: Bool = true,
-        useDeviceCheck: Bool = true
+        useDeviceCheck: Bool = true,
+        integrityProbes: Bool = true
     ) {
         self.baseURL = baseURL
         self.publishableKey = publishableKey
@@ -32,5 +37,6 @@ public struct FPConfig: Sendable {
         self.powDifficulty = powDifficulty
         self.useAppAttest = useAppAttest
         self.useDeviceCheck = useDeviceCheck
+        self.integrityProbes = integrityProbes
     }
 }

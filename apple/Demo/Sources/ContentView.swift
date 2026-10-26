@@ -42,6 +42,8 @@ struct ContentView: View {
         }
         .padding()
         .frame(minWidth: 320, minHeight: 360)
+        // Scripted end-to-end runs: `simctl launch <device> <bundle> -autoIdentify` identifies once on launch.
+        .onAppear { if ProcessInfo.processInfo.arguments.contains("-autoIdentify") { run() } }
     }
 
     private func run() {

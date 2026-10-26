@@ -472,3 +472,11 @@ def test_empty_publishable_key_rejected_but_none_ok():
         FpChecker(SK, publishable_key="")
     with pytest.raises(ValueError):
         FpChecker(SK, publishable_key=5)
+
+
+def test_mobile_signal_filters_are_forwarded():
+    client, calls, _ = mk([resp(200, {})])
+    client.search_events({"rooted": True, "hooked": False, "emulator": True, "mitm": True,
+                         "locationSpoofed": False, "clonedApp": True})
+    assert calls[0].full_url == ("https://api.fpchecker.com/v1/events?rooted=true&hooked=false&emulator=true"
+                                 "&mitm=true&locationSpoofed=false&clonedApp=true")

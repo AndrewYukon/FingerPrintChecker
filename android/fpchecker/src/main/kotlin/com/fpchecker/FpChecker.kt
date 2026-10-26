@@ -3,11 +3,17 @@ package com.fpchecker
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import com.fpchecker.integrity.AndroidProbeEnv
+import com.fpchecker.integrity.IntegrityProbes
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -91,7 +97,44 @@ public class FpChecker(context: Context, private val config: FpCheckerConfig) {
         }
     }
 
-    private suspend fun runV2(intentToken: String, options: FpEventOptions): FpIdentifyResult {
+    /** Never throws except on caller cancellation: probes must not be able to abort identify. */
+    private suspend fun collectProbes(): String {
+        if (!config.integrityProbes) return IntegrityProbes.disabled()
+        return try {
+            IntegrityProbes.collect(AndroidProbeEnv(appContext))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: VirtualMachineError) {
+            throw e
+        } catch (_: Throwable) {
+            IntegrityProbes.disabled()
+        }
+    }
+
+    /**
+     * Starts the integrity probes (and the Play Integrity provider warm-up) in the background so they overlap
+     * with the challenge round trip; [block] awaits the probe value when it builds the components.
+     */
+    private suspend fun <T> withProbes(block: suspend (Deferred<String>) -> T): T = coroutineScope {
+        val probes = async(Dispatchers.IO) {
+            collectProbes()
+        }
+        val warm = launch { integrity?.warmUp() }
+        try {
+            block(probes)
+        } finally {
+            warm.cancel()
+            probes.cancel()
+        }
+    }
+
+    private suspend fun runV2(intentToken: String, options: FpEventOptions): FpIdentifyResult = withProbes { probes ->
+        runV2(intentToken, options, probes)
+    }
+
+    private suspend fun run(options: FpEventOptions): FpResult = withProbes { probes -> run(options, probes) }
+
+    private suspend fun runV2(intentToken: String, options: FpEventOptions, probes: Deferred<String>): FpIdentifyResult {
         if (intentToken.isBlank()) return FpIdentifyResult.Failure("bad_intent_token", 0)
         val fields = EventFields.validate(options.linkedId, options.tags)
         if (fields is EventFields.Invalid) return FpIdentifyResult.Failure(fields.reason, 0)
@@ -102,7 +145,7 @@ public class FpChecker(context: Context, private val config: FpCheckerConfig) {
             return FpIdentifyResult.Failure(reason, response.status)
         }
 
-        val components = ComponentRules.build(DeviceSignals.read(appContext))
+        val components = ComponentRules.build(DeviceSignals.read(appContext, probes.await()))
         if (ComponentRules.validate(components).isNotEmpty()) return FpIdentifyResult.Failure("no_device_id", 0)
 
         val agentVersion = "android-${BuildConfig.SDK_VERSION}"
@@ -119,7 +162,7 @@ public class FpChecker(context: Context, private val config: FpCheckerConfig) {
         return ResponseParser.parseIdentifyV2(answer.body, answer.status)
     }
 
-    private suspend fun run(options: FpEventOptions): FpResult {
+    private suspend fun run(options: FpEventOptions, probes: Deferred<String>): FpResult {
         val sealKey = config.sealKey ?: return FpResult.Failure("seal_key_missing", 0)
         val fields = EventFields.validate(options.linkedId, options.tags)
         if (fields is EventFields.Invalid) return FpResult.Failure(fields.reason, 0)
@@ -129,7 +172,7 @@ public class FpChecker(context: Context, private val config: FpCheckerConfig) {
             return failureFrom(challenge, fallback = "challenge_failed")
         }
 
-        val components = ComponentRules.build(DeviceSignals.read(appContext))
+        val components = ComponentRules.build(DeviceSignals.read(appContext, probes.await()))
         if (ComponentRules.validate(components).isNotEmpty()) {
             // Without a usable device id the server would answer bad_request anyway.
             return FpResult.Failure("no_device_id", 0)

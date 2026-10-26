@@ -19,6 +19,13 @@
       "expect": true
     },
     {
+      "name": "ok_mobile_signals",
+      "body": "{\"id\":\"evt_3\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\",\"signals\":{\"vpn\":{\"result\":true,\"methods\":[\"os_vpn\"]},\"mobile\":{\"emulator\":false,\"attested\":true,\"integrity\":\"strong\",\"rooted\":true,\"hooked\":false,\"debugger\":false,\"developerMode\":true,\"mitm\":false,\"vpn\":true,\"locationSpoofed\":null,\"clonedApp\":false,\"factoryResetAt\":null}}}}",
+      "header": "t=1761400000,v1=09758477e28519ef9fd9e28a16850da6b2c68fca931f678755d4c3f98de5634e",
+      "now": 1761400000,
+      "expect": true
+    },
+    {
       "name": "edge_past_300",
       "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
       "header": "t=1761399700,v1=50a94f9c226025fcd5f8484031d36de757b0d27e42eaf003277f8d7fd21baf59",

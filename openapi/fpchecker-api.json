@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "FPChecker API",
-    "version": "0.45.0",
+    "version": "0.46.0",
     "summary": "The customer-facing HTTP API of FPChecker.",
     "description": "Identify a device, decide whether it may claim or use something, and read what was seen.\nHand-written from the route handlers; `worker/test/openapi-contract.test.ts` checks it against the running\nserver (the route set, the examples and the real answers).\n\n**Keys.** A project has a secret key (`sk_…`, header `X-Secret-Key`, backend only) and a publishable key\n(`pk_…`, header `X-Publishable-Key`, safe in a browser or app). `/v2/challenge` and `/v2/identify` take the\npublishable key; every other keyed route takes the secret key. The wrong kind of key is `401`.\n\n**Errors.** Most failures are `{ \"ok\": false, \"error\": \"<code>\" }` (`Error`). Routes that make a decision\nor record something answer in their own shape: `{ \"ok\": false, \"reason\": \"<code>\" }` plus the fields the\nroute normally has (`EligibilityRefusal`, `QuotaRefusal`, `ReleaseRefusal`, `SubjectRefusal`,\n`FeedbackRefusal`, `IdentifyRefusal`, `ReasonError`). Some failures are deliberately HTTP 200 with\n`ok: false` (a fail-closed internal error, `maintenance`, most identify refusals): **test `ok`, not only the\nstatus**. Never treat a response without `ok: true` as a success.\n\n**Billing.** On a metered project a billed call with an empty balance is `402 { \"ok\": false, \"error\":\n\"insufficient_credits\" }`, and `503 commit_uncertain` means the charge may have happened. A billed call is\nnever safe to retry blindly.\n\n**Forward compatibility.** Clients must tolerate unknown enum values in response fields (for example `reason`,\n`error` and signal kinds) and unknown object properties. New values and properties may be added without a\nversion bump; treat an unrecognised value as a generic refusal or ignore it, never as a parse failure.\n\n**Not in this file.** Admin, console and network-check routes, and the older v1 challenge and identify\nprotocol, are not part of the customer contract. The production API serves no OpenAPI route of its own.\n"
   },
@@ -1486,6 +1486,48 @@
             }
           },
           {
+            "name": "rooted",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/BoolParam"
+            }
+          },
+          {
+            "name": "hooked",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/BoolParam"
+            }
+          },
+          {
+            "name": "emulator",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/BoolParam"
+            }
+          },
+          {
+            "name": "mitm",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/BoolParam"
+            }
+          },
+          {
+            "name": "locationSpoofed",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/BoolParam"
+            }
+          },
+          {
+            "name": "clonedApp",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/BoolParam"
+            }
+          },
+          {
             "name": "start",
             "in": "query",
             "description": "ISO 8601 date or time. Default the last 7 days (or the retention, if shorter). The span cannot exceed the project's retention.",
@@ -1826,7 +1868,7 @@
                   "alive": {
                     "value": {
                       "ok": true,
-                      "version": "0.45.0",
+                      "version": "0.46.0",
                       "env": "production",
                       "commit": "6bd97c0"
                     }
@@ -1859,7 +1901,7 @@
                   "up": {
                     "value": {
                       "ok": true,
-                      "version": "0.45.0",
+                      "version": "0.46.0",
                       "maintenance": false,
                       "checks": {
                         "api": true,
@@ -1884,7 +1926,7 @@
                   "down": {
                     "value": {
                       "ok": false,
-                      "version": "0.45.0",
+                      "version": "0.46.0",
                       "maintenance": false,
                       "checks": {
                         "api": true,
@@ -3367,8 +3409,10 @@
                   "enum": [
                     "timezone_mismatch",
                     "ip_range",
-                    "relay"
-                  ]
+                    "relay",
+                    "os_vpn"
+                  ],
+                  "description": "New values may be added; ignore a value you do not know. `os_vpn` is the device reporting an active VPN (android, ios)."
                 }
               }
             }
@@ -3552,6 +3596,70 @@
                       "failed",
                       null
                     ]
+                  },
+                  "rooted": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ],
+                    "description": "Three states: `true` = detected, `false` = checked and nothing found, `null` = not checked (old SDK, probes switched off, or not supported on this platform). Not a guarantee either way."
+                  },
+                  "hooked": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ],
+                    "description": "Three states: `true` = detected, `false` = checked and nothing found, `null` = not checked (old SDK, probes switched off, or not supported on this platform). Not a guarantee either way."
+                  },
+                  "debugger": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ],
+                    "description": "Three states: `true` = detected, `false` = checked and nothing found, `null` = not checked (old SDK, probes switched off, or not supported on this platform). Not a guarantee either way."
+                  },
+                  "developerMode": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ],
+                    "description": "Three states: `true` = detected, `false` = checked and nothing found, `null` = not checked (old SDK, probes switched off, or not supported on this platform). Not a guarantee either way."
+                  },
+                  "mitm": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ],
+                    "description": "Three states: `true` = detected, `false` = checked and nothing found, `null` = not checked (old SDK, probes switched off, or not supported on this platform). Not a guarantee either way."
+                  },
+                  "vpn": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ],
+                    "description": "Three states: `true` = detected, `false` = checked and nothing found, `null` = not checked (old SDK, probes switched off, or not supported on this platform). Not a guarantee either way."
+                  },
+                  "locationSpoofed": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ],
+                    "description": "Three states: `true` = detected, `false` = checked and nothing found, `null` = not checked (old SDK, probes switched off, or not supported on this platform). Not a guarantee either way."
+                  },
+                  "clonedApp": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ],
+                    "description": "Three states: `true` = detected, `false` = checked and nothing found, `null` = not checked (old SDK, probes switched off, or not supported on this platform). Not a guarantee either way."
+                  },
+                  "factoryResetAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                    "description": "UTC date of the last device setup (android only); `null` when unknown."
                   }
                 }
               }

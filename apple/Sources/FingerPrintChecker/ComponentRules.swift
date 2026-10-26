@@ -11,11 +11,13 @@ struct RawSignals: Sendable {
     var simulator: Bool?
     /// Base64 DeviceCheck token as sent in the body field `deviceCheckToken`.
     var deviceCheckToken: String?
+    /// `<probeVersion>:<fired csv>:<unavailable csv>`; `nil` when no probe value was produced.
+    var integrity: String?
 
     init(
         keychainId: String? = nil, idfv: String? = nil, platformUuid: String? = nil,
         timezone: String? = nil, model: String? = nil, osVersion: String? = nil,
-        simulator: Bool? = nil, deviceCheckToken: String? = nil
+        simulator: Bool? = nil, deviceCheckToken: String? = nil, integrity: String? = nil
     ) {
         self.keychainId = keychainId
         self.idfv = idfv
@@ -25,6 +27,7 @@ struct RawSignals: Sendable {
         self.osVersion = osVersion
         self.simulator = simulator
         self.deviceCheckToken = deviceCheckToken
+        self.integrity = integrity
     }
 }
 
@@ -92,7 +95,26 @@ enum ComponentRules {
         add("osVersion", optionalText(raw.osVersion, max: maxOSVersion))
         if platform == .ios, let simulator = raw.simulator { add("simulator", simulator ? "true" : "false") }
         if let token = raw.deviceCheckToken, !token.isEmpty { add("deviceCheck", deviceCheckHash(token: token)) }
+        if let integrity = raw.integrity, integrityErrors(platform: platform, key: platform.key("integrity"), value: integrity).isEmpty {
+            add("integrity", integrity)
+        }
         return out
+    }
+
+    private static let integrityPattern = try! NSRegularExpression(
+        pattern: "^[0-9]{1,3}:([a-z_]+(,[a-z_]+)*)?:([a-z_]+(,[a-z_]+)*)?$")
+
+    /// Mirrors the server: version >= 1, this platform's codes only, no duplicates, fired and unavailable disjoint.
+    static func integrityErrors(platform: FPPlatform, key: String, value: String) -> [String] {
+        guard matches(integrityPattern, value) else { return ["\(key) bad format"] }
+        let parts = value.split(separator: ":", omittingEmptySubsequences: false)
+        let fired = parts[1].split(separator: ",").map(String.init)
+        let unavailable = parts[2].split(separator: ",").map(String.init)
+        let known = Set(IntegrityProbes.codes(for: platform))
+        let bad = Set(fired).count != fired.count || Set(unavailable).count != unavailable.count
+            || !Set(fired).isSubset(of: known) || !Set(unavailable).isSubset(of: known)
+            || !Set(fired).isDisjoint(with: unavailable) || (Int(parts[0]) ?? 0) < 1
+        return bad ? ["\(key) bad codes"] : []
     }
 
     /// Violations (empty when the server would accept the list).
@@ -102,6 +124,7 @@ enum ComponentRules {
         let uuidKeys = Set(platform.identityKeys)
         let allowed = uuidKeys.union(["timezone", "model", "osVersion", "deviceCheck"].map(platform.key))
             .union(platform == .ios ? [platform.key("simulator")] : [])
+            .union([platform.key("integrity")])
         for component in components {
             let key = component.key, value = component.value
             if !seen.insert(key).inserted { errors.append("duplicate key \(key)") }
@@ -117,6 +140,8 @@ enum ComponentRules {
                 if value.isEmpty { errors.append("\(key) empty") }
             } else if key == platform.key("simulator") {
                 if value != "true" && value != "false" { errors.append("\(key) bad format") }
+            } else if key == platform.key("integrity") {
+                errors += integrityErrors(platform: platform, key: key, value: value)
             } else if key == platform.key("deviceCheck") {
                 if !matches(hex64Pattern, value) { errors.append("\(key) bad format") }
             }

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseEligibilityAnswer, parseWebhookEvent, verifyWebhookSignature } from '../src/index.js';
+import { FpChecker, parseEligibilityAnswer, parseWebhookEvent, verifyWebhookSignature } from '../src/index.js';
 
 const vec = JSON.parse(
   readFileSync(new URL('../../../test-vectors/webhook-signature.json', import.meta.url), 'utf8'),
@@ -36,6 +36,41 @@ describe('parseWebhookEvent', () => {
 
   it('rejects non-events', () => {
     expect(() => parseWebhookEvent('{"a":1}')).toThrow(TypeError);
+  });
+});
+
+describe('mobile integrity signals', () => {
+  it('ok_mobile_signals vector verifies and parses the new fields', () => {
+    const c = vec.cases.find((x: { name: string }) => x.name === 'ok_mobile_signals');
+    expect(() => verifyWebhookSignature({ rawBody: c.body, header: c.header, secret: vec.secret, now: c.now })).not.toThrow();
+    const m = parseWebhookEvent(c.body).data.signals?.mobile;
+    expect(m).toMatchObject({ rooted: true, hooked: false, developerMode: true, vpn: true, locationSpoofed: null, factoryResetAt: null });
+    expect(parseWebhookEvent(c.body).data.signals?.vpn?.methods).toContain('os_vpn');
+  });
+
+  it('old payloads: new fields are null, missing mobile stays absent', () => {
+    const m = parseWebhookEvent(ev({ signals: { mobile: { emulator: false, attested: true, integrity: 'strong' } } })).data.signals?.mobile;
+    expect(m?.rooted).toBeNull();
+    expect(m?.clonedApp).toBeNull();
+    expect(m?.factoryResetAt).toBeNull();
+    expect(parseWebhookEvent(ev({ signals: { mobile: null } })).data.signals?.mobile).toBeNull();
+    expect(parseWebhookEvent(ev({})).data.signals).toBeUndefined();
+  });
+
+  it('a non-boolean value is read as null, an unknown vpn method string is kept, a non-string is dropped', () => {
+    const e = parseWebhookEvent(ev({ signals: { vpn: { result: true, methods: ['os_vpn', 'future', 7] }, mobile: { rooted: 'yes', factoryResetAt: 5 } } }));
+    expect(e.data.signals?.mobile?.rooted).toBeNull();
+    expect(e.data.signals?.mobile?.factoryResetAt).toBeNull();
+    expect(e.data.signals?.vpn?.methods).toEqual(['os_vpn', 'future']);
+  });
+});
+
+describe('searchEvents mobile filters', () => {
+  it('forwards rooted, hooked, emulator, mitm, locationSpoofed, clonedApp', async () => {
+    const urls: string[] = [];
+    const client = new FpChecker({ secretKey: 'sk_test_123', fetch: (async (u: string) => { urls.push(u); return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }); }) as unknown as typeof fetch });
+    await client.searchEvents({ rooted: true, hooked: false, emulator: true, mitm: true, locationSpoofed: false, clonedApp: true });
+    expect(urls[0]).toBe('https://api.fpchecker.com/v1/events?rooted=true&hooked=false&emulator=true&mitm=true&locationSpoofed=false&clonedApp=true');
   });
 });
 
