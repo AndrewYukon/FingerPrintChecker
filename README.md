@@ -292,6 +292,10 @@ These packages are not published to npm and PyPI yet. Until they are, install th
 `npm install ./web/agent` (or `./server/node`, ...) / `pip install ./server/python`, or use
 `go get github.com/AndrewYukon/FingerPrintChecker/server/go@main` for Go. How the owner publishes them: [docs/PUBLISHING.md](docs/PUBLISHING.md).
 
+## Cloudflare Worker proxy
+
+Serve the agent and API first-party from your own domain with the open-source [Cloudflare Worker](integrations/cloudflare-worker/README.md).
+
 ## Command-line tools
 
 No library: a CLI can be written in any language. [`cli/`](cli/README.md) has dependency-free

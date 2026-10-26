@@ -27,6 +27,7 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             server/node/package-lock.json
+            integrations/cloudflare-worker/package-lock.json
 
       - uses: actions/setup-python@v5
         with:
@@ -48,6 +49,12 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e "server/python[test]"
           echo "- install: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install worker dependencies
+        id: install-worker
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: integrations/cloudflare-worker
+        run: npm ci
 
       # The react and vue wrappers import the agent's dist, so it is built first.
       - name: web/agent build
@@ -102,3 +109,11 @@ jobs:
             exit 1
           fi
           echo "- server/go vet, test, gofmt: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: integrations/cloudflare-worker typecheck and test
+        if: ${{ !cancelled() && steps.install-worker.outcome == 'success' }}
+        working-directory: integrations/cloudflare-worker
+        run: |
+          npm run typecheck
+          npm test
+          echo "- integrations/cloudflare-worker typecheck and test: ok" >> "$GITHUB_STEP_SUMMARY"

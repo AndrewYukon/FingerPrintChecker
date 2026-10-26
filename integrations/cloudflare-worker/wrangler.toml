@@ -1,0 +1,14 @@
+name = "fpchecker-proxy"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Route the proxy path on your own domain (replace yoursite.com):
+# routes = [{ pattern = "yoursite.com/fpc/*", zone_name = "yoursite.com" }]
+
+[vars]
+FPC_PATH = "fpc"
+FPC_API = "https://api.fpchecker.com"
+FPC_AGENT_URL = "https://fpchecker.com/static/fp-agent.min.js"
+
+# FPC_PROXY_SECRET is a secret, never put it here:
+#   npx wrangler secret put FPC_PROXY_SECRET

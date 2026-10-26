@@ -12,6 +12,13 @@
       "expect": true
     },
     {
+      "name": "ok_rule_action",
+      "body": "{\"id\":\"evt_2\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\",\"proxied\":true,\"ruleAction\":{\"type\":\"deny\",\"ruleId\":\"r_0a1b2c3d\",\"ruleName\":\"Block hosting\",\"rulesetVersion\":3}}}",
+      "header": "t=1761400000,v1=c1b38c136c33d37da8cf8724bab223b55d9ac3acb12f6d136f87cdaebb4fd154",
+      "now": 1761400000,
+      "expect": true
+    },
+    {
       "name": "edge_past_300",
       "body": "{\"id\":\"evt_1\",\"type\":\"identify\",\"data\":{\"visitorId\":\"v_1\"}}",
       "header": "t=1761399700,v1=50a94f9c226025fcd5f8484031d36de757b0d27e42eaf003277f8d7fd21baf59",

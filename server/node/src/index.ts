@@ -6,3 +6,5 @@ export { verifyWebhookSignature } from './webhook.js';
 export type { VerifyWebhookOptions } from './webhook.js';
 export { FpCheckerApiError, SealedResultError, WebhookSignatureError } from './errors.js';
 export type { SealedErrorCode, WebhookErrorCode } from './errors.js';
+export { parseWebhookEvent, parseEligibilityAnswer } from './events.js';
+export type { RuleAction, RuleActionType, WebhookEvent, EligibilityAnswer } from './events.js';
