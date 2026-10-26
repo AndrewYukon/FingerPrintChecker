@@ -19,11 +19,11 @@ Rules for every step below:
 | Browser agent loader | npm | `@fingerprintchecker/agent` | 0.1.0 | `web/agent` |
 | React wrapper | npm | `@fingerprintchecker/react` | 0.1.0 | `web/react` |
 | Vue wrapper | npm | `@fingerprintchecker/vue` | 0.1.0 | `web/vue` |
-| Node.js server SDK | npm | `@fingerprintchecker/node` | 0.1.0 | `server/node` |
-| Python server SDK | PyPI | `fingerprintchecker` (import `fpchecker`) | 0.1.0 | `server/python` |
-| Go server SDK | Go proxy (git tag) | `github.com/AndrewYukon/FingerPrintChecker/server/go` | v0.1.0 | `server/go` |
+| Node.js server SDK | npm | `@fingerprintchecker/node` | 0.2.0 | `server/node` |
+| Python server SDK | PyPI | `fingerprintchecker` (import `fpchecker`) | 0.2.0 | `server/python` |
+| Go server SDK | Go proxy (git tag) | `github.com/AndrewYukon/FingerPrintChecker/server/go` | v0.2.0 | `server/go` |
 | Android SDK | Maven Central | `com.fpchecker:fpchecker-android` | 0.5.0 | `android/fpchecker` |
-| Apple SDK | Swift Package Manager (git tag) | `https://github.com/AndrewYukon/FingerPrintChecker` | 0.5.0 | `apple/`, `Package.swift` |
+| Apple SDK | Swift Package Manager (git tag) | `https://github.com/AndrewYukon/FingerPrintChecker` | 0.6.0 | `apple/`, `Package.swift` |
 
 ## npm
 
