@@ -169,6 +169,8 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 `npm install ./web/agent`（または `./server/node` など）/ `pip install ./server/python` を実行します。Go は
 `go get github.com/AndrewYukon/FingerPrintChecker/server/go@main` です。
 
+Cloudflare Worker proxy (English): [integrations/cloudflare-worker](integrations/cloudflare-worker/README.md)
+
 ## コマンドラインツール
 
 ライブラリは不要です。CLI は任意の言語で書けます。[`cli/`](cli/README.md) には、依存関係のない Node、Python、Go のサンプルがあります（それぞれ 100 行未満）。CLI デバイスがアテステーションされることはありません。プロジェクトで PoW による人間確認を有効にしてください。

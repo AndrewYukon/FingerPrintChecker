@@ -166,6 +166,8 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 这些包尚未发布到 npm 和 PyPI。发布前请从 GitHub 安装：克隆本仓库后执行 `npm install ./web/agent`（或 `./server/node` 等）/
 `pip install ./server/python`；Go 用 `go get github.com/AndrewYukon/FingerPrintChecker/server/go@main`。
 
+Cloudflare Worker proxy (English): [integrations/cloudflare-worker](integrations/cloudflare-worker/README.md)
+
 ## 命令行工具
 
 不需要库：CLI 可以用任何语言编写。[`cli/`](cli/README.md) 提供了无依赖的 Node、Python 和 Go 示例（每个不超过 100 行）。CLI 设备永远不会被认证；请为项目启用 PoW 人机验证。

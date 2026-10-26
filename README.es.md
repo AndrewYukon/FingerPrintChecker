@@ -171,6 +171,8 @@ clave del proyecto (nunca en el dispositivo).
 Estos paquetes aún no están publicados en npm ni PyPI. Hasta entonces, instálalos desde GitHub: clona este repositorio y ejecuta
 `npm install ./web/agent` (o `./server/node`, ...) / `pip install ./server/python`; para Go, `go get github.com/AndrewYukon/FingerPrintChecker/server/go@main`.
 
+Cloudflare Worker proxy (English): [integrations/cloudflare-worker](integrations/cloudflare-worker/README.md)
+
 ## Herramientas de línea de comandos
 
 Sin biblioteca: una CLI se puede escribir en cualquier lenguaje. [`cli/`](cli/README.md) incluye ejemplos sin dependencias para Node, Python y Go (menos de 100 líneas cada uno). Los dispositivos CLI nunca se atestan; activa la verificación humana PoW para el proyecto.
