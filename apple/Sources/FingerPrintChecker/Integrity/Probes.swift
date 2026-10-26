@@ -25,11 +25,12 @@ private let fridaPort: UInt16 = 27042
 private let portTimeout: TimeInterval = 0.1
 
 /// Paths that exist only on jailbroken devices. Deliberately no `/bin/bash` or `/etc/apt`: the simulator
-/// sees the host Mac's filesystem.
-private let jailbreakPaths = [
+/// sees the host Mac's filesystem. Checked against a stock macOS 26 host: none of these exist there
+/// (`/usr/libexec/sftp-server` does, so it is not listed). `testJailbreakPathsAbsentOnStockMac` guards this.
+let jailbreakPaths = [
     "/var/jb", "/Applications/Cydia.app", "/Applications/Sileo.app", "/Applications/Zebra.app",
     "/Library/MobileSubstrate/MobileSubstrate.dylib", "/private/var/lib/apt", "/var/lib/cydia",
-    "/usr/lib/libsubstitute.dylib", "/usr/libexec/sftp-server",
+    "/usr/lib/libsubstitute.dylib",
 ]
 
 private let hookImageMarkers = ["fridagadget", "frida-gadget", "frida-agent", "mobilesubstrate", "cydiasubstrate", "libhooker"]

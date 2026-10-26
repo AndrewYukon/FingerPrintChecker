@@ -59,6 +59,15 @@ final class IntegrityProbeTests: XCTestCase {
         XCTAssertEqual(try run(JailbreakProbe(), FakeEnv()), .clean)
     }
 
+    #if os(macOS)
+    /// The simulator sees the host filesystem, so a path that exists on a stock Mac would fire on every run.
+    func testJailbreakPathsAbsentOnStockMac() {
+        for path in jailbreakPaths {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: path), path)
+        }
+    }
+    #endif
+
     // MARK: hook
     func testHookFiredByImageNames() throws {
         for name in ["/usr/lib/FridaGadget.dylib", "/Library/MobileSubstrate/MobileSubstrate.dylib", "/var/jb/usr/lib/libhooker.dylib"] {
@@ -196,6 +205,12 @@ final class IntegrityProbeTests: XCTestCase {
         let comps = [FPComponent(key: platform.key("keychainId"), value: "A1B2C3D4-E5F6-4711-8899-AABBCCDDEEFF"),
                      FPComponent(key: platform.key("integrity"), value: value)]
         XCTAssertEqual(ComponentRules.validate(platform: platform, components: comps), [], value)
+        #if os(macOS)
+        // Guards against every probe silently degrading to unavailable: on a Mac, debugger and hook run for real.
+        XCTAssertEqual(value.split(separator: ":", omittingEmptySubsequences: false).count, 3, value)
+        let unavailable = value.split(separator: ":", omittingEmptySubsequences: false)[2]
+        XCTAssertEqual(unavailable, "", "macOS debugger/hook must be checked, not unavailable: \(value)")
+        #endif
     }
 
     func testBuildIncludesIntegrityOnlyWhenValidAndPresent() {
