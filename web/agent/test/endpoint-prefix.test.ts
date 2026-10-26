@@ -20,9 +20,9 @@ async function requestedUrls(endpoint: string): Promise<string[]> {
     }),
   );
   delete (window as { FpGuardAgent?: unknown }).FpGuardAgent;
-  const el = document.createElement('script');
-  el.textContent = readFileSync(resolve(__dirname, '../vendor/fp-agent.min.js'), 'utf8');
-  document.head.appendChild(el);
+  (window as unknown as { eval: (s: string) => unknown }).eval(
+    readFileSync(resolve(__dirname, '../vendor/fp-agent.min.js'), 'utf8'),
+  );
   const g = (window as unknown as { FpGuardAgent: { identifyV2: (o: object) => Promise<unknown> } }).FpGuardAgent;
   await g
     .identifyV2({ baseUrl: endpoint, publishableKey: 'pk_test', intentToken: 'it_x' })
