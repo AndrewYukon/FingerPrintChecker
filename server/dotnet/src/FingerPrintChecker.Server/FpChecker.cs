@@ -25,12 +25,14 @@ public sealed class FpChecker : IDisposable
     private readonly TimeSpan _timeout;
     private readonly HttpClient _http;
     private readonly Func<TimeSpan, CancellationToken, Task> _delay;
-    private bool _disposed;
+    private int _disposed;
+    private static readonly JsonElement EmptyObject = BuildEmptyObject();
 
     /// <summary>
-    /// Creates a client. A custom <paramref name="handler"/> must not follow redirects: an
-    /// <see cref="HttpClientHandler"/> or <see cref="SocketsHttpHandler"/> with <c>AllowAutoRedirect</c> on is
-    /// rejected; for any other handler type the caller must guarantee it. Any 3xx that still arrives is refused.
+    /// Creates a client. A custom <paramref name="handler"/> must not follow redirects: the whole
+    /// <see cref="DelegatingHandler.InnerHandler"/> chain is walked and any <see cref="HttpClientHandler"/> or
+    /// <see cref="SocketsHttpHandler"/> with <c>AllowAutoRedirect</c> on is rejected; for any other handler type the
+    /// caller must guarantee it. Any 3xx that still arrives is refused.
     /// </summary>
     public FpChecker(FpCheckerOptions options, HttpMessageHandler? handler = null)
         : this(options, handler, Task.Delay)
@@ -63,11 +65,7 @@ public sealed class FpChecker : IDisposable
         }
 
         var baseUrl = ValidateBaseUrl(options.BaseUrl);
-        if ((handler is HttpClientHandler h && h.AllowAutoRedirect) || (handler is SocketsHttpHandler s && s.AllowAutoRedirect))
-        {
-            throw new ArgumentException(
-                "FpChecker: the handler must not follow redirects (set AllowAutoRedirect = false)", nameof(handler));
-        }
+        RejectRedirectFollowing(handler);
 
         _secretKey = options.SecretKey;
         _publishableKey = options.PublishableKey;
@@ -85,16 +83,32 @@ public sealed class FpChecker : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
         {
-            return;
+            _http.Dispose();
         }
-
-        _disposed = true;
-        _http.Dispose();
     }
 
     // --- validation ---
+
+    private static JsonElement BuildEmptyObject()
+    {
+        using var doc = JsonDocument.Parse("{}");
+        return doc.RootElement.Clone();
+    }
+
+    private static void RejectRedirectFollowing(HttpMessageHandler? handler)
+    {
+        var seen = new HashSet<HttpMessageHandler>(ReferenceEqualityComparer.Instance);
+        for (var h = handler; h is not null && seen.Add(h); h = (h as DelegatingHandler)?.InnerHandler)
+        {
+            if ((h is HttpClientHandler c && c.AllowAutoRedirect) || (h is SocketsHttpHandler s && s.AllowAutoRedirect))
+            {
+                throw new ArgumentException(
+                    "FpChecker: the handler must not follow redirects (set AllowAutoRedirect = false)", nameof(handler));
+            }
+        }
+    }
 
     private static void CheckHeaderValue(string name, string value)
     {
@@ -383,11 +397,12 @@ public sealed class FpChecker : IDisposable
         }
     }
 
-    private async Task<JsonElement> CallAsync(
+    /// <summary>Validates and builds the request synchronously (argument errors throw here, never as a faulted Task).</summary>
+    private Task<JsonElement> CallAsync(
         HttpMethod method, string path, IEnumerable<KeyValuePair<string, object?>>? query, object? body,
         bool publishable, bool auth, CancellationToken ct)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         var url = _baseUrl + path + QueryString(query);
         var headers = new List<(string, string)> { ("Accept", "application/json"), ("User-Agent", UserAgent) };
         if (publishable)
@@ -417,6 +432,12 @@ public sealed class FpChecker : IDisposable
             }
         }
 
+        return ExecuteAsync(method, url, headers, data, ct);
+    }
+
+    private async Task<JsonElement> ExecuteAsync(
+        HttpMethod method, string url, IReadOnlyList<(string, string)> headers, byte[]? data, CancellationToken ct)
+    {
         var maxRetries = method == HttpMethod.Get ? MaxRetries : 0;
         var attempt = 0;
         while (true)
@@ -437,7 +458,7 @@ public sealed class FpChecker : IDisposable
             var parsed = ParseJson(a.Raw);
             if (a.Status >= 200 && a.Status < 300)
             {
-                return parsed ?? JsonDocument.Parse("{}").RootElement.Clone();
+                return parsed ?? EmptyObject;
             }
 
             var retryAfter = ParseRetryAfter(a.RetryAfter);
