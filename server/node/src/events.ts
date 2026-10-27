@@ -1,3 +1,5 @@
+import type { BotCategory, BotIdentity, BotInfo, BotResult } from './bot.js';
+
 /** Rule action types. The server may add values; an unknown one is kept as-is (treat it as `none`). */
 export type RuleActionType = 'allow' | 'human_check' | 'deny' | 'none' | (string & {});
 
@@ -34,8 +36,23 @@ export interface MobileSignals {
   factoryResetAt: string | null;
 }
 
+/**
+ * `signals.bot`. Events stored before server 0.48.0 are version 1: no `good` result and no `info`.
+ * `info` is set when the request named an entry of the Bot directory.
+ */
+export interface BotSignals {
+  /** `null` when not checked. */
+  result: BotResult | null;
+  types: string[];
+  info?: BotInfo | null;
+  [k: string]: unknown;
+}
+
 /** Event signals this SDK types; every other signal is kept untyped. */
 export interface EventSignals {
+  /** 1 for events stored before server 0.48.0, 2 since. */
+  version?: 1 | 2;
+  bot?: BotSignals;
   vpn?: { result: boolean | null; methods: VpnMethod[] };
   /** Null for web events. */
   mobile?: MobileSignals | null;
@@ -50,7 +67,25 @@ export interface SearchEventsQuery {
   mitm?: boolean;
   locationSpoofed?: boolean;
   clonedApp?: boolean;
+  /** Exact match on `signals.bot.result`. */
+  botResult?: BotResult;
+  botCategory?: BotCategory;
+  botIdentity?: BotIdentity;
+  /** Id of a Bot directory entry, e.g. `googlebot`. */
+  botId?: string;
   [k: string]: string | number | boolean | undefined | null;
+}
+
+const WIRE_NAMES: Record<string, string> = {
+  botResult: 'bot_result',
+  botCategory: 'bot_category',
+  botIdentity: 'bot_identity',
+  botId: 'bot_id',
+};
+
+/** Map the camelCase bot filters to the API's query names; every other key passes through. */
+export function toWireQuery(q: SearchEventsQuery): SearchEventsQuery {
+  return Object.fromEntries(Object.entries(q).map(([k, v]) => [WIRE_NAMES[k] ?? k, v]));
 }
 
 /** An event as delivered in a webhook body. Unknown fields are kept. */

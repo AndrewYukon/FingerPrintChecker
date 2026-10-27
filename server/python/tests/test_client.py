@@ -81,6 +81,8 @@ def operations():
                 params = [*(item.get("parameters", [])), *(op.get("parameters", []))]
                 params = [_deref(p) for p in params]
                 sec = [k for s in op.get("security", SPEC.get("security", [])) for k in s]
+                if "managementKey" in sec:
+                    continue  # the account-level management API is not part of this SDK
                 ops.append((op["operationId"], method.upper(), path, params, "requestBody" in op, sec))
     return ops
 
@@ -105,7 +107,7 @@ OPS = operations()
 
 
 def test_op_table_complete():
-    assert len(OPS) == 17
+    assert len(OPS) == 18
 
 
 def test_every_operation_id_has_method():
@@ -124,7 +126,11 @@ def test_operation_table(op):
         args.append({"a": 1})
     elif query_params:
         args.append({"intent": "i"})
-    assert getattr(client, snake(op_id))(*args) == {"ok": True}
+    if op_id == "botCheck":  # keyword-only by design
+        out = client.bot_check(method="GET", url="https://x.test/", ip="1.1.1.1", headers={})
+    else:
+        out = getattr(client, snake(op_id))(*args)
+    assert out == {"ok": True}
     req = calls[0]
     expected = path
     for i, p in enumerate(path_params):

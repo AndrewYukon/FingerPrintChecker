@@ -85,6 +85,15 @@ type apiSpec struct {
 	Paths map[string]map[string]json.RawMessage `json:"paths"`
 }
 
+func usesManagementKey(op specOp) bool {
+	for _, sec := range op.Security {
+		if _, ok := sec["managementKey"]; ok {
+			return true
+		}
+	}
+	return false
+}
+
 // ops returns path -> verb -> operation, skipping non-verb keys such as "parameters".
 func (s apiSpec) ops(t *testing.T) map[string]map[string]specOp {
 	out := map[string]map[string]specOp{}
@@ -96,6 +105,9 @@ func (s apiSpec) ops(t *testing.T) map[string]map[string]specOp {
 				var op specOp
 				if err := json.Unmarshal(raw, &op); err != nil {
 					t.Fatal(err)
+				}
+				if usesManagementKey(op) {
+					continue // the account-level management API is not part of this SDK
 				}
 				out[p][k] = op
 			}
@@ -128,8 +140,8 @@ func TestEveryOperationHasMethod(t *testing.T) {
 			}
 		}
 	}
-	if n != 17 {
-		t.Fatalf("expected 17 operations, found %d", n)
+	if n != 18 {
+		t.Fatalf("expected 18 operations, found %d", n)
 	}
 }
 
@@ -142,9 +154,13 @@ func TestOperationsHitSpecRoute(t *testing.T) {
 	const id = "a/b c?d%e"
 	ctx := context.Background()
 	calls := map[string]func(*Client) (json.RawMessage, error){
-		"createIntent":       func(c *Client) (json.RawMessage, error) { return c.CreateIntent(ctx, map[string]any{"a": 1}) },
-		"getChallenge":       func(c *Client) (json.RawMessage, error) { return c.GetChallenge(ctx, Query{"intent": "x"}) },
-		"identify":           func(c *Client) (json.RawMessage, error) { return c.Identify(ctx, map[string]any{"a": 1}) },
+		"createIntent": func(c *Client) (json.RawMessage, error) { return c.CreateIntent(ctx, map[string]any{"a": 1}) },
+		"getChallenge": func(c *Client) (json.RawMessage, error) { return c.GetChallenge(ctx, Query{"intent": "x"}) },
+		"identify":     func(c *Client) (json.RawMessage, error) { return c.Identify(ctx, map[string]any{"a": 1}) },
+		"botCheck": func(c *Client) (json.RawMessage, error) {
+			_, err := c.BotCheck(ctx, BotCheckRequest{Method: "GET", URL: "https://x.test/", IP: "1.1.1.1"})
+			return nil, err
+		},
 		"checkEligibility":   func(c *Client) (json.RawMessage, error) { return c.CheckEligibility(ctx, map[string]any{}) },
 		"releaseEligibility": func(c *Client) (json.RawMessage, error) { return c.ReleaseEligibility(ctx, map[string]any{}) },
 		"checkQuota":         func(c *Client) (json.RawMessage, error) { return c.CheckQuota(ctx, map[string]any{}) },
@@ -204,7 +220,7 @@ func TestOperationsHitSpecRoute(t *testing.T) {
 			})
 		}
 	}
-	if rows != 17 || len(calls) != 17 {
+	if rows != 18 || len(calls) != 18 {
 		t.Fatalf("rows=%d calls=%d", rows, len(calls))
 	}
 }

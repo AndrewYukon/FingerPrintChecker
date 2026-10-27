@@ -1,4 +1,6 @@
 import { FpCheckerApiError } from './errors.js';
+import type { BotCheckRequest, BotCheckResult } from './bot.js';
+import { toWireQuery } from './events.js';
 import type { SearchEventsQuery } from './events.js';
 
 export type Json = Record<string, unknown>;
@@ -69,12 +71,18 @@ export class FpChecker {
   identify(body: Json) { return this.#call({ method: 'POST', path: '/v2/identify', body, publishable: true }); }
   checkEligibility(body: Json) { return this.#call({ method: 'POST', path: '/v1/eligibility', body }); }
   releaseEligibility(body: Json) { return this.#call({ method: 'POST', path: '/v1/eligibility/release', body }); }
+  /** Classify a request your backend received. Not charged, writes no event. */
+  botCheck(req: BotCheckRequest): Promise<BotCheckResult> {
+    return this.#call({ method: 'POST', path: '/v1/bot-check', body: { ...req } }) as Promise<BotCheckResult>;
+  }
   checkQuota(body: Json) { return this.#call({ method: 'POST', path: '/v1/quota', body }); }
   bindSubject(body: Json) { return this.#call({ method: 'POST', path: '/v1/subjects/bind', body }); }
   relateSubjects(body: Json) { return this.#call({ method: 'POST', path: '/v1/subjects/relation', body }); }
   sendFeedback(body: Json) { return this.#call({ method: 'POST', path: '/v1/feedback', body }); }
   getClaimFlags(query: QueryParams = {}) { return this.#call({ method: 'GET', path: '/v1/claims/flags', query }); }
-  searchEvents(query: SearchEventsQuery = {}) { return this.#call({ method: 'GET', path: '/v1/events', query }); }
+  searchEvents(query: SearchEventsQuery = {}) {
+    return this.#call({ method: 'GET', path: '/v1/events', query: toWireQuery(query) });
+  }
   getEvent(eventId: string) { return this.#call({ method: 'GET', path: `/v1/events/${enc(eventId)}` }); }
   updateEvent(eventId: string, body: Json) {
     return this.#call({ method: 'PATCH', path: `/v1/events/${enc(eventId)}`, body });

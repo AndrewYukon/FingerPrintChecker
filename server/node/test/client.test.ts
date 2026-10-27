@@ -6,6 +6,8 @@ const spec = JSON.parse(
   readFileSync(new URL('../../../openapi/fpchecker-api.json', import.meta.url), 'utf8'),
 );
 
+const usesManagementKey = (security?: object[]) => (security ?? []).some((s) => 'managementKey' in s);
+
 type Call = { url: string; init: RequestInit };
 function fakeFetch(responses: Array<Response | Error>) {
   const calls: Call[] = [];
@@ -39,8 +41,10 @@ describe('client surface', () => {
   it('every operationId in openapi has a client method', () => {
     const { client } = mk([]);
     const ids: string[] = [];
-    for (const item of Object.values<Record<string, { operationId?: string }>>(spec.paths))
-      for (const op of Object.values(item)) if (op && op.operationId) ids.push(op.operationId);
+    for (const item of Object.values<Record<string, { operationId?: string; security?: object[] }>>(spec.paths))
+      for (const op of Object.values(item))
+        // The account-level management API (managementKey) is not part of this SDK.
+        if (op && op.operationId && !usesManagementKey(op.security)) ids.push(op.operationId);
     expect(ids.length).toBeGreaterThanOrEqual(17);
     const missing = ids.filter((id) => typeof (client as never)[id] !== 'function');
     expect(missing).toEqual([]);
@@ -233,7 +237,7 @@ describe('every operation (table from openapi)', () => {
   const ops: Array<{ id: string; method: string; path: string; params: Array<{ name: string; in: string }>; body: boolean; sec: string[] }> = [];
   for (const [path, item] of Object.entries<Record<string, any>>(spec.paths))
     for (const [method, op] of Object.entries<any>(item))
-      if (op?.operationId)
+      if (op?.operationId && !usesManagementKey(op.security))
         ops.push({
           id: op.operationId,
           method: method.toUpperCase(),

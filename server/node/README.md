@@ -13,7 +13,7 @@ if (verdict.ok === false) console.log('refused:', verdict.error ?? verdict.reaso
 
 ## Client
 
-One async method per OpenAPI `operationId`: `createIntent`, `getChallenge`, `identify`, `checkEligibility`, `releaseEligibility`, `checkQuota`, `bindSubject`, `relateSubjects`, `sendFeedback`, `getClaimFlags`, `searchEvents`, `getEvent`, `updateEvent`, `getVisitor`, `deleteVisitor`, `getHealth`, `getStatus`.
+One async method per OpenAPI `operationId`: `createIntent`, `getChallenge`, `identify`, `botCheck`, `checkEligibility`, `releaseEligibility`, `checkQuota`, `bindSubject`, `relateSubjects`, `sendFeedback`, `getClaimFlags`, `searchEvents`, `getEvent`, `updateEvent`, `getVisitor`, `deleteVisitor`, `getHealth`, `getStatus`.
 
 - The secret key goes in the `X-Secret-Key` header, never in a URL. `getChallenge` and `identify` use the publishable key (`publishableKey` option).
 - 2xx responses are returned as data, **including** refusals such as `{ ok: false, error }`. Check `ok`.
@@ -21,6 +21,45 @@ One async method per OpenAPI `operationId`: `createIntent`, `getChallenge`, `ide
 - Network failures and timeouts also throw `FpCheckerApiError`, with `status` 0, `code` `network_error` or `timeout`, and the original error as `cause`.
 - Redirects are never followed (they would forward the secret key to another origin). `baseUrl` must be https, except localhost, 127.0.0.1 and [::1].
 - Only GET requests retry (including after network failures and timeouts) (429 and 5xx, at most 2 retries, honouring `Retry-After`, wait capped at 10 s). POST, PATCH and DELETE are never retried.
+
+## Bot check
+
+`botCheck` classifies a request your backend received (header-only: no script ran in the sender). It is not charged and writes no event. Forward the original URL (the host and scheme the visitor used, not your origin behind a CDN or load balancer) and the client IP. `botCheckHeaders` keeps only the headers the check needs and drops Cookie, Authorization and everything else.
+
+```ts
+import express from 'express';
+import { FpChecker, botCheckHeaders } from '@fingerprintchecker/node';
+
+const fp = new FpChecker({ secretKey: process.env.FPCHECKER_SECRET_KEY! });
+const app = express();
+app.set('trust proxy', 1); // number of proxy hops in front of you (or a CIDR list), never `true`: req.ip must not be spoofable
+
+app.use(async (req, res, next) => {
+  try {
+    const verdict = await fp.botCheck({
+      method: req.method,
+      url: `${req.protocol}://${req.get('host')}${req.originalUrl}`, // original host and scheme
+      ip: req.ip!,
+      headers: botCheckHeaders(req.headers),
+    });
+    if (verdict.bot.result === 'bad') return res.status(403).end();
+  } catch {
+    // Failure policy: fail open. An outage or rate limit of the check must not take your site down.
+  }
+  next(); // 'good' = a verified or signed directory bot; verdict.bot.info says which
+});
+```
+
+`bot.result` is `good`, `bad` or `not_detected`; `bot.info` (`id`, `name`, `provider`, `category`, `identity`) is set when the request named a directory bot. A 400 throws `FpCheckerApiError` with `code` `invalid_request` or `invalid_ip` and the offending `field` in `body`.
+
+Rules of use:
+- Call `botCheck` once per request and reuse the answer; do not call it again for the same request.
+- Never retry a signed request: a retry replays the signature nonce and the request is then judged `spoofed` (`bad`).
+- `ip` must be the trusted client IP, not an address a client can set. With Express set `trust proxy` to your proxy hop count or CIDR list (never `true`), then use `req.ip`.
+- Limits: 3,000 checks per minute per client IP and 1,200 per minute per project (429 beyond that).
+- `botCheckHeaders` also forwards any header named in the request's `signature-input`, so signed agents verify; Cookie and Authorization are never forwarded.
+
+Event signals come in two versions: `signals.version` 1 (before server 0.48.0, no `good`, no `bot.info`) and 2. `searchEvents` also filters by `botResult`, `botCategory`, `botIdentity` and `botId`.
 
 ## Sealed results
 

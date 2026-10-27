@@ -28,9 +28,38 @@ type WebhookEventData struct {
 
 // EventSignals holds the signals this SDK types; every other signal is left in WebhookEvent.Raw.
 type EventSignals struct {
+	// Version is 1 for events stored before server 0.48.0 and 2 since; 0 when the payload has none.
+	Version int `json:"version"`
+	// Bot has no Info and no "good" result in version 1 events.
+	Bot BotSignal `json:"bot"`
 	Vpn VpnSignal `json:"vpn"`
 	// Mobile is nil for web events and when the payload has none.
 	Mobile *MobileSignals `json:"mobile"`
+}
+
+// UnmarshalJSON tolerates a wrong type anywhere: a malformed signals object, version, bot, vpn or mobile
+// yields the zero value for that part, never an error.
+func (e *EventSignals) UnmarshalJSON(b []byte) error {
+	var m map[string]json.RawMessage
+	if json.Unmarshal(b, &m) != nil {
+		*e = EventSignals{}
+		return nil
+	}
+	out := EventSignals{}
+	var v int
+	if json.Unmarshal(m["version"], &v) == nil && (v == 1 || v == 2) {
+		out.Version = v
+	}
+	_ = json.Unmarshal(m["bot"], &out.Bot)
+	_ = json.Unmarshal(m["vpn"], &out.Vpn)
+	if r := m["mobile"]; string(r) != "null" {
+		var mob MobileSignals
+		if json.Unmarshal(r, &mob) == nil && len(r) > 0 && r[0] == '{' {
+			out.Mobile = &mob
+		}
+	}
+	*e = out
+	return nil
 }
 
 // VpnSignal carries the methods that reached the VPN verdict. Methods is an open set

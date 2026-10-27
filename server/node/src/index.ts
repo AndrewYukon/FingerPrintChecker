@@ -7,4 +7,6 @@ export type { VerifyWebhookOptions } from './webhook.js';
 export { FpCheckerApiError, SealedResultError, WebhookSignatureError } from './errors.js';
 export type { SealedErrorCode, WebhookErrorCode } from './errors.js';
 export { parseWebhookEvent, parseEligibilityAnswer } from './events.js';
-export type { EventSignals, MobileSignals, SearchEventsQuery, VpnMethod, RuleAction, RuleActionType, WebhookEvent, EligibilityAnswer } from './events.js';
+export type { BotSignals, EventSignals, MobileSignals, SearchEventsQuery, VpnMethod, RuleAction, RuleActionType, WebhookEvent, EligibilityAnswer } from './events.js';
+export { botCheckHeaders, BOT_CHECK_HEADERS } from './bot.js';
+export type { BotCategory, BotCheckRequest, BotCheckResult, BotHeaderType, BotIdentity, BotInfo, BotResult } from './bot.js';
