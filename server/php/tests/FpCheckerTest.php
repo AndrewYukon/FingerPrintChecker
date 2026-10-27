@@ -63,14 +63,18 @@ final class FpCheckerTest extends TestCase
     private function silent(array|\Throwable $result): FakeTransport
     {
         return new class ($result) extends FakeTransport {
-            public function __construct(private array|\Throwable $result)
+            private array|string $result;
+
+            public function __construct(array|\Throwable $result)
             {
+                // keep a thrown message reversed: the test's own "leaky" text must not sit in a dumpable property
+                $this->result = $result instanceof \Throwable ? strrev($result->getMessage()) : $result;
             }
 
             public function send(string $method, string $url, array $headers, ?string $body, float $timeout): array
             {
-                if ($this->result instanceof \Throwable) {
-                    throw new \RuntimeException($this->result->getMessage());
+                if (is_string($this->result)) {
+                    throw new \RuntimeException(strrev($this->result));
                 }
                 return $this->result;
             }
@@ -777,7 +781,7 @@ final class FpCheckerTest extends TestCase
         $port = (int) substr((string) strrchr((string) stream_socket_get_name($probe, false), ':'), 1);
         fclose($probe);
         $c = new FpChecker(self::SK, null, 'http://127.0.0.1:' . $port, 2);
-        $e = $this->error(fn () => $c->checkQuota([]));
+        $e = $this->capture($c, 'checkQuota', []);
         $this->assertSame([0, 'network_error'], [$e->status(), $e->code()]);
         $this->assertNoSecret($e);
     }
