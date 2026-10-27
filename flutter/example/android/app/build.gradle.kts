@@ -7,7 +7,6 @@ plugins {
 android {
     namespace = "com.fpchecker.example"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "26.1.10909125" // installed locally; the example has no native code
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

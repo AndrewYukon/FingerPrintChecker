@@ -16,7 +16,7 @@ concurrency:
 jobs:
   packages:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -181,3 +181,80 @@ jobs:
         run: |
           dotnet test
           echo "- server/dotnet test: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      # Mobile wrappers (Flutter plugin, React Native module). Java 17 comes from setup-java above.
+      - uses: subosito/flutter-action@v2
+        id: flutter
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        with:
+          channel: stable
+          flutter-version: "3.47.8"
+          cache: true
+
+      - name: apple sources drift check
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          node tools/sync-apple-sources.mjs --check
+          echo "- apple sources drift check: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: apple sources sync test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          node --test tools/sync-apple-sources.test.mjs
+          echo "- apple sources sync test: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: flutter analyze and test
+        if: ${{ !cancelled() && steps.flutter.outcome == 'success' }}
+        working-directory: flutter
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+          echo "- flutter analyze and test: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: flutter example apk build
+        id: flutter-apk
+        if: ${{ !cancelled() && steps.flutter.outcome == 'success' }}
+        working-directory: flutter/example
+        run: |
+          flutter pub get
+          flutter build apk --debug
+          echo "- flutter example apk build: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: flutter plugin android unit tests
+        if: ${{ !cancelled() && steps.flutter-apk.outcome == 'success' }}
+        working-directory: flutter/example/android
+        run: |
+          ./gradlew :fingerprintchecker:testDebugUnitTest --no-daemon
+          echo "- flutter plugin android unit tests: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: react-native install
+        id: rn-install
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: react-native
+        run: |
+          npm ci
+          echo "- react-native install: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: react-native typecheck and test
+        if: ${{ !cancelled() && steps.rn-install.outcome == 'success' }}
+        working-directory: react-native
+        run: |
+          npm run typecheck
+          npm test
+          echo "- react-native typecheck and test: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: react-native example install
+        id: rn-example-install
+        if: ${{ !cancelled() && steps.rn-install.outcome == 'success' }}
+        working-directory: react-native/example
+        run: |
+          npm ci
+          echo "- react-native example install: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: react-native example android build and unit tests
+        if: ${{ !cancelled() && steps.rn-example-install.outcome == 'success' }}
+        working-directory: react-native/example/android
+        run: |
+          ./gradlew assembleDebug :fingerprintchecker_react-native:testDebugUnitTest --no-daemon
+          echo "- react-native example android build and unit tests: ok" >> "$GITHUB_STEP_SUMMARY"
