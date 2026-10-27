@@ -132,4 +132,11 @@ public class WebhookTests
         Assert.DoesNotContain("other-secret", ex.ToString());
         Assert.DoesNotContain(header[(header.IndexOf("v1=", StringComparison.Ordinal) + 3)..], ex.ToString());
     }
+
+    [Fact]
+    public void EmptySecretIsRejectedUpFront()
+    {
+        var ex = Assert.Throws<ArgumentException>(() => Webhook.VerifyWebhookSignature(Empty, Sign(Empty, 1000), "", 300, 1000));
+        Assert.DoesNotContain(Secret, ex.Message);
+    }
 }

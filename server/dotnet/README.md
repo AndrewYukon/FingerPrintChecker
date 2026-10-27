@@ -27,7 +27,7 @@ if (verdict.TryGetProperty("ok", out var ok) && ok.ValueKind == System.Text.Json
 
 `new FpChecker(FpCheckerOptions options)` has one async method per OpenAPI `operationId`, with an `Async` suffix: `CreateIntentAsync`, `GetChallengeAsync`, `IdentifyAsync`, `BotCheckAsync`, `CheckEligibilityAsync`, `ReleaseEligibilityAsync`, `CheckQuotaAsync`, `BindSubjectAsync`, `RelateSubjectsAsync`, `SendFeedbackAsync`, `GetClaimFlagsAsync`, `SearchEventsAsync`, `GetEventAsync`, `UpdateEventAsync`, `GetVisitorAsync`, `DeleteVisitorAsync`, `GetHealthAsync`, `GetStatusAsync`. Bodies are any object `System.Text.Json` can serialise; responses are `JsonElement`.
 
-- The secret key goes in the `X-Secret-Key` header, never in a URL, and is not shown by `ToString` or an exception message. `GetChallengeAsync` and `IdentifyAsync` use `PublishableKey` in `X-Publishable-Key` instead; `GetHealthAsync` and `GetStatusAsync` send no key.
+- The secret key goes in the `X-Secret-Key` header, never in a URL, and is not shown by `ToString` or an exception message, and `FpCheckerOptions.SecretKey` is excluded from `System.Text.Json` serialisation (do not log the options object anyway). `GetChallengeAsync` and `IdentifyAsync` use `PublishableKey` in `X-Publishable-Key` instead; `GetHealthAsync` and `GetStatusAsync` send no key.
 - 2xx responses are returned as data, **including** refusals such as `{"ok": false, "error": ...}`. Check `ok`.
 - Non-2xx throws `FpCheckerApiException` with `Status`, `Code`, `RetryAfter` (seconds) and `Body`. Network failures and timeouts throw it too, with `Status` 0 and code `network_error` or `timeout`.
 - Redirects are never followed (they would forward the secret key to another origin). `BaseUrl` must be https, except localhost, 127.0.0.1 and [::1].
@@ -41,7 +41,9 @@ When the browser reports an `eventId`, fetch the event from your server and chec
 
 ```csharp
 using System.Globalization;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using FingerPrintChecker.Server;
 
 /// <summary>Your own store; MarkUsed returns false when the id was seen before (database unique key, Redis SET NX).</summary>
 public interface IUsedEvents
@@ -90,6 +92,10 @@ public static async Task<JsonElement> VerifyEventAsync(FpChecker fp, string even
 `BotCheckAsync(method, url, ip, headers)` classifies a request your backend received (header-only: no script ran in the sender). It is not charged and writes no event. Pass the original URL (the host and scheme the visitor used, not your origin behind a CDN or load balancer) and the trusted client IP. The headers go through `BotHeaders.Filter` inside `BotCheckAsync`: only the headers the check needs are sent, and Cookie and Authorization never leave your process.
 
 ```csharp
+using System.Text.Json;
+using FingerPrintChecker.Server;
+
+// `Request`, `Results` and `clientIp` are ASP.NET minimal-API / controller stand-ins; `fp` is your FpChecker.
 var headers = Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString());
 JsonElement? verdict;
 try
@@ -136,8 +142,13 @@ Pass every active key (the current and the previous one during rotation). Nothin
 ## Webhooks
 
 ```csharp
-using var reader = new StreamReader(Request.Body);
-var rawBody = await reader.ReadToEndAsync(); // the exact text received, not a re-serialised object
+using System.Text;
+using FingerPrintChecker.Server;
+
+// `Request` and `Results` are ASP.NET stand-ins.
+using var ms = new MemoryStream();
+await Request.Body.CopyToAsync(ms);
+var rawBody = ms.ToArray(); // the exact bytes received, not a re-serialised object
 try
 {
     Webhook.VerifyWebhookSignature(rawBody, Request.Headers["FPC-Signature"].ToString(), Environment.GetEnvironmentVariable("FPC_WEBHOOK_SECRET")!);
@@ -147,8 +158,8 @@ catch (WebhookSignatureException e)
     return Results.BadRequest(); // e.Code: malformed_header | bad_signature | expired | future
 }
 
-var ev = Events.ParseWebhookEvent(rawBody);
+var ev = Events.ParseWebhookEvent(Encoding.UTF8.GetString(rawBody)); // only after verifying
 Console.WriteLine($"{ev.VisitorId} {ev.RuleAction?.Type ?? "none"}");
 ```
 
-Prefer the `ReadOnlySpan<byte>` overload with the raw request bytes when you have them. `toleranceSec` (default 300) must be a finite number >= 0, else `ArgumentOutOfRangeException`. `Events.ParseEligibilityAnswer(verdict)` narrows a `CheckEligibilityAsync` response the same way. `WebhookEvent` carries `SignalsVersion` and `Bot` (`BotSignals`). Reasons and rule types are open strings: an unknown value never throws.
+The `string` overload also exists, but read the body as bytes: a text round-trip can alter it. `toleranceSec` (default 300) must be a finite number >= 0, else `ArgumentOutOfRangeException`. `Events.ParseEligibilityAnswer(verdict)` narrows a `CheckEligibilityAsync` response the same way. `WebhookEvent` carries `SignalsVersion` and `Bot` (`BotSignals`). Reasons and rule types are open strings: an unknown value never throws.

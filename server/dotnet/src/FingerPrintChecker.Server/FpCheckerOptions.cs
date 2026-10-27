@@ -1,9 +1,16 @@
+using System.Text.Json.Serialization;
+
 namespace FingerPrintChecker.Server;
 
 /// <summary>Client configuration. <see cref="ToString"/> never includes the keys.</summary>
 public sealed class FpCheckerOptions
 {
-    /// <summary>Sent only in the <c>X-Secret-Key</c> header. Printable ASCII, no control characters.</summary>
+    /// <summary>
+    /// Sent only in the <c>X-Secret-Key</c> header. Printable ASCII, no control characters.
+    /// Do not log or serialise the options object: it holds the key (it is excluded from System.Text.Json output,
+    /// but other serialisers and debuggers will show it).
+    /// </summary>
+    [JsonIgnore]
     public required string SecretKey { get; init; }
 
     /// <summary>Needed for <c>GetChallengeAsync</c> and <c>IdentifyAsync</c>. Sent only in <c>X-Publishable-Key</c>.</summary>

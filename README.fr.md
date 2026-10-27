@@ -189,8 +189,7 @@ l'ouvre avec la clé du projet (jamais sur l'appareil).
 | Wrapper React, `@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
 | Wrapper Vue, `@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
-Ces paquets ne sont pas encore publiés sur npm ni PyPI (PHP et .NET s'installent depuis la release GitHub jusqu'à leur publication sur Packagist et nuget.org). D'ici là, installez-les depuis GitHub : clonez ce dépôt puis lancez
-`npm install ./web/agent` (ou `./server/node`, ...) / `pip install ./server/python` ; pour Go, `go get github.com/AndrewYukon/FingerPrintChecker/server/go@main`.
+Les paquets npm (`@fingerprintchecker/agent`, `react`, `vue`, `node`) et le paquet PyPI `fingerprintchecker` sont publiés (depuis le 2026-10-26) : `npm install` / `pip install fingerprintchecker`. Seuls PHP et .NET ne sont pas encore sur Packagist et nuget.org : installez-les depuis la release GitHub (voir leurs README). Go : `go get github.com/AndrewYukon/FingerPrintChecker/server/go`..
 
 Cloudflare Worker proxy (English): [integrations/cloudflare-worker](integrations/cloudflare-worker/README.md)
 

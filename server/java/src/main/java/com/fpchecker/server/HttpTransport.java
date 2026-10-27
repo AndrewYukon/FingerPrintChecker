@@ -6,10 +6,15 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /** JDK HttpClient transport. Redirects are never followed. */
 final class HttpTransport implements Transport {
@@ -34,7 +39,23 @@ final class HttpTransport implements Transport {
             for (Map.Entry<String, String> h : request.headers.entrySet()) {
                 builder.header(h.getKey(), h.getValue());
             }
-            HttpResponse<byte[]> res = client.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
+            // The request timeout only covers the wait for response headers. Bound the whole call
+            // (headers and body) by waiting on the future and cancelling the exchange on expiry.
+            CompletableFuture<HttpResponse<byte[]>> future =
+                    client.sendAsync(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
+            HttpResponse<byte[]> res;
+            try {
+                res = future.get(request.timeout.toMillis(), TimeUnit.MILLISECONDS);
+            } catch (TimeoutException e) {
+                future.cancel(true);
+                throw new HttpTimeoutException("request timed out");
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof IOException) {
+                    throw (IOException) cause;
+                }
+                throw new IOException("request failed: " + (cause == null ? "unknown" : cause.getClass().getSimpleName()));
+            }
             Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
             for (Map.Entry<String, List<String>> e : res.headers().map().entrySet()) {
                 if (!e.getValue().isEmpty()) {

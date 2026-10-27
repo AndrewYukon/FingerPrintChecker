@@ -83,6 +83,10 @@ public static class Webhook
     public static void VerifyWebhookSignature(ReadOnlySpan<byte> rawBody, string header, string secret, double toleranceSec = 300, double? now = null)
     {
         ArgumentNullException.ThrowIfNull(secret);
+        if (secret.Length == 0)
+        {
+            throw new ArgumentException("webhook secret must not be empty", nameof(secret));
+        }
         if (!double.IsFinite(toleranceSec) || toleranceSec < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(toleranceSec), "toleranceSec must be a finite number >= 0");

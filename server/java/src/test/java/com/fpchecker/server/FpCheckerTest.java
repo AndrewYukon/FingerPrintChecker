@@ -694,6 +694,35 @@ class FpCheckerTest {
         }
     }
 
+    @Test
+    void slowBodyAfterHeadersMapsToTimeout() throws Exception {
+        try (ServerSocket ss = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
+            Thread th = new Thread(() -> {
+                try (Socket s = ss.accept()) {
+                    java.io.InputStream in = s.getInputStream();
+                    byte[] buf = new byte[4096];
+                    in.read(buf);
+                    java.io.OutputStream out = s.getOutputStream();
+                    out.write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\n{"
+                            .getBytes(StandardCharsets.UTF_8));
+                    out.flush();
+                    Thread.sleep(5000); // headers sent, body stalls
+                } catch (Exception e) {
+                    // closed
+                }
+            });
+            th.setDaemon(true);
+            th.start();
+            FpChecker c = new FpChecker(
+                    FpChecker.builder(SK).baseUrl("http://127.0.0.1:" + ss.getLocalPort()).timeout(Duration.ofMillis(500)),
+                    new HttpTransport(Duration.ofMillis(500)), sleeps::add);
+            long t0 = System.nanoTime();
+            FpCheckerApiException e = assertThrows(FpCheckerApiException.class, () -> c.checkQuota(Map.of()));
+            assertEquals("timeout", e.code());
+            assertTrue((System.nanoTime() - t0) / 1_000_000 < 3000, "must not wait for the stalled body");
+        }
+    }
+
     // --- config validation ---
 
     @Test

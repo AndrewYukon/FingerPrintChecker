@@ -320,9 +320,7 @@ When your project has a sealing key, identify answers carry an optional `sealedR
 | React wrapper, `@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
 | Vue wrapper, `@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
-These packages are not published to npm and PyPI yet (PHP and .NET are installed from the GitHub release until listed on Packagist and nuget.org). Until they are, install them from GitHub: clone this repository and run
-`npm install ./web/agent` (or `./server/node`, ...) / `pip install ./server/python`, or use
-`go get github.com/AndrewYukon/FingerPrintChecker/server/go@main` for Go. How the owner publishes them: [docs/PUBLISHING.md](docs/PUBLISHING.md).
+The npm packages (`@fingerprintchecker/agent`, `react`, `vue`, `node`) and the PyPI package `fingerprintchecker` are published (since 2026-10-26); install them with `npm install` / `pip install fingerprintchecker`. Only PHP and .NET are not yet on Packagist and nuget.org: install them from the GitHub release (see their READMEs). Go: `go get github.com/AndrewYukon/FingerPrintChecker/server/go`. How the owner publishes them: [docs/PUBLISHING.md](docs/PUBLISHING.md).
 
 ## Cloudflare Worker proxy
 

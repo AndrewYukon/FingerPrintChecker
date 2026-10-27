@@ -182,8 +182,7 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 | React 封装，`@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
 | Vue 封装，`@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
-这些包尚未发布到 npm 和 PyPI（PHP 和 .NET 在上架 Packagist / nuget.org 前，从 GitHub release 获取）。发布前请从 GitHub 安装：克隆本仓库后执行 `npm install ./web/agent`（或 `./server/node` 等）/
-`pip install ./server/python`；Go 用 `go get github.com/AndrewYukon/FingerPrintChecker/server/go@main`。
+npm 包（`@fingerprintchecker/agent`、`react`、`vue`、`node`）和 PyPI 包 `fingerprintchecker` 已发布（自 2026-10-26）：用 `npm install` / `pip install fingerprintchecker` 安装。只有 PHP 和 .NET 还没上架 Packagist 和 nuget.org：请从 GitHub release 获取（见各自 README）。Go 用 `go get github.com/AndrewYukon/FingerPrintChecker/server/go`。
 
 Cloudflare Worker proxy (English): [integrations/cloudflare-worker](integrations/cloudflare-worker/README.md)
 

@@ -93,6 +93,8 @@ static boolean verifyEvent(FpChecker fp, String eventId) {
 `botCheck(method, url, ip, headers)` classifies a request your backend received (header-only: no script ran in the sender). It is not charged and writes no event. Forward the original URL (the host and scheme the visitor used, not your origin behind a CDN or load balancer) and the client IP. `botCheck` passes `headers` through `BotHeaders.filter`, which keeps only the headers the check needs and drops Cookie, Authorization and everything else.
 
 ```java
+// `request`, `originalUrl`, `clientIp`, `headersAsMap`, `chain` and `forbidden()` are placeholders
+// for your web framework (servlet filter, Spring interceptor, ...); they are not part of this SDK.
 JsonNode verdict;
 try {
     verdict = fp.botCheck(request.getMethod(), originalUrl, clientIp, headersAsMap(request));
@@ -126,7 +128,13 @@ Pass every active key (active and previous during rotation). Throws `SealedResul
 ## Webhooks
 
 ```java
-// rawBody must be the exact bytes received, not a re-serialised object.
+import com.fpchecker.server.Webhook;
+import com.fpchecker.server.events.Events;
+import com.fpchecker.server.events.WebhookEvent;
+import java.nio.charset.StandardCharsets;
+
+// `request` and `rawBody` (byte[]) come from your web framework. rawBody must be the exact bytes
+// received, not a re-serialised object.
 Webhook.verifyWebhookSignature(rawBody, request.getHeader("FPC-Signature"), System.getenv("FPC_WEBHOOK_SECRET"));
 WebhookEvent event = Events.parseWebhookEvent(new String(rawBody, StandardCharsets.UTF_8)); // only after verifying
 ```

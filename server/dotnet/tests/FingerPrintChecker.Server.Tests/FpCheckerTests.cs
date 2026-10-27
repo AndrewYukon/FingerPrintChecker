@@ -784,4 +784,12 @@ public class FpCheckerTests
         using var c = new FpChecker(opts, new PassThrough(new FakeHandler()));
         using var d = new FpChecker(opts, new PassThrough()); // chain ends in null: nothing to check
     }
+
+    [Fact]
+    public void OptionsSecretKeyIsNotSerialised()
+    {
+        var opts = new FpCheckerOptions { SecretKey = "sk_live_serialise_me_not" };
+        var json = System.Text.Json.JsonSerializer.Serialize(opts);
+        Assert.DoesNotContain("sk_live_serialise_me_not", json);
+    }
 }

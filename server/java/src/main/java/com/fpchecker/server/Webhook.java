@@ -47,6 +47,9 @@ public final class Webhook {
         if (secret == null) {
             throw new IllegalArgumentException("secret must not be null");
         }
+        if (secret.isEmpty()) {
+            throw new IllegalArgumentException("secret must not be empty");
+        }
         if (toleranceSec < 0) {
             throw new IllegalArgumentException("toleranceSec must be >= 0");
         }

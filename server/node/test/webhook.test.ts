@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { WebhookSignatureError, verifyWebhookSignature } from '../src/index.js';
@@ -59,5 +60,15 @@ describe('toleranceSec validation', () => {
     expect(() =>
       verifyWebhookSignature({ rawBody: c.body, header: c.header, secret: vec.secret, now: c.now, toleranceSec: 0 }),
     ).not.toThrow();
+  });
+});
+
+describe('empty secret', () => {
+  it('is rejected up front, even for a header signed with the empty key', () => {
+    const c = vec.cases[0];
+    const forged = `t=1000,v1=${createHmac('sha256', '').update('1000.{}').digest('hex')}`;
+    for (const header of [c.header, forged]) {
+      expect(() => verifyWebhookSignature({ rawBody: '{}', header, secret: '', now: 1000 })).toThrow(TypeError);
+    }
   });
 });

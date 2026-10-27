@@ -456,6 +456,17 @@ final class FpCheckerTest extends TestCase
         $this->assertSame('{"method":"GET","url":"https://x.test/p","ip":"1.2.3.4","headers":{}}', $t->calls[1]['body']);
     }
 
+    public function testBotCheckWithInvalidUtf8HeaderDoesNotThrow(): void
+    {
+        $t = new FakeTransport(self::resp(200, ['bot' => ['result' => 'not_detected']]));
+        $c = $this->mk($t);
+        $out = $c->botCheck('GET', "https://x.test/p?q=\xff", '1.2.3.4', ['user-agent' => "\xff"]);
+        $this->assertSame(['bot' => ['result' => 'not_detected']], $out);
+        $this->assertCount(1, $t->calls);
+        $body = json_decode((string) $t->calls[0]['body'], true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame("\u{FFFD}", $body['headers']['user-agent']);
+    }
+
     // --- responses ---
 
     public function testTwoXxOkFalseReturnedAsData(): void

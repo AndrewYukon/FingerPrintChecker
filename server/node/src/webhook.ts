@@ -43,6 +43,8 @@ export function verifyWebhookSignature(opts: VerifyWebhookOptions): void {
   const { rawBody, header, secret, toleranceSec = 300 } = opts;
   if (typeof toleranceSec !== 'number' || !Number.isFinite(toleranceSec) || toleranceSec < 0)
     throw new TypeError('verifyWebhookSignature: toleranceSec must be a finite number >= 0');
+  if (typeof secret !== 'string' || secret.length === 0)
+    throw new TypeError('verifyWebhookSignature: secret must be a non-empty string');
   const now = opts.now ?? Math.floor(Date.now() / 1000);
   const { tRaw, t, v1 } = parseHeader(header);
 

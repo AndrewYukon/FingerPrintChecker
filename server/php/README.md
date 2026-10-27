@@ -19,7 +19,7 @@ The package is not on Packagist yet. Download the release zip from the GitHub re
 use FpChecker\FpChecker;
 use FpChecker\FpCheckerApiError;
 
-$fp = new FpChecker(getenv('FPCHECKER_SECRET_KEY'));
+$fp = new FpChecker(getenv('FPCHECKER_SECRET_KEY') ?: throw new \RuntimeException('FPCHECKER_SECRET_KEY is not set'));
 $verdict = $fp->checkEligibility(['visitorId' => 'v_...']);
 if (($verdict['ok'] ?? null) === false) {
     echo 'refused: ', $verdict['error'] ?? $verdict['reason'] ?? 'unknown', "\n";
@@ -30,7 +30,7 @@ if (($verdict['ok'] ?? null) === false) {
 
 `new FpChecker(string $secretKey, ?string $publishableKey = null, string $baseUrl = 'https://api.fpchecker.com', int|float $timeout = 10)` has one method per OpenAPI `operationId`, in camelCase: `createIntent`, `getChallenge`, `identify`, `botCheck`, `checkEligibility`, `releaseEligibility`, `checkQuota`, `bindSubject`, `relateSubjects`, `sendFeedback`, `getClaimFlags`, `searchEvents`, `getEvent`, `updateEvent`, `getVisitor`, `deleteVisitor`, `getHealth`, `getStatus`. Bodies and query parameters are plain arrays; responses are arrays.
 
-- The secret key goes in the `X-Secret-Key` header, never in a URL, and is not shown by `var_dump`, `print_r`, `var_export` or an exception trace. `getChallenge` and `identify` use the publishable key in `X-Publishable-Key` instead; `getHealth` and `getStatus` send no key.
+- The secret key goes in the `X-Secret-Key` header, never in a URL, and is kept out of accidental logs and dumps (`var_dump`, `print_r`, `var_export`, exception traces show only a masked form). This masking is not encryption: code that can read the object's memory can recover the key. `getChallenge` and `identify` use the publishable key in `X-Publishable-Key` instead; `getHealth` and `getStatus` send no key.
 - 2xx responses are returned as data, **including** refusals such as `['ok' => false, 'error' => ...]`. Check `ok`.
 - Non-2xx throws `FpCheckerApiError` with `status()`, `code()` (`error` or `reason` from the body), `retryAfter()` (seconds) and `body()`.
 - Network failures and timeouts also throw `FpCheckerApiError`, with status 0 and code `network_error` or `timeout`.
@@ -43,6 +43,8 @@ if (($verdict['ok'] ?? null) === false) {
 When the browser reports an `eventId`, fetch the event from your server and check it before trusting anything. Do not accept the browser's own claims about the visitor.
 
 ```php
+use FpChecker\FpChecker;
+
 /** Your own store; `markUsed` returns false when the id was seen before (database unique key, Redis SET NX). */
 interface UsedEvents
 {
@@ -53,25 +55,25 @@ function verifyEvent(FpChecker $fp, string $eventId, UsedEvents $used): array
 {
     // 1. Shape: ev_ followed by 20 Crockford base32 characters.
     if (preg_match('/\Aev_[0-9A-HJKMNP-TV-Z]{20}\z/', $eventId) !== 1) {
-        throw new RuntimeException('bad event id');
+        throw new \RuntimeException('bad event id');
     }
     $event = $fp->getEvent($eventId);
     // 2. The event the server returns must be the one you asked for.
     if (($event['eventId'] ?? null) !== $eventId) {
-        throw new RuntimeException('event id mismatch');
+        throw new \RuntimeException('event id mismatch');
     }
     // 3. Fresh: created within the last 5 minutes. An unparseable createdAt fails closed.
     // createdAt looks like 2026-10-27T12:00:00Z or 2026-10-27T12:00:00.123Z; anything else is refused.
     $created = null;
     foreach (['!Y-m-d\TH:i:sp', '!Y-m-d\TH:i:s.vp'] as $format) {
-        $created ??= DateTimeImmutable::createFromFormat($format, is_string($event['createdAt'] ?? null) ? $event['createdAt'] : '') ?: null;
+        $created ??= \DateTimeImmutable::createFromFormat($format, is_string($event['createdAt'] ?? null) ? $event['createdAt'] : '') ?: null;
     }
     if ($created === null || abs(time() - $created->getTimestamp()) > 300) {
-        throw new RuntimeException('event too old or unreadable');
+        throw new \RuntimeException('event too old or unreadable');
     }
     // 4. Single use: an event id is accepted once.
     if (!$used->markUsed($eventId)) {
-        throw new RuntimeException('event already used');
+        throw new \RuntimeException('event already used');
     }
     return $event;
 }
@@ -85,7 +87,7 @@ function verifyEvent(FpChecker $fp, string $eventId, UsedEvents $used): array
 use FpChecker\FpChecker;
 use FpChecker\FpCheckerApiError;
 
-$fp = new FpChecker(getenv('FPCHECKER_SECRET_KEY'));
+$fp = new FpChecker(getenv('FPCHECKER_SECRET_KEY') ?: throw new \RuntimeException('FPCHECKER_SECRET_KEY is not set'));
 
 try {
     $verdict = $fp->botCheck(
@@ -121,7 +123,7 @@ use FpChecker\Sealed;
 use FpChecker\SealedResultError;
 
 try {
-    $result = Sealed::unsealResult($identifyResponse['sealedResult'], [getenv('FPC_SEALED_KEY')]);
+    $result = Sealed::unsealResult($identifyResponse['sealedResult'], [getenv('FPC_SEALED_KEY') ?: throw new \RuntimeException('FPC_SEALED_KEY is not set')]);
 } catch (SealedResultError $e) {
     // $e->code(): bad_format | unknown_key | decrypt_failed | invalid_key | unsupported_version
 }
@@ -136,9 +138,13 @@ use FpChecker\Events;
 use FpChecker\Webhook;
 use FpChecker\WebhookSignatureError;
 
+$secret = getenv('FPC_WEBHOOK_SECRET');
+if ($secret === false || $secret === '') {
+    throw new \RuntimeException('FPC_WEBHOOK_SECRET is not set'); // fail closed: never verify against an empty secret
+}
 $rawBody = file_get_contents('php://input'); // the exact bytes received, not a re-serialised object
 try {
-    Webhook::verifyWebhookSignature($rawBody, $_SERVER['HTTP_FPC_SIGNATURE'] ?? '', getenv('FPC_WEBHOOK_SECRET'));
+    Webhook::verifyWebhookSignature($rawBody, $_SERVER['HTTP_FPC_SIGNATURE'] ?? null, $secret);
 } catch (WebhookSignatureError $e) {
     http_response_code(400); // $e->code(): malformed_header | bad_signature | expired | future
     exit;
@@ -147,7 +153,7 @@ $event = Events::parseWebhookEvent($rawBody);
 echo $event->visitorId, ' ', $event->ruleAction?->type ?? 'none';
 ```
 
-`toleranceSec` (default 300) must be a finite number >= 0, else `InvalidArgumentException`. `Events::parseEligibilityAnswer($verdict)` narrows a `checkEligibility` response the same way. Reasons and rule types are open strings: an unknown value never throws.
+An empty secret throws `InvalidArgumentException`, and a missing header (`null`) is `malformed_header`. `toleranceSec` (default 300) must be a finite number >= 0, else `InvalidArgumentException`. `Events::parseEligibilityAnswer($verdict)` narrows a `checkEligibility` response the same way. Reasons and rule types are open strings: an unknown value never throws.
 
 ## License
 

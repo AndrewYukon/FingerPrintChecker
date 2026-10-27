@@ -179,4 +179,21 @@ final class WebhookTest extends TestCase
             ini_set('zend.exception_ignore_args', $prev === false ? '1' : $prev);
         }
     }
+
+    public function testEmptySecretRejectedEvenForHeaderSignedWithEmptyKey(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('webhook secret must not be empty');
+        Webhook::verifyWebhookSignature('{}', 't=1000,v1=' . hash_hmac('sha256', '1000.{}', ''), '', 300, 1000);
+    }
+
+    public function testNullHeaderIsMalformed(): void
+    {
+        try {
+            Webhook::verifyWebhookSignature('{}', null, self::secret(), 300, 1000);
+            $this->fail('expected WebhookSignatureError');
+        } catch (WebhookSignatureError $e) {
+            $this->assertSame('malformed_header', $e->code());
+        }
+    }
 }

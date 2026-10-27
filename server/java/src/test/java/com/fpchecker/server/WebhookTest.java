@@ -158,4 +158,12 @@ class WebhookTest {
         assertDoesNotThrow(() -> Webhook.verifyWebhookSignature(body, "t=5,v1=" + "0".repeat(64) + ",v1=" + good,
                 SECRET, 300, 5L));
     }
+
+    @Test
+    void emptySecretRejectedUpFront() {
+        long t = 1000;
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> Webhook.verifyWebhookSignature("{}".getBytes(StandardCharsets.UTF_8), "t=1000,v1=" + "0".repeat(64), "", 300, t));
+        assertEquals("secret must not be empty", e.getMessage());
+    }
 }

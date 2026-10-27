@@ -394,11 +394,16 @@ final class FpChecker
         }
     }
 
-    /** @param array<mixed>|object $body */
+    /**
+     * Invalid UTF-8 (raw request headers, REQUEST_URI) is substituted with U+FFFD instead of throwing,
+     * for every body: a visitor must not be able to turn botCheck into an exception.
+     *
+     * @param array<mixed>|object $body
+     */
     private function encodeBody(array|object $body): string
     {
         try {
-            return json_encode($body, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            return json_encode($body, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
         } catch (JsonException) {
             throw new InvalidArgumentException('FpChecker: body is not JSON-serializable');
         }

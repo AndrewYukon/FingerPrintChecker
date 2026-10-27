@@ -1,6 +1,9 @@
 package fpchecker
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
@@ -163,5 +166,19 @@ func TestWebhookNegativeToleranceAndZeroNow(t *testing.T) {
 	loadJSON(t, "webhook-signature.json", &f)
 	if err := VerifyWebhookSignature([]byte(f.Cases[0].Body), f.Cases[0].Header, f.Secret, 0, time.Unix(1761400000, 0)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWebhookEmptySecretRejected(t *testing.T) {
+	mac := hmac.New(sha256.New, nil)
+	mac.Write([]byte("1000.{}"))
+	forged := "t=1000,v1=" + hex.EncodeToString(mac.Sum(nil))
+	err := VerifyWebhookSignature([]byte("{}"), forged, "", time.Minute, time.Unix(1000, 0))
+	if err == nil {
+		t.Fatal("empty secret must error")
+	}
+	var we *WebhookSignatureError
+	if errors.As(err, &we) {
+		t.Fatal("empty secret is a usage error, not a signature error")
 	}
 }

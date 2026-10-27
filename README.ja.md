@@ -185,9 +185,7 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 | React ラッパー、`@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
 | Vue ラッパー、`@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
-これらのパッケージはまだ npm / PyPI に公開されていません（PHP と .NET は Packagist / nuget.org に掲載されるまで GitHub リリースから入手します）。公開までは GitHub からインストールしてください。このリポジトリをクローンし、
-`npm install ./web/agent`（または `./server/node` など）/ `pip install ./server/python` を実行します。Go は
-`go get github.com/AndrewYukon/FingerPrintChecker/server/go@main` です。
+npm パッケージ（`@fingerprintchecker/agent`、`react`、`vue`、`node`）と PyPI パッケージ `fingerprintchecker` は公開済み（2026-10-26 から）です。`npm install` / `pip install fingerprintchecker` で入手できます。Packagist / nuget.org にまだ無いのは PHP と .NET だけで、GitHub リリースから入手します（各 README を参照）。Go は `go get github.com/AndrewYukon/FingerPrintChecker/server/go` です。
 
 Cloudflare Worker proxy (English): [integrations/cloudflare-worker](integrations/cloudflare-worker/README.md)
 

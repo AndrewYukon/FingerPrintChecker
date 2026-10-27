@@ -24,11 +24,14 @@ final class Webhook
      */
     public static function verifyWebhookSignature(
         string $rawBody,
-        string $header,
+        ?string $header,
         #[\SensitiveParameter] string $secret,
         int|float $toleranceSec = 300,
         int|float|null $now = null,
     ): void {
+        if ($secret === '') {
+            throw new InvalidArgumentException('webhook secret must not be empty');
+        }
         if (!is_finite((float) $toleranceSec) || $toleranceSec < 0) {
             throw new InvalidArgumentException('toleranceSec must be a finite number >= 0');
         }
@@ -36,6 +39,9 @@ final class Webhook
             throw new InvalidArgumentException('now must be a finite number');
         }
         $clock = $now ?? microtime(true);
+        if ($header === null) {
+            throw new WebhookSignatureError('malformed_header');
+        }
         [$tRaw, $t, $v1] = self::parseHeader($header);
 
         $expected = hash_hmac('sha256', $tRaw . '.' . $rawBody, $secret, true);

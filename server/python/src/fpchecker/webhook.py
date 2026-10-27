@@ -59,6 +59,8 @@ def verify_webhook_signature(
         raise TypeError("tolerance_sec must be a finite number >= 0")
     if not math.isfinite(tolerance_sec) or tolerance_sec < 0:
         raise ValueError("tolerance_sec must be a finite number >= 0")
+    if not isinstance(secret, str) or secret == "":
+        raise ValueError("webhook secret must be a non-empty string")
     clock = time.time() if now is None else now
     t_raw, t, v1 = _parse_header(header)
 

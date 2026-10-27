@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `verifyWebhookSignature` rejects an empty secret up front (a misconfigured env var no longer makes forgeries verify).
+
 ## 0.4.0
 
 - Add `botCheck` (`POST /v1/bot-check`) with the types `BotCheckRequest`, `BotCheckResult`, `BotInfo`, `BotResult`, `BotCategory`, `BotIdentity`, and the `botCheckHeaders` helper that builds the forwardable header map (never Cookie or Authorization).
