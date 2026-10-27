@@ -1,6 +1,9 @@
 """FingerPrintChecker server SDK."""
+from .bot import BOT_CHECK_HEADERS, bot_check_headers
 from .client import FpChecker
 from .events import (
+    BotInfo,
+    BotSignals,
     EligibilityAnswer,
     MobileSignals,
     RuleAction,
@@ -12,9 +15,13 @@ from .errors import FpCheckerApiError, SealedResultError, WebhookSignatureError
 from .sealed import unseal_result
 from .webhook import verify_webhook_signature
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
+    "BOT_CHECK_HEADERS",
+    "BotInfo",
+    "BotSignals",
+    "bot_check_headers",
     "EligibilityAnswer",
     "MobileSignals",
     "RuleAction",

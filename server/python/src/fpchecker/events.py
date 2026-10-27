@@ -41,6 +41,29 @@ class MobileSignals:
 
 
 @dataclass(frozen=True)
+class BotInfo:
+    """One entry of the Bot directory and how well the request matched it. ``category`` and ``identity`` are
+    open strings: treat an unknown category as ``other``."""
+
+    id: str
+    name: str
+    provider: str
+    category: str
+    identity: str
+
+
+@dataclass(frozen=True)
+class BotSignals:
+    """``signals.bot``. ``result``: not_detected | good | bad (open; treat an unknown value as ``bad``), None when
+    not checked. ``info`` is None for version 1 events (stored before server 0.48.0) and when the request did not
+    name a directory bot."""
+
+    result: Optional[str] = None
+    types: Tuple[str, ...] = ()
+    info: Optional[BotInfo] = None
+
+
+@dataclass(frozen=True)
 class WebhookEvent:
     """``rule_action`` and ``proxied`` are None when the payload lacks them (queued before server 0.45.0);
     ``rule_action_present`` tells a JSON null from a missing key."""
@@ -50,6 +73,8 @@ class WebhookEvent:
     rule_action: Optional[RuleAction] = None
     rule_action_present: bool = False
     mobile: Optional[MobileSignals] = None
+    signals_version: Optional[int] = None
+    bot: Optional[BotSignals] = None
     vpn_methods: Tuple[str, ...] = ()
     raw: Dict[str, Any] = field(default_factory=dict)
 
@@ -109,6 +134,27 @@ def _parse_vpn_methods(v: Any) -> Tuple[str, ...]:
     return tuple(m for m in methods if isinstance(m, str)) if isinstance(methods, list) else ()
 
 
+def _parse_bot(v: Any) -> Optional[BotSignals]:
+    if not isinstance(v, dict):
+        return None
+    info = v.get("info")
+    parsed = None
+    if isinstance(info, dict) and isinstance(info.get("id"), str):
+        parsed = BotInfo(
+            id=info["id"],
+            name=_opt_str(info.get("name")) or "",
+            provider=_opt_str(info.get("provider")) or "",
+            category=_opt_str(info.get("category")) or "other",
+            identity=_opt_str(info.get("identity")) or "unknown",
+        )
+    types = v.get("types")
+    return BotSignals(
+        result=_opt_str(v.get("result")),
+        types=tuple(t for t in types if isinstance(t, str)) if isinstance(types, list) else (),
+        info=parsed,
+    )
+
+
 def parse_webhook_event(raw_body: Union[str, bytes]) -> WebhookEvent:
     """Parse a webhook body (verify its signature first)."""
     body = json.loads(raw_body)
@@ -123,6 +169,8 @@ def parse_webhook_event(raw_body: Union[str, bytes]) -> WebhookEvent:
         rule_action=_parse_rule_action(data.get("ruleAction")),
         rule_action_present="ruleAction" in data,
         mobile=_parse_mobile(signals.get("mobile")),
+        signals_version=signals["version"] if type(signals.get("version")) is int and signals["version"] in (1, 2) else None,
+        bot=_parse_bot(signals.get("bot")),
         vpn_methods=_parse_vpn_methods(signals.get("vpn")),
         raw=body,
     )

@@ -28,6 +28,10 @@ type WebhookEventData struct {
 
 // EventSignals holds the signals this SDK types; every other signal is left in WebhookEvent.Raw.
 type EventSignals struct {
+	// Version is 1 for events stored before server 0.48.0 and 2 since; 0 when the payload has none.
+	Version int `json:"version"`
+	// Bot has no Info and no "good" result in version 1 events.
+	Bot BotSignal `json:"bot"`
 	Vpn VpnSignal `json:"vpn"`
 	// Mobile is nil for web events and when the payload has none.
 	Mobile *MobileSignals `json:"mobile"`

@@ -18,7 +18,7 @@ DEFAULT_BASE_URL = "https://api.fpchecker.com"
 _MAX_RETRIES = 2
 _MAX_DELAY = 10.0
 _LOOPBACK = {"localhost", "127.0.0.1", "::1"}
-_USER_AGENT = "fpchecker-python/0.3.0"
+_USER_AGENT = "fpchecker-python/0.4.0"
 
 Json = Dict[str, Any]
 Query = Mapping[str, Any]
@@ -155,6 +155,14 @@ class FpChecker:
 
     def release_eligibility(self, body: Json) -> Json:
         return self._call("POST", "/v1/eligibility/release", body=body)
+
+    def bot_check(self, *, method: str, url: str, ip: str, headers: Mapping[str, str]) -> Json:
+        """Classify a request your backend received. Not charged, writes no event.
+
+        Send ``url`` as the visitor requested it (original host and scheme) and build ``headers``
+        with ``bot_check_headers``.
+        """
+        return self._call("POST", "/v1/bot-check", body={"method": method, "url": url, "ip": ip, "headers": dict(headers)})
 
     def check_quota(self, body: Json) -> Json:
         return self._call("POST", "/v1/quota", body=body)

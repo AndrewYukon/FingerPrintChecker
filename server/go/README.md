@@ -18,6 +18,35 @@ if errors.As(err, &apiErr) { log.Println(apiErr.Status, apiErr.Code) }
 - The secret key travels only in `X-Secret-Key`; it never appears in URLs, errors or `%v` output.
 - Options: `WithBaseURL`, `WithHTTPClient`, `WithPublishableKey`, `WithTimeout` (default 10 s), `WithSleep` (test seam).
 
+## Bot check
+
+`BotCheck` classifies a request your backend received (header-only: no script ran in the sender). It is not charged and writes no event. Forward the original URL (the host and scheme the visitor used, not your origin behind a CDN or load balancer) and the client IP. `BotCheckHeaders` keeps only the headers the check needs and drops Cookie, Authorization and everything else.
+
+```go
+func botGate(c *fpchecker.Client, next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        scheme := "http"
+        if r.TLS != nil { scheme = "https" } // behind a proxy, take scheme and host from the original request
+        ip, _, _ := net.SplitHostPort(r.RemoteAddr) // behind a proxy, use the forwarded client address
+        verdict, err := c.BotCheck(r.Context(), fpchecker.BotCheckRequest{
+            Method:  r.Method,
+            URL:     scheme + "://" + r.Host + r.URL.RequestURI(),
+            IP:      ip,
+            Headers: fpchecker.BotCheckHeaders(r.Header),
+        })
+        if err == nil && verdict.Bot.Result == "bad" {
+            http.Error(w, "forbidden", http.StatusForbidden)
+            return
+        }
+        next.ServeHTTP(w, r) // "good" = a verified or signed directory bot; verdict.Bot.Info says which
+    })
+}
+```
+
+`Bot.Result` is `good`, `bad` or `not_detected`; `Bot.Info` (`ID`, `Name`, `Provider`, `Category`, `Identity`) is set when the request named a directory bot. A 400 is an `*APIError` with `Code` `invalid_request` or `invalid_ip` and the offending `field` in `Body`. Unlike the other methods, `BotCheck` returns a typed result.
+
+`ParseWebhookEvent` fills `Data.Signals.Version` (1 before server 0.48.0, 2 since) and `Data.Signals.Bot`. `SearchEvents` also filters by the `Query` keys `bot_result`, `bot_category`, `bot_identity` and `bot_id`.
+
 ```go
 res, err := fpchecker.UnsealResult(blob, []string{activeKey, previousKey})
 err = fpchecker.VerifyWebhookSignature(rawBody, r.Header.Get("FPC-Signature"), secret, 5*time.Minute, time.Now())

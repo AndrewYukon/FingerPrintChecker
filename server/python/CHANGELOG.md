@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- Add `bot_check(*, method, url, ip, headers)` (`POST /v1/bot-check`) and the `bot_check_headers` helper that builds the forwardable header map (never Cookie or Authorization).
+- `parse_webhook_event` exposes `signals_version` (1 or 2) and `bot` (`BotSignals`, `BotInfo`): `result` may be `good`, and v2 events carry `info` (None when no directory bot was named).
+- `search_events` accepts `bot_result`, `bot_category`, `bot_identity`, `bot_id`.
+- OpenAPI updated to fp-guard ba3762c (branch feat/bot-classification).
+
 ## 0.3.0
 
 - Add typed mobile device-state signals: `signals.mobile` gains `rooted`, `hooked`, `debugger`, `developerMode`, `mitm`, `vpn`, `locationSpoofed`, `clonedApp` (true / false / null) and `factoryResetAt` (reserved, currently always null).

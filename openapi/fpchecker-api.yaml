@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: FPChecker API
-  version: 0.46.0
+  version: 0.48.0
   summary: The customer-facing HTTP API of FPChecker.
   description: |
     Identify a device, decide whether it may claim or use something, and read what was seen.
@@ -27,6 +27,12 @@ info:
     `error` and signal kinds) and unknown object properties. New values and properties may be added without a
     version bump; treat an unrecognised value as a generic refusal or ignore it, never as a parse failure.
 
+    **Management API.** Routes under `/v1/management/` take a management key (`mk_…`, header
+    `Authorization: Bearer`) instead of a project key, and act on the whole account: its projects, environments,
+    webhooks, rulesets, usage and audit log. Keys have a `read` or a `write` scope. Answers are
+    `{ "ok": true, … }` or `{ "ok": false, "error": "<code>" }`. Each account may make 120 reads and 30 changes
+    per minute. Billing, members, management keys, signing keys, proxy secrets and domains are not on this plane.
+
     **Not in this file.** Admin, console and network-check routes, and the older v1 challenge and identify
     protocol, are not part of the customer contract. The production API serves no OpenAPI route of its own.
 servers:
@@ -40,8 +46,12 @@ tags:
     description: Backend calls that spend an attestation (secret key).
   - name: Events
     description: Read and annotate what identify recorded (secret key).
+  - name: Bots
+    description: Header-only bot check for requests your backend received (secret key).
   - name: Operations
     description: Liveness and status (no key).
+  - name: Management
+    description: Manage the account's projects, environments, webhooks and rulesets from your own tooling (management key). Separate from the project keys above.
 paths:
   /v2/intents:
     post:
@@ -727,6 +737,83 @@ paths:
               examples:
                 internal:
                   value: { ok: false, reason: internal_error }
+  /v1/bot-check:
+    post:
+      operationId: botCheck
+      tags: [Bots]
+      summary: Check a request your backend received
+      description: |
+        Backend only. Forward the method, URL, client address and headers of a request you received and get back
+        who or what sent it. Header-only: no script ran in the sender, so `bot.types` holds only the types the
+        headers give away (`automation_tool`, `headless`, `missing_headers`). The address facts (`ip`, `vpn`,
+        `proxy`) come from our own data; there is no device clock, so no `timezone_mismatch`. Not charged, and no
+        event is written.
+
+        `bot.result` is `good` for a verified or signed directory bot, `bad` for a directory bot that is not
+        (`unknown` or `spoofed`) or for any request whose headers gave it away, and `not_detected` otherwise.
+        Only signers listed in the Bot directory can be `signed`; a valid signature from anyone else is ignored.
+
+        Send `url` as the visitor requested it: the original host and scheme, not the address of your origin behind
+        a CDN or load balancer. A signed request is checked against that host. Chrome sends no client hints over
+        plain http, so the missing-client-hints rule only applies to `https` URLs.
+
+        Forward only the headers you need, never `Cookie` or `Authorization`: `user-agent`, `accept`,
+        `accept-language`, `accept-encoding`, `sec-ch-ua`, `sec-ch-ua-mobile`, `sec-ch-ua-platform`,
+        `sec-fetch-site`, `sec-fetch-mode`, `sec-fetch-dest`, `sec-fetch-user`, `signature`, `signature-input`,
+        `signature-agent`, `upgrade-insecure-requests`. The body is at most 32 KiB, with at most 64 headers
+        (values up to 4096 characters) and a `url` up to 2048 characters.
+      security:
+        - secretKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BotCheckRequest'
+            examples:
+              browser:
+                value:
+                  method: GET
+                  url: 'https://shop.example/pricing'
+                  ip: 203.0.113.7
+                  headers:
+                    user-agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+                    accept: text/html
+                    accept-language: en-US
+                    sec-ch-ua: '"Chromium";v="126"'
+                    sec-fetch-site: none
+      responses:
+        '200':
+          description: The verdict.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BotCheckResponse' }
+              examples:
+                clean:
+                  value:
+                    bot: { result: not_detected, types: [], info: null }
+                    ip: { country: DE, asn: 64500, asName: Example Hosting GmbH, datacenter: false, tor: false, relay: false, blocklist: { result: false, sources: [] } }
+                    vpn: { result: false, methods: [] }
+                    proxy: { result: false, type: null }
+                tool:
+                  value:
+                    bot: { result: bad, types: [automation_tool], info: null }
+                    ip: { country: null, asn: null, asName: null, datacenter: null, tor: null, relay: null, blocklist: { result: null, sources: [] } }
+                    vpn: { result: null, methods: [] }
+                    proxy: { result: null, type: null }
+        '400':
+          description: '`invalid_request` with the offending `field` (`body`, `method`, `url`, `headers`), or `invalid_ip` for `ip`.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BotCheckInvalid' }
+              examples:
+                url:
+                  value: { ok: false, error: invalid_request, field: url }
+                ip:
+                  value: { ok: false, error: invalid_ip, field: ip }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimitedReason' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /v1/events:
     get:
       operationId: searchEvents
@@ -759,8 +846,24 @@ paths:
           schema: { $ref: '#/components/schemas/Platform' }
         - name: bot
           in: query
-          description: '`true` matches events where bot detection says `bad`, `false` those where it says `not_detected`.'
+          description: '`true` matches events where the bot result is `bad` (good bots are not counted), `false` those where it is `not_detected`.'
           schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: bot_result
+          in: query
+          description: Exact match on `signals.bot.result`. Events stored before server 0.48.0 have no `good`.
+          schema: { $ref: '#/components/schemas/BotResult' }
+        - name: bot_category
+          in: query
+          description: Exact match on `signals.bot.info.category`; events without a directory match have none.
+          schema: { $ref: '#/components/schemas/BotCategory' }
+        - name: bot_identity
+          in: query
+          description: Exact match on `signals.bot.info.identity`.
+          schema: { $ref: '#/components/schemas/BotIdentity' }
+        - name: bot_id
+          in: query
+          description: Exact match on `signals.bot.info.id`, one of the ids in the Bot directory.
+          schema: { $ref: '#/components/schemas/BotId' }
         - name: vpn
           in: query
           schema: { $ref: '#/components/schemas/BoolParam' }
@@ -961,7 +1064,7 @@ paths:
               schema: { $ref: '#/components/schemas/Health' }
               examples:
                 alive:
-                  value: { ok: true, version: 0.46.0, env: production, commit: 6bd97c0 }
+                  value: { ok: true, version: 0.48.0, env: production, commit: 6bd97c0 }
   /status:
     get:
       operationId: getStatus
@@ -977,7 +1080,7 @@ paths:
               schema: { $ref: '#/components/schemas/Status' }
               examples:
                 up:
-                  value: { ok: true, version: 0.46.0, maintenance: false, checks: { api: true, database: true, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
+                  value: { ok: true, version: 0.48.0, maintenance: false, checks: { api: true, database: true, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
         '503':
           description: Not able to serve.
           content:
@@ -985,7 +1088,716 @@ paths:
               schema: { $ref: '#/components/schemas/Status' }
               examples:
                 down:
-                  value: { ok: false, version: 0.46.0, maintenance: false, checks: { api: true, database: false, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
+                  value: { ok: false, version: 0.48.0, maintenance: false, checks: { api: true, database: false, cache: true }, checkedAt: '2026-10-25T09:30:00.000Z' }
+  /v1/management/account:
+    get:
+      operationId: managementGetAccount
+      tags: [Management]
+      summary: Get the account
+      description: Status, credit balance and the most recent credit lots (up to 200, newest first). Needs the `read` scope.
+      security:
+        - managementKey: []
+      responses:
+        '200':
+          description: The account.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementAccountResponse' }
+              examples:
+                account:
+                  value:
+                    ok: true
+                    account: { id: acc_0123456789abcdef, status: active, balance: 9500, grantedTotal: 10000, consumedTotal: 500, nextExpiryAt: '2027-10-26T00:00:00.000Z', createdAt: '2026-10-26T08:00:00.000Z' }
+                    lots: [{ id: 1, amount: 10000, remaining: 9500, grantedAt: '2026-10-26T08:00:00.000Z', expiresAt: '2027-10-26T00:00:00.000Z', expiredAt: null }]
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/management/usage:
+    get:
+      operationId: managementGetUsage
+      tags: [Management]
+      summary: Daily usage
+      description: Billed calls per day, project and endpoint. At most 92 days per request; the default is the last 30 days. Needs the `read` scope.
+      security:
+        - managementKey: []
+      parameters:
+        - name: from
+          in: query
+          description: First day, `YYYY-MM-DD` (UTC). Default 29 days before `to`.
+          schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        - name: to
+          in: query
+          description: Last day, `YYYY-MM-DD` (UTC). Default today.
+          schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+      responses:
+        '200':
+          description: Usage rows, oldest day first.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementUsageResponse' }
+              examples:
+                usage:
+                  value: { ok: true, rows: [{ day: '2026-10-26', projectId: prj_0123456789ab, endpoint: identify, n: 12 }] }
+        '400': { $ref: '#/components/responses/ManagementInvalid' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/management/audit:
+    get:
+      operationId: managementListAudit
+      tags: [Management]
+      summary: Account audit log
+      description: |
+        Every change made to the account through the console or the Management API, newest first. Entries are kept
+        for 400 days. Page with `nextCursor`. Needs the `read` scope.
+      security:
+        - managementKey: []
+      parameters:
+        - name: limit
+          in: query
+          description: 1 to 100.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: cursor
+          in: query
+          description: The `nextCursor` of the previous page.
+          schema: { type: string, pattern: '^\d{1,18}\.\d{1,18}$' }
+        - name: action
+          in: query
+          description: Exact action name, for example `project.update`.
+          schema: { type: string, minLength: 1, maxLength: 128 }
+        - name: actorId
+          in: query
+          description: Exact actor id (a user id, or a management key id such as `mkey_0123456789ab`).
+          schema: { type: string, minLength: 1, maxLength: 128 }
+        - name: from
+          in: query
+          description: Inclusive lower bound, ISO 8601 date or date-time.
+          schema: { type: string }
+        - name: to
+          in: query
+          description: Exclusive upper bound, ISO 8601 date or date-time.
+          schema: { type: string }
+      responses:
+        '200':
+          description: One page of entries.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementAuditPage' }
+              examples:
+                page:
+                  value:
+                    ok: true
+                    items:
+                      - { id: 41, at: '2026-10-26T09:00:00.000Z', actor: { type: management_key, id: mkey_0123456789ab, label: ci }, action: project.update, target: { type: project, id: prj_0123456789ab }, detail: { fields: [name] } }
+                    nextCursor: null
+        '400': { $ref: '#/components/responses/ManagementInvalid' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/management/projects:
+    get:
+      operationId: managementListProjects
+      tags: [Management]
+      summary: List projects
+      description: The account's projects, environments included, oldest first. Needs the `read` scope.
+      security:
+        - managementKey: []
+      responses:
+        '200':
+          description: The projects.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementProjectList' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: managementCreateProject
+      tags: [Management]
+      summary: Create a project
+      description: The new project's `secretKey` and `publishableKey` are in this answer and nowhere else. Needs the `write` scope.
+      security:
+        - managementKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ManagementProjectCreate' }
+            examples:
+              create:
+                value: { name: Shop, allowedOrigins: ['https://shop.example'] }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementProjectCreated' }
+        '400': { $ref: '#/components/responses/ManagementInvalid' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '403': { $ref: '#/components/responses/ManagementInsufficientScope' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '423': { $ref: '#/components/responses/ManagementAccountReview' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ManagementCommitUncertain' }
+  /v1/management/projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: managementGetProject
+      tags: [Management]
+      summary: Get a project
+      description: Needs the `read` scope.
+      security:
+        - managementKey: []
+      responses:
+        '200':
+          description: The project.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementProjectResponse' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    patch:
+      operationId: managementUpdateProject
+      tags: [Management]
+      summary: Update a project
+      description: |
+        Any of the listed fields; an empty body is `400 nothing_to_update`. Setting `disabled` to `false` on an
+        environment counts against the limit of three enabled environments (`409 environment_limit`).
+        A body containing `claimGroupId` is refused with `400 invalid_field`: claim groups are console-only.
+        Needs the `write` scope.
+      security:
+        - managementKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ManagementProjectPatch' }
+            examples:
+              rename:
+                value: { name: Shop (EU) }
+      responses:
+        '200':
+          description: The updated project.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementProjectResponse' }
+        '400': { $ref: '#/components/responses/ManagementInvalid' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '403': { $ref: '#/components/responses/ManagementInsufficientScope' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '409': { $ref: '#/components/responses/ManagementConflict' }
+        '423': { $ref: '#/components/responses/ManagementAccountReview' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ManagementCommitUncertain' }
+    delete:
+      operationId: managementDeleteProject
+      tags: [Management]
+      summary: Delete a project
+      description: |
+        Only a project that was never used can be deleted; otherwise `409 project_in_use` (disable it instead).
+        A project that still has environments is `409 environments_remaining`. Needs the `write` scope.
+      security:
+        - managementKey: []
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementProjectDeleted' }
+              examples:
+                deleted:
+                  value: { ok: true, deleted: prj_0123456789ab }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '403': { $ref: '#/components/responses/ManagementInsufficientScope' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '409': { $ref: '#/components/responses/ManagementConflict' }
+        '423': { $ref: '#/components/responses/ManagementAccountReview' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ManagementCommitUncertain' }
+  /v1/management/projects/{projectId}/rotate:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      operationId: managementRotateKey
+      tags: [Management]
+      summary: Rotate a project key
+      description: Replaces the project's secret or publishable key. The old key stops working at once; the new one is in this answer and nowhere else. Needs the `write` scope.
+      security:
+        - managementKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ManagementRotate' }
+            examples:
+              secret:
+                value: { key: secret }
+      responses:
+        '200':
+          description: The new key.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementRotated' }
+        '400': { $ref: '#/components/responses/ManagementInvalid' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '403': { $ref: '#/components/responses/ManagementInsufficientScope' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '423': { $ref: '#/components/responses/ManagementAccountReview' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ManagementCommitUncertain' }
+  /v1/management/projects/{projectId}/environments:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      operationId: managementCreateEnvironment
+      tags: [Management]
+      summary: Create an environment
+      description: |
+        An environment is a project of its own under a top-level project, with its own keys and events. It starts
+        with a copy of the parent's settings (policy, allowed origins, request filters, ruleset, event retention, and
+        the native and human-check credentials); webhooks, signing keys, proxy secrets, domains and claim groups are
+        not copied. At most three enabled environments per project (ten in total, disabled ones included).
+        `skipped` lists settings that could not be copied. Needs the `write` scope.
+      security:
+        - managementKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ManagementEnvironmentCreate' }
+            examples:
+              staging:
+                value: { name: staging }
+      responses:
+        '201':
+          description: Created. The new keys are in this answer and nowhere else.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementEnvironmentCreated' }
+        '400': { $ref: '#/components/responses/ManagementInvalid' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '403': { $ref: '#/components/responses/ManagementInsufficientScope' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '409': { $ref: '#/components/responses/ManagementConflict' }
+        '423': { $ref: '#/components/responses/ManagementAccountReview' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ManagementCommitUncertain' }
+  /v1/management/projects/{projectId}/copy-settings:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      operationId: managementCopySettings
+      tags: [Management]
+      summary: Copy settings from another environment
+      description: |
+        Overwrites this project's settings with those of another project of the same family (the parent or a sibling
+        environment). `404 project_not_found` for anything that is not in the same family. Needs the `write` scope.
+      security:
+        - managementKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ManagementCopySettings' }
+            examples:
+              copy:
+                value: { from: prj_0123456789ab }
+      responses:
+        '200':
+          description: The updated project.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementSettingsCopied' }
+        '400': { $ref: '#/components/responses/ManagementInvalid' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '403': { $ref: '#/components/responses/ManagementInsufficientScope' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '423': { $ref: '#/components/responses/ManagementAccountReview' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ManagementCommitUncertain' }
+  /v1/management/projects/{projectId}/webhooks:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: managementListWebhooks
+      tags: [Management]
+      summary: List webhook endpoints
+      description: Needs the `read` scope.
+      security:
+        - managementKey: []
+      responses:
+        '200':
+          description: The endpoints. Secrets are never listed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementWebhookList' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: managementCreateWebhook
+      tags: [Management]
+      summary: Create a webhook endpoint
+      description: |
+        The URL must be `https` and resolve to a public address. The signing `secret` is in this answer and nowhere
+        else. A project has a limited number of endpoints (`409 limit_reached`). Needs the `write` scope.
+      security:
+        - managementKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ManagementWebhookCreate' }
+            examples:
+              create:
+                value: { url: 'https://hooks.example.com/fpchecker' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementWebhookCreated' }
+        '400': { $ref: '#/components/responses/ManagementInvalid' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '403': { $ref: '#/components/responses/ManagementInsufficientScope' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '409': { $ref: '#/components/responses/ManagementConflict' }
+        '423': { $ref: '#/components/responses/ManagementAccountReview' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ManagementCommitUncertain' }
+  /v1/management/projects/{projectId}/webhooks/{webhookId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/WebhookId'
+    patch:
+      operationId: managementUpdateWebhook
+      tags: [Management]
+      summary: Enable or disable a webhook endpoint
+      description: Needs the `write` scope.
+      security:
+        - managementKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ManagementWebhookPatch' }
+            examples:
+              disable:
+                value: { enabled: false }
+      responses:
+        '200':
+          description: The endpoint.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementWebhookResponse' }
+        '400': { $ref: '#/components/responses/ManagementInvalid' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '403': { $ref: '#/components/responses/ManagementInsufficientScope' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '423': { $ref: '#/components/responses/ManagementAccountReview' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ManagementCommitUncertain' }
+    delete:
+      operationId: managementDeleteWebhook
+      tags: [Management]
+      summary: Delete a webhook endpoint
+      description: Needs the `write` scope.
+      security:
+        - managementKey: []
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementWebhookDeleted' }
+              examples:
+                deleted:
+                  value: { ok: true, deleted: wh_0123456789ABCDEF }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '403': { $ref: '#/components/responses/ManagementInsufficientScope' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '423': { $ref: '#/components/responses/ManagementAccountReview' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ManagementCommitUncertain' }
+  /v1/management/projects/{projectId}/webhooks/{webhookId}/rotate:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/WebhookId'
+    post:
+      operationId: managementRotateWebhookSecret
+      tags: [Management]
+      summary: Rotate a webhook signing secret
+      description: The new `secret` is in this answer and nowhere else. Needs the `write` scope.
+      security:
+        - managementKey: []
+      responses:
+        '200':
+          description: The new secret.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementWebhookRotated' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '403': { $ref: '#/components/responses/ManagementInsufficientScope' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '423': { $ref: '#/components/responses/ManagementAccountReview' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ManagementCommitUncertain' }
+  /v1/management/projects/{projectId}/ruleset:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: managementGetRuleset
+      tags: [Management]
+      summary: Get the ruleset
+      description: Needs the `read` scope.
+      security:
+        - managementKey: []
+      responses:
+        '200':
+          description: The stored ruleset (`version` 0 when none was ever saved).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementRulesetResponse' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: managementPutRuleset
+      tags: [Management]
+      summary: Save the ruleset
+      description: |
+        Replaces the whole ruleset. `ifVersion` is the `version` this edit was based on; if the stored version has
+        moved the answer is `409 version_conflict` with the current `version`, and nothing is saved. A rejected
+        ruleset is `400 invalid_ruleset` with the `path` of the first problem. Needs the `write` scope.
+      security:
+        - managementKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ManagementRulesetPut' }
+            examples:
+              save:
+                value:
+                  ifVersion: 0
+                  enabled: true
+                  rules:
+                    - { name: Block hosting, match: all, conditions: [{ field: ipKind, op: eq, value: hosting }], action: deny }
+      responses:
+        '200':
+          description: The saved ruleset, one version higher.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementRulesetResponse' }
+        '400': { $ref: '#/components/responses/ManagementInvalid' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '403': { $ref: '#/components/responses/ManagementInsufficientScope' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '409': { $ref: '#/components/responses/ManagementConflict' }
+        '423': { $ref: '#/components/responses/ManagementAccountReview' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ManagementUncertainOrUnavailable' }
+  /v1/management/projects/{projectId}/ruleset/test:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      operationId: managementTestRuleset
+      tags: [Management]
+      summary: Dry-run a draft ruleset
+      description: |
+        Evaluates a draft against one stored event and saves nothing. It changes nothing, so it needs only the `read`
+        scope, counts against the read rate limit, and still works while the account is under review.
+      security:
+        - managementKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ManagementRulesetTest' }
+            examples:
+              test:
+                value:
+                  eventId: ev_0123456789ABCDEFGHJK
+                  ruleset: { enabled: true, rules: [{ name: Block hosting, match: all, conditions: [{ field: ipKind, op: eq, value: hosting }], action: deny }] }
+      responses:
+        '200':
+          description: What the draft would decide for that event.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementRulesetTestResult' }
+        '400': { $ref: '#/components/responses/ManagementInvalid' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ManagementUnavailable' }
+  /v1/management/projects/{projectId}/events:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: managementSearchEvents
+      tags: [Management]
+      summary: Search a project's events
+      description: |
+        The same filters, paging and limits as `searchEvents` (`GET /v1/events`), for the project in the path.
+        Needs the `read` scope.
+      security:
+        - managementKey: []
+      parameters:
+        - name: visitorId
+          in: query
+          schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,80}$' }
+        - name: linkedId
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 256 }
+        - name: ip
+          in: query
+          schema: { type: string }
+        - name: suspect
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: platform
+          in: query
+          schema: { $ref: '#/components/schemas/Platform' }
+        - name: bot
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: vpn
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: proxy
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: tor
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: incognito
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: tampering
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: virtualMachine
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: rooted
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: hooked
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: emulator
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: mitm
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: locationSpoofed
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: clonedApp
+          in: query
+          schema: { $ref: '#/components/schemas/BoolParam' }
+        - name: bot_result
+          in: query
+          schema: { $ref: '#/components/schemas/BotResult' }
+        - name: bot_category
+          in: query
+          schema: { $ref: '#/components/schemas/BotCategory' }
+        - name: bot_identity
+          in: query
+          schema: { $ref: '#/components/schemas/BotIdentity' }
+        - name: bot_id
+          in: query
+          schema: { $ref: '#/components/schemas/BotId' }
+        - name: start
+          in: query
+          schema: { type: string }
+        - name: end
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: One page of events.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementEventPage' }
+        '400': { $ref: '#/components/responses/ManagementInvalid' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/management/projects/{projectId}/events/{eventId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/EventId'
+    get:
+      operationId: managementGetEvent
+      tags: [Management]
+      summary: Get one event
+      description: Needs the `read` scope.
+      security:
+        - managementKey: []
+      responses:
+        '200':
+          description: The event.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementEventResponse' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/management/projects/{projectId}/visitors/{visitorId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - name: visitorId
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,80}$' }
+    get:
+      operationId: managementGetVisitor
+      tags: [Management]
+      summary: Summarise a visitor
+      description: Erasing a visitor is not available here. Needs the `read` scope.
+      security:
+        - managementKey: []
+      responses:
+        '200':
+          description: The visitor summary.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagementVisitorResponse' }
+        '401': { $ref: '#/components/responses/ManagementUnauthorized' }
+        '404': { $ref: '#/components/responses/ManagementNotFound' }
+        '429': { $ref: '#/components/responses/ManagementRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
 webhooks:
   event:
     post:
@@ -1056,13 +1868,121 @@ components:
       in: header
       name: X-Publishable-Key
       description: The project's publishable key (`pk_…`). Safe in a browser or app.
+    managementKey:
+      type: http
+      scheme: bearer
+      description: |
+        A management key, format `mk_…` (`mk_` plus 43 URL-safe characters), sent as `Authorization: Bearer mk_…`.
+        Created and revoked in the console, shown once. Scope `read` allows `GET` routes and the ruleset dry run;
+        scope `write` allows everything on this plane. Any key that is unknown, revoked, expired, malformed or
+        belongs to a deleted account is the same `401 invalid_management_key`.
   parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^prj_[0-9a-f]{12}$' }
+    WebhookId:
+      name: webhookId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^wh_[0-9A-HJKMNP-TV-Z]{16}$' }
     EventId:
       name: eventId
       in: path
       required: true
       schema: { type: string, pattern: '^ev_[0-9A-HJKMNP-TV-Z]{20}$' }
   responses:
+    ManagementUnauthorized:
+      description: The management key is missing, malformed, unknown, revoked or expired. One answer for all of them.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            invalid:
+              value: { ok: false, error: invalid_management_key }
+    ManagementInsufficientScope:
+      description: The key has the `read` scope and this route needs `write`.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            scope:
+              value: { ok: false, error: insufficient_scope }
+    ManagementAccountReview:
+      description: The account is under review. Reads and the ruleset dry run still work; changes are refused.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            review:
+              value: { ok: false, error: account_review }
+    ManagementRateLimited:
+      description: The account's budget is spent (120 reads or 30 changes per minute, counted separately). Nothing was changed; retry after `Retry-After` seconds (the counters are fixed 60-second windows). If the limiter itself cannot be reached the call is refused the same way.
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying.
+          schema: { type: string, example: '60' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/RateLimitError' }
+          examples:
+            limited:
+              value: { ok: false, error: rate_limited }
+    ManagementNotFound:
+      description: 'The project, webhook, event or visitor does not exist, or is not this account''s. All of those answer the same, so ids cannot be probed. A path the Management API does not have is also `404 not_found`.'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            project:
+              value: { ok: false, error: project_not_found }
+            other:
+              value: { ok: false, error: not_found }
+    ManagementInvalid:
+      description: A malformed parameter or body. `error` names the problem (`invalid_name`, `invalid_body`, `invalid_ruleset`, ...); `invalid_ruleset` and `invalid_request_filters` add a `path`.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            invalid:
+              value: { ok: false, error: invalid_name }
+            ruleset:
+              value: { ok: false, error: invalid_ruleset, path: 'rules[0].action' }
+    ManagementConflict:
+      description: The request conflicts with the current state (`environment_limit`, `environment_exists`, `not_top_level`, `environments_remaining`, `project_in_use`, `version_conflict`, `limit_reached`).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            conflict:
+              value: { ok: false, error: version_conflict, version: 3 }
+    ManagementCommitUncertain:
+      description: The database did not confirm whether this change was committed. Read the resource to see whether it took effect before repeating the call.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            uncertain:
+              value: { ok: false, error: commit_uncertain }
+    ManagementUncertainOrUnavailable:
+      description: Either a limiter this route depends on could not be reached and nothing was changed (`unavailable`; retry), or the database did not confirm whether the change was committed (`commit_uncertain`; read the resource before repeating).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            unavailable:
+              value: { ok: false, error: unavailable }
+            uncertain:
+              value: { ok: false, error: commit_uncertain }
+    ManagementUnavailable:
+      description: A limiter this route depends on could not be reached; nothing was changed. Retry.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            unavailable:
+              value: { ok: false, error: unavailable }
     Unauthorized:
       description: The key is missing, malformed, unknown, or of the wrong kind for this route.
       content:
@@ -1141,6 +2061,352 @@ components:
             internal:
               value: { ok: false, error: internal_error }
   schemas:
+    ManagementAccount:
+      type: object
+      required: [id, status, balance, grantedTotal, consumedTotal, nextExpiryAt, createdAt]
+      properties:
+        id: { type: string }
+        status: { type: string, description: '`active`, or `review` while the account is under review. New values may be added.' }
+        balance: { type: integer, description: Credits left. }
+        grantedTotal: { type: integer }
+        consumedTotal: { type: integer }
+        nextExpiryAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+    ManagementLot:
+      type: object
+      required: [id, amount, remaining, grantedAt, expiresAt, expiredAt]
+      properties:
+        id: { type: integer }
+        amount: { type: integer }
+        remaining: { type: integer }
+        grantedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        expiredAt: { type: [string, 'null'], format: date-time }
+    ManagementAccountResponse:
+      type: object
+      required: [ok, account, lots]
+      properties:
+        ok: { const: true }
+        account: { $ref: '#/components/schemas/ManagementAccount' }
+        lots:
+          type: array
+          items: { $ref: '#/components/schemas/ManagementLot' }
+    ManagementUsageResponse:
+      type: object
+      required: [ok, rows]
+      properties:
+        ok: { const: true }
+        rows:
+          type: array
+          items:
+            type: object
+            required: [day, projectId, endpoint, n]
+            properties:
+              day: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+              projectId: { type: string }
+              endpoint: { type: string }
+              n: { type: integer }
+    ManagementAuditItem:
+      type: object
+      required: [id, at, actor, action, target, detail]
+      properties:
+        id: { type: integer }
+        at: { type: string, format: date-time }
+        actor:
+          type: object
+          required: [type, id, label]
+          properties:
+            type: { type: string, description: '`user`, `management_key` or `system`. New values may be added.' }
+            id: { type: string }
+            label: { type: [string, 'null'] }
+        action: { type: string, description: A dotted name such as `project.update`. New actions may be added. }
+        target:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [type, id]
+              properties:
+                type: { type: string }
+                id: { type: string }
+        detail: { type: object, description: Small, action-specific facts. Never a key or a secret. }
+    ManagementAuditPage:
+      type: object
+      required: [ok, items, nextCursor]
+      properties:
+        ok: { const: true }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ManagementAuditItem' }
+        nextCursor: { type: [string, 'null'], description: Pass as `cursor`; null on the last page. }
+    ManagementProject:
+      type: object
+      required: [id, sealKey, name, disabled, allowedOrigins, hasTurnstileSecret, nativeConfig, policy, claimGroupId, eventRetentionDays, requestFilters, ruleset, createdAt, environment, environmentOf]
+      properties:
+        id: { type: string, pattern: '^prj_[0-9a-f]{12}$' }
+        sealKey: { type: string, description: "Read-only here. The browser agent's upload key; it ships in the customer's page. Managed in the console." }
+        name: { type: string }
+        disabled: { type: boolean }
+        allowedOrigins:
+          type: array
+          items: { type: string }
+        hasTurnstileSecret: { type: boolean, description: The secret itself is never returned. }
+        nativeConfig: { type: [object, 'null'], description: App credentials with all key material left out. }
+        policy: { type: object, description: The project's policy settings. New settings may be added. }
+        claimGroupId: { type: [string, 'null'], description: Read-only here; set in the console. A PATCH containing it is refused with `invalid_field`. }
+        eventRetentionDays: { type: integer, minimum: 7, maximum: 90 }
+        requestFilters: { type: object, description: 'Request filters: `ipDeny`, `headerRules`, `blockCrawlers`.' }
+        ruleset: { $ref: '#/components/schemas/ManagementRuleset' }
+        createdAt: { type: string, format: date-time }
+        environment: { type: string, description: '`production` for a top-level project, otherwise the environment name.' }
+        environmentOf: { type: [string, 'null'], description: The parent project's id; null for a top-level project. }
+    ManagementProjectResponse:
+      type: object
+      required: [ok, project]
+      properties:
+        ok: { const: true }
+        project: { $ref: '#/components/schemas/ManagementProject' }
+    ManagementProjectList:
+      type: object
+      required: [ok, projects]
+      properties:
+        ok: { const: true }
+        projects:
+          type: array
+          items: { $ref: '#/components/schemas/ManagementProject' }
+    ManagementProjectCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        allowedOrigins:
+          type: array
+          maxItems: 20
+          items: { type: string }
+    ManagementProjectCreated:
+      type: object
+      required: [ok, project, publishableKey, secretKey]
+      properties:
+        ok: { const: true }
+        project: { $ref: '#/components/schemas/ManagementProject' }
+        publishableKey: { type: string, description: Shown once. }
+        secretKey: { type: string, description: Shown once. }
+    ManagementProjectPatch:
+      type: object
+      description: At least one field. Unlisted fields are ignored.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        allowedOrigins:
+          type: array
+          maxItems: 20
+          items: { type: string }
+        disabled: { type: boolean }
+        eventRetentionDays: { type: integer, minimum: 7, maximum: 90 }
+        turnstileSecret: { type: [string, 'null'], description: Write-only; null removes it. }
+        requestFilters: { type: [object, 'null'], description: 'Null resets to no filters.' }
+        policy: { type: object, description: The settings to change; the rest keep their values. }
+        nativeConfig: { type: [object, 'null'], description: Write-only app credentials. }
+    ManagementProjectDeleted:
+      type: object
+      required: [ok, deleted]
+      properties:
+        ok: { const: true }
+        deleted: { type: string, description: The deleted project's id. }
+    ManagementRotate:
+      type: object
+      required: [key]
+      properties:
+        key: { type: string, enum: [secret, publishable] }
+    ManagementRotated:
+      type: object
+      required: [ok, key]
+      properties:
+        ok: { const: true }
+        key: { type: string, description: The new key (`sk_…` or `pk_…`). Shown once. }
+    ManagementEnvironmentCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, pattern: '^[a-z][a-z0-9-]{0,19}$', description: 'Lower case; `production` is the top-level project and cannot be used.' }
+    ManagementEnvironmentCreated:
+      type: object
+      required: [ok, project, publishableKey, secretKey, skipped]
+      properties:
+        ok: { const: true }
+        project: { $ref: '#/components/schemas/ManagementProject' }
+        publishableKey: { type: string, description: Shown once. }
+        secretKey: { type: string, description: Shown once. }
+        skipped:
+          type: array
+          description: Settings that could not be copied and were left empty. New values may be added.
+          items: { type: string }
+    ManagementCopySettings:
+      type: object
+      required: [from]
+      properties:
+        from: { type: string, pattern: '^prj_[0-9a-f]{12}$', description: Another project of the same family. }
+    ManagementSettingsCopied:
+      type: object
+      required: [ok, project, skipped]
+      properties:
+        ok: { const: true }
+        project: { $ref: '#/components/schemas/ManagementProject' }
+        skipped:
+          type: array
+          items: { type: string }
+    ManagementWebhook:
+      type: object
+      required: [webhookId, url, enabled, disabledReason, createdAt]
+      properties:
+        webhookId: { type: string, pattern: '^wh_[0-9A-HJKMNP-TV-Z]{16}$' }
+        url: { type: string }
+        enabled: { type: boolean }
+        disabledReason: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+    ManagementWebhookList:
+      type: object
+      required: [ok, webhooks]
+      properties:
+        ok: { const: true }
+        webhooks:
+          type: array
+          items: { $ref: '#/components/schemas/ManagementWebhook' }
+    ManagementWebhookCreate:
+      type: object
+      required: [url]
+      additionalProperties: false
+      properties:
+        url: { type: string, format: uri }
+    ManagementWebhookCreated:
+      type: object
+      required: [ok, webhook, secret]
+      properties:
+        ok: { const: true }
+        webhook: { $ref: '#/components/schemas/ManagementWebhook' }
+        secret: { type: string, description: The signing secret. Shown once. }
+    ManagementWebhookPatch:
+      type: object
+      required: [enabled]
+      additionalProperties: false
+      properties:
+        enabled: { type: boolean }
+    ManagementWebhookResponse:
+      type: object
+      required: [ok, webhook]
+      properties:
+        ok: { const: true }
+        webhook: { $ref: '#/components/schemas/ManagementWebhook' }
+    ManagementWebhookDeleted:
+      type: object
+      required: [ok, deleted]
+      properties:
+        ok: { const: true }
+        deleted: { type: string }
+    ManagementWebhookRotated:
+      type: object
+      required: [ok, secret]
+      properties:
+        ok: { const: true }
+        secret: { type: string, description: The new signing secret. Shown once. }
+    ManagementCondition:
+      type: object
+      required: [field, op, value]
+      properties:
+        field: { type: string }
+        op: { type: string, enum: [eq, neq, gt, gte, lt, lte, in, not_in, includes, not_includes] }
+        value:
+          oneOf:
+            - { type: boolean }
+            - { type: number }
+            - { type: string }
+            - { type: array, items: { type: string } }
+    ManagementRuleInput:
+      type: object
+      required: [name, match, conditions, action]
+      properties:
+        id: { type: string, description: Keeps the id of an existing rule; omit for a new one. }
+        name: { type: string, minLength: 1, maxLength: 80 }
+        enabled: { type: boolean, default: true }
+        match: { type: string, enum: [all, any] }
+        conditions:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items: { $ref: '#/components/schemas/ManagementCondition' }
+        action: { type: string, enum: [allow, human_check, deny] }
+    ManagementRule:
+      allOf:
+        - $ref: '#/components/schemas/ManagementRuleInput'
+        - type: object
+          required: [id, enabled]
+    ManagementRuleset:
+      type: object
+      required: [version, enabled, rules]
+      properties:
+        version: { type: integer, minimum: 0 }
+        enabled: { type: boolean }
+        rules:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/ManagementRule' }
+    ManagementRulesetResponse:
+      type: object
+      required: [ok, ruleset]
+      properties:
+        ok: { const: true }
+        ruleset: { $ref: '#/components/schemas/ManagementRuleset' }
+    ManagementRulesetPut:
+      type: object
+      required: [ifVersion, enabled, rules]
+      properties:
+        ifVersion: { type: integer, minimum: 0, description: The `version` this edit is based on. }
+        enabled: { type: boolean }
+        rules:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/ManagementRuleInput' }
+    ManagementRulesetTest:
+      type: object
+      required: [eventId, ruleset]
+      properties:
+        eventId: { type: string, pattern: '^ev_[0-9A-HJKMNP-TV-Z]{20}$' }
+        ruleset:
+          type: object
+          required: [enabled, rules]
+          properties:
+            enabled: { type: boolean }
+            rules:
+              type: array
+              items: { $ref: '#/components/schemas/ManagementRuleInput' }
+    ManagementRulesetTestResult:
+      type: object
+      required: [ok, type, trace]
+      properties:
+        ok: { const: true }
+        type: { type: string, description: '`allow`, `human_check`, `deny`, or `none` when no rule matched. New values may be added.' }
+        ruleId: { type: string }
+        ruleName: { type: string }
+        trace: { type: array, items: {}, description: One entry per rule evaluated. }
+    ManagementEventPage:
+      type: object
+      required: [ok, events, next]
+      properties:
+        ok: { const: true }
+        events:
+          type: array
+          items: { $ref: '#/components/schemas/Event' }
+        next: { type: [string, 'null'], description: 'Pass as `cursor`. Can be non-null on an exactly full last page: loop until it is null.' }
+    ManagementEventResponse:
+      type: object
+      required: [ok, event]
+      properties:
+        ok: { const: true }
+        event: { $ref: '#/components/schemas/Event' }
+    ManagementVisitorResponse:
+      type: object
+      required: [ok, visitor]
+      properties:
+        ok: { const: true }
+        visitor: { $ref: '#/components/schemas/Visitor' }
     Error:
       type: object
       description: The common failure shape. `error` is a stable code.
@@ -1517,14 +2783,11 @@ components:
         '5m': { type: integer }
         '1h': { type: integer }
         '24h': { type: integer }
-    Signals:
+    SignalsCommon:
       type: object
-      description: |
-        What the server learned about the visit (version 1). **Unknown is `null`, never `false`**: `false` means the
-        check ran and found nothing. Evidence to weigh, not verdicts.
-      required: [version, ip, vpn, proxy, bot, incognito, tampering, privacyBrowser, virtualMachine, devtools, velocity, mobile]
+      description: The signal fields that are the same in every signals version. See `Signals`.
+      required: [ip, vpn, proxy, incognito, tampering, privacyBrowser, virtualMachine, devtools, velocity, mobile]
       properties:
-        version: { const: 1 }
         ip:
           type: object
           required: [country, city, timezone, asn, asName, datacenter, tor, relay, blocklist]
@@ -1559,14 +2822,6 @@ components:
           properties:
             result: { type: [boolean, 'null'] }
             type: { enum: [datacenter, null] }
-        bot:
-          type: object
-          required: [result, types]
-          properties:
-            result: { enum: [not_detected, bad, null] }
-            types:
-              type: array
-              items: { type: string, enum: [webdriver, headless, playwright, selenium, inhuman_timing, inconsistent_environment] }
         incognito: { type: [boolean, 'null'], description: Reserved; currently always null. }
         tampering:
           type: object
@@ -1612,6 +2867,295 @@ components:
                 locationSpoofed: { type: [boolean, 'null'], description: *tri }
                 clonedApp: { type: [boolean, 'null'], description: *tri }
                 factoryResetAt: { type: [string, 'null'], pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$', description: 'UTC date of the last device setup (android only); `null` when unknown.' }
+    Signals:
+      description: |
+        What the server learned about the visit. **Unknown is `null`, never `false`**: `false` means the check ran
+        and found nothing. Evidence to weigh, not verdicts. `version` is `2` for every event stored by server
+        0.48.0 or later; older events are read back as version 1 (no `good` result and no `bot.info`).
+      oneOf:
+        - $ref: '#/components/schemas/SignalsV1'
+        - $ref: '#/components/schemas/SignalsV2'
+    SignalsV1:
+      description: Signals of an event stored before server 0.48.0.
+      allOf:
+        - $ref: '#/components/schemas/SignalsCommon'
+        - type: object
+          required: [version, bot]
+          properties:
+            version: { const: 1 }
+            bot:
+              type: object
+              required: [result, types]
+              properties:
+                result: { enum: [not_detected, bad, null] }
+                types:
+                  type: array
+                  items: { $ref: '#/components/schemas/BotType' }
+    SignalsV2:
+      description: Signals of an event stored by server 0.48.0 or later.
+      allOf:
+        - $ref: '#/components/schemas/SignalsCommon'
+        - type: object
+          required: [version, bot]
+          properties:
+            version: { const: 2 }
+            bot:
+              type: object
+              required: [result, types, info]
+              properties:
+                result:
+                  enum: [not_detected, good, bad, null]
+                  description: '`good` is a directory bot whose identity is `verified` or `signed`. A directory bot that is `unknown` or `spoofed` is `bad`. New values may be added; treat an unknown value as `bad`.'
+                types:
+                  type: array
+                  items: { $ref: '#/components/schemas/BotType' }
+                info:
+                  description: Who the bot is, when the request named an entry of the Bot directory; otherwise `null`.
+                  oneOf:
+                    - type: 'null'
+                    - $ref: '#/components/schemas/BotInfo'
+    BotType:
+      type: string
+      enum: [webdriver, headless, playwright, selenium, inhuman_timing, inconsistent_environment]
+      description: New values may be added; ignore a value you do not know.
+    BotHeaderType:
+      type: string
+      enum: [automation_tool, headless, missing_headers]
+      description: What the headers of a single request give away. New values may be added; ignore a value you do not know.
+    BotResult:
+      type: string
+      enum: [not_detected, good, bad]
+    BotCategory:
+      type: string
+      enum: [search_crawler, ai_crawler, ai_search, ai_assistant, ai_agent, seo, monitoring, social_preview, advertising, aggregator, scraping, other]
+      description: New values may be added; treat an unknown value as `other`.
+    BotIdentity:
+      type: string
+      enum: [verified, signed, unknown, spoofed]
+      description: '`verified` = the address matches the operator''s published ranges or reverse DNS; `signed` = a valid signature from a signer listed in the Bot directory; `unknown` = could not be confirmed; `spoofed` = claims to be the bot, but the address or signature says otherwise.'
+    BotId:
+      type: string
+      description: The id of an entry of the Bot directory. New ids are added as the directory grows.
+      enum:
+        - googlebot
+        - google-storebot
+        - google-inspection-tool
+        - googleother
+        - google-cloudvertexbot
+        - bingbot
+        - bingpreview
+        - adidxbot
+        - yahoo-slurp
+        - duckduckbot
+        - baiduspider
+        - yandexbot
+        - yandex-images
+        - applebot
+        - sogou-spider
+        - naver-yeti
+        - daumoa
+        - seznambot
+        - mojeekbot
+        - qwantify
+        - coccocbot
+        - petalbot
+        - mail-ru-bot
+        - 360spider
+        - bravebot
+        - adsbot-google
+        - mediapartners-google
+        - apis-google
+        - google-read-aloud
+        - google-site-verifier
+        - feedfetcher-google
+        - google-notebooklm
+        - chrome-lighthouse
+        - gptbot
+        - oai-searchbot
+        - chatgpt-user
+        - chatgpt-agent
+        - oai-adsbot
+        - claudebot
+        - claude-searchbot
+        - claude-user
+        - anthropic-ai
+        - perplexitybot
+        - perplexity-user
+        - duckassistbot
+        - ccbot
+        - bytespider
+        - tiktokspider
+        - amazonbot
+        - amzn-searchbot
+        - amzn-user
+        - amazon-buy-for-me
+        - amazon-ad-bot
+        - meta-externalagent
+        - meta-externalfetcher
+        - meta-webindexer
+        - facebookbot
+        - cohere-ai
+        - cohere-training-data-crawler
+        - diffbot
+        - ai2bot
+        - mistralai-user
+        - timpibot
+        - imagesiftbot
+        - icc-crawler
+        - sbintuitionsbot
+        - cotoyogi
+        - factset-spyderbot
+        - velenpublicwebcrawler
+        - youbot
+        - phindbot
+        - andibot
+        - kimi-searchbot
+        - exasearchbot
+        - semrushbot
+        - semrushbot-swa
+        - semrushbot-ocob
+        - siteauditbot
+        - ahrefsbot
+        - ahrefssiteaudit
+        - mj12bot
+        - dotbot
+        - rogerbot
+        - screaming-frog
+        - dataforseobot
+        - blexbot
+        - seokicks
+        - serpstatbot
+        - sistrix
+        - megaindex
+        - barkrowler
+        - contentking
+        - uptimerobot
+        - pingdom
+        - statuscake
+        - site24x7
+        - hetrixtools
+        - uptime-kuma
+        - gtmetrix
+        - datadog-synthetics
+        - checkly
+        - siteimprove
+        - better-stack
+        - facebookexternalhit
+        - twitterbot
+        - linkedinbot
+        - slackbot
+        - discordbot
+        - telegrambot
+        - whatsapp
+        - pinterestbot
+        - redditbot
+        - skypeuripreview
+        - embedly
+        - iframely
+        - mastodon
+        - vkshare
+        - quora-link-preview
+        - bitlybot
+        - feedly
+        - flipboard
+        - inoreader
+        - newsblur
+        - feedbin
+        - theoldreader
+        - feedspot
+        - bazqux
+        - miniflux
+        - freshrss
+        - omgili
+        - yandex-direct
+        - criteobot
+        - scrapy
+        - httrack
+        - img2dataset
+        - crawl4ai
+        - archive-org-bot
+        - heritrix
+        - w3c-validator
+        - netcraft
+        - censys
+        - google-favicon
+    BotInfo:
+      type: object
+      description: One entry of the Bot directory and how well the request matched it.
+      required: [id, name, provider, category, identity]
+      properties:
+        id: { type: string, description: 'Stable id, for example `googlebot`; the values of `bot_id`.' }
+        name: { type: string }
+        provider: { type: string }
+        category: { $ref: '#/components/schemas/BotCategory' }
+        identity: { $ref: '#/components/schemas/BotIdentity' }
+    BotCheckRequest:
+      type: object
+      required: [method, url, ip, headers]
+      properties:
+        method: { type: string, enum: [GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS], description: Case-insensitive. }
+        url: { type: string, maxLength: 2048, description: 'An absolute http or https URL, as the visitor requested it (original host and scheme).' }
+        ip: { type: string, description: The client address of the request (IPv4 or IPv6, no zone id). }
+        headers:
+          type: object
+          maxProperties: 64
+          additionalProperties: { type: string, maxLength: 4096 }
+          description: The request headers listed in the operation description, never `Cookie` or `Authorization`. Names are case-insensitive.
+    BotCheckResponse:
+      type: object
+      required: [bot, ip, vpn, proxy]
+      properties:
+        bot:
+          type: object
+          required: [result, types, info]
+          properties:
+            result: { $ref: '#/components/schemas/BotResult' }
+            types:
+              type: array
+              items: { $ref: '#/components/schemas/BotHeaderType' }
+            info:
+              oneOf:
+                - type: 'null'
+                - $ref: '#/components/schemas/BotInfo'
+        ip:
+          type: object
+          required: [country, asn, asName, datacenter, tor, relay, blocklist]
+          properties:
+            country: { type: [string, 'null'] }
+            asn: { type: [integer, 'null'] }
+            asName: { type: [string, 'null'], description: 'Where you show it, add "IP address data powered by IPinfo".' }
+            datacenter: { type: [boolean, 'null'] }
+            tor: { type: [boolean, 'null'] }
+            relay: { type: [boolean, 'null'] }
+            blocklist:
+              type: object
+              required: [result, sources]
+              properties:
+                result: { type: [boolean, 'null'] }
+                sources:
+                  type: array
+                  items: { type: string }
+        vpn:
+          type: object
+          required: [result, methods]
+          properties:
+            result: { type: [boolean, 'null'] }
+            methods:
+              type: array
+              items: { type: string, enum: [ip_range, relay], description: New values may be added; ignore a value you do not know. }
+        proxy:
+          type: object
+          required: [result, type]
+          properties:
+            result: { type: [boolean, 'null'] }
+            type: { enum: [datacenter, null] }
+    BotCheckInvalid:
+      type: object
+      required: [ok, error, field]
+      properties:
+        ok: { const: false }
+        error: { enum: [invalid_request, invalid_ip], description: New values may be added. }
+        field: { type: string }
     RuleAction:
       type: object
       required: [type, rulesetVersion]
@@ -1685,7 +3229,7 @@ components:
         origin: 'https://shop.example'
         agentVersion: 0.9.0
         signals:
-          version: 1
+          version: 2
           ip:
             country: DE
             city: Berlin
@@ -1698,7 +3242,7 @@ components:
             blocklist: { result: false, sources: [] }
           vpn: { result: true, methods: [timezone_mismatch] }
           proxy: { result: true, type: datacenter }
-          bot: { result: bad, types: [headless] }
+          bot: { result: bad, types: [headless], info: null }
           incognito: null
           tampering: { result: false, antiDetectBrowser: false }
           privacyBrowser: { result: false, name: null }
