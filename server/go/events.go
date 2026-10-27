@@ -37,6 +37,31 @@ type EventSignals struct {
 	Mobile *MobileSignals `json:"mobile"`
 }
 
+// UnmarshalJSON tolerates a wrong type anywhere: a malformed signals object, version, bot, vpn or mobile
+// yields the zero value for that part, never an error.
+func (e *EventSignals) UnmarshalJSON(b []byte) error {
+	var m map[string]json.RawMessage
+	if json.Unmarshal(b, &m) != nil {
+		*e = EventSignals{}
+		return nil
+	}
+	out := EventSignals{}
+	var v int
+	if json.Unmarshal(m["version"], &v) == nil && (v == 1 || v == 2) {
+		out.Version = v
+	}
+	_ = json.Unmarshal(m["bot"], &out.Bot)
+	_ = json.Unmarshal(m["vpn"], &out.Vpn)
+	if r := m["mobile"]; string(r) != "null" {
+		var mob MobileSignals
+		if json.Unmarshal(r, &mob) == nil && len(r) > 0 && r[0] == '{' {
+			out.Mobile = &mob
+		}
+	}
+	*e = out
+	return nil
+}
+
 // VpnSignal carries the methods that reached the VPN verdict. Methods is an open set
 // (timezone_mismatch, ip_range, relay, os_vpn, ...): ignore a value you do not know.
 type VpnSignal struct {

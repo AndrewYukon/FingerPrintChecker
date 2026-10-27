@@ -29,6 +29,36 @@ type BotSignal struct {
 	Info   *BotInfo `json:"info"`
 }
 
+// UnmarshalJSON tolerates a wrong type anywhere in the object: a malformed field is zero/nil, never an error.
+func (b *BotSignal) UnmarshalJSON(raw []byte) error {
+	var m map[string]json.RawMessage
+	if json.Unmarshal(raw, &m) != nil {
+		*b = BotSignal{}
+		return nil
+	}
+	out := BotSignal{}
+	if json.Unmarshal(m["result"], &out.Result) != nil {
+		out.Result = ""
+	}
+	var types []any
+	if json.Unmarshal(m["types"], &types) == nil {
+		for _, x := range types {
+			if s, ok := x.(string); ok {
+				out.Types = append(out.Types, s)
+			}
+		}
+	}
+	var info map[string]any
+	if json.Unmarshal(m["info"], &info) == nil && info != nil {
+		str := func(k string) string { s, _ := info[k].(string); return s }
+		if id := str("id"); id != "" {
+			out.Info = &BotInfo{ID: id, Name: str("name"), Provider: str("provider"), Category: str("category"), Identity: str("identity")}
+		}
+	}
+	*b = out
+	return nil
+}
+
 // BotCheckRequest is the request your backend received. URL is as the visitor requested it
 // (original host and scheme, not your origin behind a CDN). Build Headers with BotCheckHeaders.
 type BotCheckRequest struct {
