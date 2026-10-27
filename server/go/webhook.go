@@ -12,10 +12,11 @@ import (
 )
 
 var (
-	tPattern  = regexp.MustCompile(`^[0-9]{1,12}$`)
-	hex64     = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
-	errNegTol = errors.New("fpchecker: webhook tolerance must be >= 0")
-	wsChars   = " \t\r\n"
+	tPattern       = regexp.MustCompile(`^[0-9]{1,12}$`)
+	hex64          = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
+	errEmptySecret = errors.New("fpchecker: webhook secret must not be empty")
+	errNegTol      = errors.New("fpchecker: webhook tolerance must be >= 0")
+	wsChars        = " \t\r\n"
 )
 
 // DefaultWebhookTolerance is the recommended replay window.
@@ -57,6 +58,9 @@ func parseSignatureHeader(header string) (tRaw string, t int64, v1 []string, ok 
 // Check order: header, signature, then the time window (so forged requests
 // learn nothing about the clock). A zero now means time.Now().
 func VerifyWebhookSignature(rawBody []byte, header, secret string, tolerance time.Duration, now time.Time) error {
+	if secret == "" {
+		return errEmptySecret
+	}
 	if tolerance < 0 {
 		return errNegTol
 	}

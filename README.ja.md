@@ -178,13 +178,14 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 | Node.js サーバー SDK、`@fingerprintchecker/node` | [`server/node`](server/node) | `npm install @fingerprintchecker/node` |
 | Python サーバー SDK、`fpchecker` | [`server/python`](server/python) | `pip install fingerprintchecker` |
 | Go サーバー SDK | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
+| Java サーバー SDK、`com.fpchecker:fpchecker-server-java` | [`server/java`](server/java) | Maven Central: `com.fpchecker:fpchecker-server-java:0.1.0` |
+| PHP サーバー SDK、`fpchecker/fpchecker-php` | [`server/php`](server/php) | GitHub リリースの zip から。[server/php/README.md](server/php/README.md) を参照 |
+| .NET サーバー SDK、`FingerPrintChecker.Server` | [`server/dotnet`](server/dotnet) | GitHub リリースの .nupkg から。[server/dotnet/README.md](server/dotnet/README.md) を参照 |
 | ブラウザ agent ローダー、`@fingerprintchecker/agent` | [`web/agent`](web/agent) | `npm install @fingerprintchecker/agent` |
 | React ラッパー、`@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
 | Vue ラッパー、`@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
-これらのパッケージはまだ npm / PyPI に公開されていません。公開までは GitHub からインストールしてください。このリポジトリをクローンし、
-`npm install ./web/agent`（または `./server/node` など）/ `pip install ./server/python` を実行します。Go は
-`go get github.com/AndrewYukon/FingerPrintChecker/server/go@main` です。
+npm パッケージ（`@fingerprintchecker/agent`、`react`、`vue`、`node`）と PyPI パッケージ `fingerprintchecker` は公開済み（2026-10-26 から）です。`npm install` / `pip install fingerprintchecker` で入手できます。Packagist / nuget.org にまだ無いのは PHP と .NET だけで、GitHub リリースから入手します（各 README を参照）。Go は `go get github.com/AndrewYukon/FingerPrintChecker/server/go` です。
 
 Cloudflare Worker proxy (English): [integrations/cloudflare-worker](integrations/cloudflare-worker/README.md)
 

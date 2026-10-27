@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `verify_webhook_signature` rejects an empty secret up front (a misconfigured env var no longer makes forgeries verify).
+
 ## 0.4.0
 
 - Add `bot_check(*, method, url, ip, headers)` (`POST /v1/bot-check`) and the `bot_check_headers` helper that builds the forwardable header map (never Cookie or Authorization).

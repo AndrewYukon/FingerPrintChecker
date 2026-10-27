@@ -88,3 +88,14 @@ def test_lone_surrogate_str_body_matches_node_replacement_semantics():
     with pytest.raises(WebhookSignatureError) as ei:
         verify_webhook_signature(body, _sign(b"a?b", 7), V["secret"], now=7)
     assert ei.value.code == "bad_signature"
+
+
+def test_empty_secret_rejected_even_when_signed_with_empty_key():
+    body = b"{}"
+    header = _sign(body, 1000)
+    with pytest.raises(ValueError, match="non-empty"):
+        verify_webhook_signature(body, header, "", now=1000)
+    # a header signed with the empty key must not verify
+    forged = "t=1000,v1=" + hmac.new(b"", b"1000." + body, hashlib.sha256).hexdigest()
+    with pytest.raises(ValueError):
+        verify_webhook_signature(body, forged, "", now=1000)

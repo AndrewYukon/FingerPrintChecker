@@ -41,6 +41,22 @@ jobs:
           go-version: "1.21"
           cache: false
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: curl, openssl, json
+          tools: composer
+          coverage: none
+
       - name: Install dependencies
         id: install
         run: |
@@ -127,3 +143,41 @@ jobs:
           npm run typecheck
           npm test
           echo "- integrations/cloudflare-worker typecheck and test: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: server/java gradle test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: server/java
+        run: |
+          ./gradlew test --no-daemon
+          echo "- server/java gradle test: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: server/php phpunit (8.2)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: server/php
+        run: |
+          composer install --no-interaction --no-progress
+          vendor/bin/phpunit
+          echo "- server/php phpunit (8.2): ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: shivammathur/setup-php@v2
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        with:
+          php-version: "8.4"
+          extensions: curl, openssl, json
+          tools: composer
+          coverage: none
+
+      - name: server/php phpunit (8.4)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: server/php
+        run: |
+          composer install --no-interaction --no-progress
+          vendor/bin/phpunit
+          echo "- server/php phpunit (8.4): ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: server/dotnet test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: server/dotnet
+        run: |
+          dotnet test
+          echo "- server/dotnet test: ok" >> "$GITHUB_STEP_SUMMARY"

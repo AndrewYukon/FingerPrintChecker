@@ -313,13 +313,14 @@ When your project has a sealing key, identify answers carry an optional `sealedR
 | Server SDK for Node.js, `@fingerprintchecker/node` | [`server/node`](server/node) | `npm install @fingerprintchecker/node` |
 | Server SDK for Python, `fpchecker` | [`server/python`](server/python) | `pip install fingerprintchecker` |
 | Server SDK for Go | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
+| Server SDK for Java, `com.fpchecker:fpchecker-server-java` | [`server/java`](server/java) | Maven Central: `com.fpchecker:fpchecker-server-java:0.1.0` |
+| Server SDK for PHP, `fpchecker/fpchecker-php` | [`server/php`](server/php) | from the GitHub release zip, see [server/php/README.md](server/php/README.md) |
+| Server SDK for .NET, `FingerPrintChecker.Server` | [`server/dotnet`](server/dotnet) | from the GitHub release .nupkg, see [server/dotnet/README.md](server/dotnet/README.md) |
 | Browser agent loader, `@fingerprintchecker/agent` | [`web/agent`](web/agent) | `npm install @fingerprintchecker/agent` |
 | React wrapper, `@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
 | Vue wrapper, `@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
-These packages are not published to npm and PyPI yet. Until they are, install them from GitHub: clone this repository and run
-`npm install ./web/agent` (or `./server/node`, ...) / `pip install ./server/python`, or use
-`go get github.com/AndrewYukon/FingerPrintChecker/server/go@main` for Go. How the owner publishes them: [docs/PUBLISHING.md](docs/PUBLISHING.md).
+The npm packages (`@fingerprintchecker/agent`, `react`, `vue`, `node`) and the PyPI package `fingerprintchecker` are published (since 2026-10-26); install them with `npm install` / `pip install fingerprintchecker`. Only PHP and .NET are not yet on Packagist and nuget.org: install them from the GitHub release (see their READMEs). Go: `go get github.com/AndrewYukon/FingerPrintChecker/server/go`. How the owner publishes them: [docs/PUBLISHING.md](docs/PUBLISHING.md).
 
 ## Cloudflare Worker proxy
 

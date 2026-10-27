@@ -22,6 +22,9 @@ Rules for every step below:
 | Node.js server SDK | npm | `@fingerprintchecker/node` | 0.3.0 | `server/node` |
 | Python server SDK | PyPI | `fingerprintchecker` (import `fpchecker`) | 0.3.0 | `server/python` |
 | Go server SDK | Go proxy (git tag) | `github.com/AndrewYukon/FingerPrintChecker/server/go` | v0.3.0 | `server/go` |
+| Java server SDK | Maven Central | `com.fpchecker:fpchecker-server-java` | 0.1.0 | `server/java` |
+| PHP server SDK | GitHub release zip (Packagist pending) | `fpchecker/fpchecker-php` | 0.1.0 | `server/php` |
+| .NET server SDK | GitHub release .nupkg (nuget.org pending) | `FingerPrintChecker.Server` | 0.1.0 | `server/dotnet` |
 | Android SDK | Maven Central | `com.fpchecker:fpchecker-android` | 0.7.0 | `android/fpchecker` |
 | Apple SDK | Swift Package Manager (git tag) | `https://github.com/AndrewYukon/FingerPrintChecker` | 0.7.0 | `apple/`, `Package.swift` |
 
@@ -197,6 +200,27 @@ git tag 0.5.0 && git push origin 0.5.0
 
 The existing tags are plain versions without a prefix (`0.1.0` ... `0.4.0`). Verify in an empty package:
 `.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.5.0")` resolves.
+
+## Server SDKs: Java, PHP, .NET (0.1.0)
+
+**Java (Maven Central).** Same Central Portal account and the same credentials mechanism as the Android SDK above
+(`~/.config/fpchecker/android/publish.properties`, exported as `ORG_GRADLE_PROJECT_<key>` variables, never echoed). JDK 17:
+
+```bash
+cd server/java
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+./gradlew test --no-daemon
+# export the properties as in the Android section, then:
+./gradlew publishAndReleaseToMavenCentral
+```
+
+Verify `https://repo1.maven.org/maven2/com/fpchecker/fpchecker-server-java/0.1.0/fpchecker-server-java-0.1.0.pom` returns 200.
+
+**PHP (Packagist).** Owner action: Packagist needs an account and a read-only split repository with `composer.json` at its root
+(`server/php` cannot be listed directly from the monorepo). Until then, attach the zip of `server/php` to the GitHub release.
+
+**.NET (nuget.org).** Owner action: create a nuget.org API key. Until then, run `dotnet pack -c Release` in `server/dotnet` and attach
+the `.nupkg` to the GitHub release.
 
 ## After publishing
 
