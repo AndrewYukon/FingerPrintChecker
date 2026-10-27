@@ -59,6 +59,24 @@ final class FpCheckerTest extends TestCase
         $this->fail('expected FpCheckerApiError');
     }
 
+    /** A transport that records nothing, so dumps of the client cannot reach the real headers via a test fake. */
+    private function silent(array|\Throwable $result): FakeTransport
+    {
+        return new class ($result) extends FakeTransport {
+            public function __construct(private array|\Throwable $result)
+            {
+            }
+
+            public function send(string $method, string $url, array $headers, ?string $body, float $timeout): array
+            {
+                if ($this->result instanceof \Throwable) {
+                    throw new \RuntimeException($this->result->getMessage());
+                }
+                return $this->result;
+            }
+        };
+    }
+
     // --- surface ---
 
     /** @return list<array{string, string, string, list<array<string, mixed>>, bool, list<string>}> */
@@ -196,7 +214,7 @@ final class FpCheckerTest extends TestCase
             $this->assertStringNotContainsString(self::SK, $text, "dump $i");
             $this->assertStringNotContainsString(self::PK, $text, "dump $i");
         }
-        $injected = $this->mk(new FakeTransport(), self::PK);
+        $injected = $this->mk($this->silent(self::resp(200, [])), self::PK);
         foreach ($this->dumps($injected) as $i => $text) {
             $this->assertStringNotContainsString(self::SK, $text, "injected dump $i");
             $this->assertStringNotContainsString(self::PK, $text, "injected dump $i");
@@ -205,7 +223,7 @@ final class FpCheckerTest extends TestCase
 
     public function testApiErrorFromClientHidesKeyInEveryDump(): void
     {
-        $t = new FakeTransport(self::resp(401, ['error' => 'bad_key']));
+        $t = $this->silent(self::resp(401, ['error' => 'bad_key']));
         $e = $this->capture($this->mk($t, self::PK), 'getEvent', 'e');
         foreach ($this->dumps($e) as $i => $text) {
             $this->assertStringNotContainsString(self::SK, $text, "error dump $i");
@@ -473,7 +491,7 @@ final class FpCheckerTest extends TestCase
 
     public function testErrorNeverContainsSecret(): void
     {
-        $t = new FakeTransport(self::resp(401, ['error' => 'bad_key']));
+        $t = $this->silent(self::resp(401, ['error' => 'bad_key']));
         $e = $this->capture($this->mk($t), 'getEvent', 'e');
         $this->assertNoSecret($e);
     }
@@ -492,7 +510,7 @@ final class FpCheckerTest extends TestCase
     public function testTransportFailureNeverContainsSecret(): void
     {
         $leaky = new RuntimeException('boom ' . self::SK);
-        $t = new FakeTransport($leaky);
+        $t = $this->silent($leaky);
         $e = $this->capture($this->mk($t), 'checkQuota', []);
         $this->assertSame([0, 'network_error'], [$e->status(), $e->code()]);
         $this->assertNull($e->getPrevious());

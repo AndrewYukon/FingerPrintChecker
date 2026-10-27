@@ -7,7 +7,7 @@ namespace FpChecker\Tests;
 use FpChecker\Transport;
 use Throwable;
 
-final class FakeTransport implements Transport
+class FakeTransport implements Transport
 {
     /** @var list<array{method: string, url: string, headers: array<string, string>, body: ?string, timeout: float}> */
     public array $calls = [];
