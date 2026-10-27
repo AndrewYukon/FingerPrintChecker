@@ -654,7 +654,7 @@ final class FpCheckerTest extends TestCase
             $post = $c->checkEligibility(['visitorId' => 'v_1', 'n' => "\u{e9}"]);
             $this->assertSame('POST', $post['method']);
             $this->assertSame('application/json', $post['ctype']);
-            $this->assertSame('{"visitorId":"v_1","n":"é"}', $post['body']);
+            $this->assertSame('{"visitorId":"v_1","n":"\\u00e9"}', $post['body']);
 
             $id = $c->identify([]);
             $this->assertSame(self::PK, $id['publishable']);
