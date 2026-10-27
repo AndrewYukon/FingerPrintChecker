@@ -60,6 +60,14 @@ describe('identify', () => {
     expect(identifyMock).not.toHaveBeenCalled();
   });
 
+  it('absurdly deep tags are invalid_tags, never a thrown error', async () => {
+    let deep: unknown = 'leaf';
+    for (let i = 0; i < 200000; i++) deep = { k: deep };
+    const r = await make().identify('tok', { tags: { deep } });
+    expect(r).toEqual({ ok: false, reason: 'invalid_tags', httpStatus: 0 });
+    expect(identifyMock).not.toHaveBeenCalled();
+  });
+
   it('bad_intent_token / bad_config without calling native', async () => {
     expect(await make().identify('')).toEqual({ ok: false, reason: 'bad_intent_token', httpStatus: 0 });
     expect(await new FingerPrintChecker({ publishableKey: '' }).identify('tok')).toEqual({ ok: false, reason: 'bad_config', httpStatus: 0 });

@@ -226,7 +226,9 @@ jobs:
         working-directory: flutter/example/android
         run: |
           ./gradlew :fingerprintchecker:testDebugUnitTest --no-daemon
-          echo "- flutter plugin android unit tests: ok" >> "$GITHUB_STEP_SUMMARY"
+          n=$(cat ../build/fingerprintchecker/test-results/testDebugUnitTest/*.xml 2>/dev/null | grep -c '<testcase' || true)
+          if [ "${n:-0}" -lt 1 ]; then echo "no unit tests ran"; exit 1; fi
+          echo "- flutter plugin android unit tests: ok ($n tests)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: react-native install
         id: rn-install
@@ -257,4 +259,6 @@ jobs:
         working-directory: react-native/example/android
         run: |
           ./gradlew assembleDebug :fingerprintchecker_react-native:testDebugUnitTest --no-daemon
-          echo "- react-native example android build and unit tests: ok" >> "$GITHUB_STEP_SUMMARY"
+          n=$(cat ../../android/build/test-results/testDebugUnitTest/*.xml 2>/dev/null | grep -c '<testcase' || true)
+          if [ "${n:-0}" -lt 1 ]; then echo "no unit tests ran"; exit 1; fi
+          echo "- react-native example android build and unit tests: ok ($n tests)" >> "$GITHUB_STEP_SUMMARY"

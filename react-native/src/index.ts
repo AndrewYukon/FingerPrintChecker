@@ -50,6 +50,15 @@ function mapReply(reply: unknown): FpIdentifyResult {
   };
 }
 
+/** A validator failure (e.g. stack overflow on absurd nesting) means invalid tags. */
+function tagsOk(tags: unknown): boolean {
+  try {
+    return isJsonable(tags);
+  } catch {
+    return false;
+  }
+}
+
 export class FingerPrintChecker {
   private readonly config: FpConfig;
 
@@ -65,7 +74,7 @@ export class FingerPrintChecker {
       const pk = this.config?.publishableKey;
       if (typeof pk !== 'string' || pk.length === 0) return fail('bad_config');
       const { linkedId, tags } = opts;
-      if (tags !== undefined && (!isRecord(tags) || !isJsonable(tags))) return fail('invalid_tags');
+      if (tags !== undefined && (!isRecord(tags) || !tagsOk(tags))) return fail('invalid_tags');
 
       const native = NativeModules.FingerPrintCheckerModule as NativeModule | undefined;
       if (!native || typeof native.identify !== 'function') return fail('not_linked');

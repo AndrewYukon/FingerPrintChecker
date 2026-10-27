@@ -21,10 +21,10 @@ class FingerPrintChecker {
   }) async {
     if (intentToken.isEmpty) return const FpFailure('bad_intent_token', 0);
     if (config.publishableKey.isEmpty) return const FpFailure('bad_config', 0);
-    if (tags != null && !isJsonable(tags)) {
-      return const FpFailure('invalid_tags', 0);
-    }
     try {
+      if (tags != null && !_tagsOk(tags)) {
+        return const FpFailure('invalid_tags', 0);
+      }
       final reply = await _channel.invokeMethod<Object?>('identify', {
         'config': config.toMap(),
         'intentToken': intentToken,
@@ -40,6 +40,16 @@ class FingerPrintChecker {
 }
 
 const _bridgeError = FpFailure('bridge_error', 0);
+
+/// Validator failure of any kind (e.g. stack overflow on absurd nesting)
+/// counts as invalid tags, never a thrown error.
+bool _tagsOk(Map<String, Object?> tags) {
+  try {
+    return isJsonable(tags);
+  } catch (_) {
+    return false;
+  }
+}
 
 String? _str(Object? v) => v is String ? v : null;
 

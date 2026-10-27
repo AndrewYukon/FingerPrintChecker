@@ -201,6 +201,18 @@ void main() {
     expect(calls, isEmpty);
   });
 
+  test('absurdly deep tags are invalid_tags, never a thrown error', () async {
+    mock((_) async => {'ok': true, 'visitorId': 'v', 'attestation': 'a'});
+    Object? deep = 'leaf';
+    for (var i = 0; i < 1000000; i++) {
+      deep = <String, Object?>{'k': deep};
+    }
+    final r = await FingerPrintChecker(cfg)
+        .identify('t', tags: {'deep': deep}) as FpFailure;
+    expect(r.reason, 'invalid_tags');
+    expect(calls, isEmpty);
+  });
+
   test('custom channel is honoured', () async {
     const other = MethodChannel('other');
     var hit = false;

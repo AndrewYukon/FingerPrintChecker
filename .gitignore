@@ -28,3 +28,6 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 server/python/dist/
+
+# Local SDD ledger
+.superpowers/

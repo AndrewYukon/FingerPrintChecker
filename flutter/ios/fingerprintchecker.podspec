@@ -4,7 +4,7 @@ Pod::Spec.new do |s|
   s.summary          = 'Flutter plugin for FingerPrintChecker.'
   s.description      = 'Thin Flutter wrapper over the native FingerPrintChecker iOS SDK, vendored under Classes/FingerPrintChecker.'
   s.homepage         = 'https://github.com/AndrewYukon/FingerPrintChecker'
-  s.license          = { :type => 'MIT' }
+  s.license          = { :type => 'Apache-2.0', :file => '../LICENSE' }
   s.author           = { 'FingerPrintChecker' => 'support@fpchecker.com' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*.{swift,h,m}'

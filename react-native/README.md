@@ -53,7 +53,7 @@ A field the current platform does not have is ignored.
 
 | reason | meaning |
 |---|---|
-| `bad_config` | empty `publishableKey`, or a `baseUrl` that breaks the rule above |
+| `bad_config` | empty `publishableKey`; `baseUrl` that is not a valid URL; `baseUrl` that is not `https` (plain `http` is accepted only for `localhost`, `127.0.0.1` and `::1`); or `powDifficulty` outside 8 to 28 |
 | `bad_intent_token` | the intent token is empty |
 | `invalid_tags` | `tags` holds something that is not a string, number, bool, null, or a list or object (string keys) of those |
 | `not_linked` | the native module is missing: rebuild the app after installing, run `pod install`, and avoid Expo Go |
@@ -62,7 +62,7 @@ A field the current platform does not have is ignored.
 ## Platform notes
 
 - **Android**: `minSdk` 23. To use Play Integrity, set `cloudProjectNumber` in the config.
-- **iOS**: 14.0 or later. App Attest needs the App Attest entitlement on your own app. The privacy manifest ships with the pod.
+- **iOS**: your React Native version's minimum (15.1 for React Native 0.76). App Attest needs the App Attest entitlement on your own app. The privacy manifest ships with the pod.
 
 ## Example
 
