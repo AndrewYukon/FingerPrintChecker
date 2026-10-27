@@ -175,11 +175,14 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 | Node.js 服务端 SDK，`@fingerprintchecker/node` | [`server/node`](server/node) | `npm install @fingerprintchecker/node` |
 | Python 服务端 SDK，`fpchecker` | [`server/python`](server/python) | `pip install fingerprintchecker` |
 | Go 服务端 SDK | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
+| Java 服务端 SDK，`com.fpchecker:fpchecker-server-java` | [`server/java`](server/java) | Maven Central：`com.fpchecker:fpchecker-server-java:0.1.0` |
+| PHP 服务端 SDK，`fpchecker/fpchecker-php` | [`server/php`](server/php) | 从 GitHub release 的 zip 安装，见 [server/php/README.md](server/php/README.md) |
+| .NET 服务端 SDK，`FingerPrintChecker.Server` | [`server/dotnet`](server/dotnet) | 从 GitHub release 的 .nupkg 安装，见 [server/dotnet/README.md](server/dotnet/README.md) |
 | 浏览器 agent 加载器，`@fingerprintchecker/agent` | [`web/agent`](web/agent) | `npm install @fingerprintchecker/agent` |
 | React 封装，`@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
 | Vue 封装，`@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
-这些包尚未发布到 npm 和 PyPI。发布前请从 GitHub 安装：克隆本仓库后执行 `npm install ./web/agent`（或 `./server/node` 等）/
+这些包尚未发布到 npm 和 PyPI（PHP 和 .NET 在上架 Packagist / nuget.org 前，从 GitHub release 获取）。发布前请从 GitHub 安装：克隆本仓库后执行 `npm install ./web/agent`（或 `./server/node` 等）/
 `pip install ./server/python`；Go 用 `go get github.com/AndrewYukon/FingerPrintChecker/server/go@main`。
 
 Cloudflare Worker proxy (English): [integrations/cloudflare-worker](integrations/cloudflare-worker/README.md)

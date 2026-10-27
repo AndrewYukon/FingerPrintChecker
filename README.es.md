@@ -181,11 +181,14 @@ clave del proyecto (nunca en el dispositivo).
 | SDK de servidor para Node.js, `@fingerprintchecker/node` | [`server/node`](server/node) | `npm install @fingerprintchecker/node` |
 | SDK de servidor para Python, `fpchecker` | [`server/python`](server/python) | `pip install fingerprintchecker` |
 | SDK de servidor para Go | [`server/go`](server/go) | `go get github.com/AndrewYukon/FingerPrintChecker/server/go` |
+| SDK de servidor para Java, `com.fpchecker:fpchecker-server-java` | [`server/java`](server/java) | Maven Central: `com.fpchecker:fpchecker-server-java:0.1.0` |
+| SDK de servidor para PHP, `fpchecker/fpchecker-php` | [`server/php`](server/php) | desde el zip de la release de GitHub, ver [server/php/README.md](server/php/README.md) |
+| SDK de servidor para .NET, `FingerPrintChecker.Server` | [`server/dotnet`](server/dotnet) | desde el .nupkg de la release de GitHub, ver [server/dotnet/README.md](server/dotnet/README.md) |
 | Cargador del agente de navegador, `@fingerprintchecker/agent` | [`web/agent`](web/agent) | `npm install @fingerprintchecker/agent` |
 | Wrapper de React, `@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
 | Wrapper de Vue, `@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
-Estos paquetes aún no están publicados en npm ni PyPI. Hasta entonces, instálalos desde GitHub: clona este repositorio y ejecuta
+Estos paquetes aún no están publicados en npm ni PyPI (PHP y .NET se instalan desde la release de GitHub hasta que estén en Packagist y nuget.org). Hasta entonces, instálalos desde GitHub: clona este repositorio y ejecuta
 `npm install ./web/agent` (o `./server/node`, ...) / `pip install ./server/python`; para Go, `go get github.com/AndrewYukon/FingerPrintChecker/server/go@main`.
 
 Cloudflare Worker proxy (English): [integrations/cloudflare-worker](integrations/cloudflare-worker/README.md)
