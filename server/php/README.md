@@ -2,7 +2,7 @@
 
 Server SDK for [FingerPrintChecker](https://fpchecker.com). PHP 8.2+ with the `curl`, `json` and `openssl` extensions; no other runtime dependency.
 
-The package is not on Packagist yet. Download the release zip from the GitHub release and install it through a Composer `artifact` repository (a directory holding the zip), or a `path` repository for an unpacked copy:
+The package is not on Packagist yet. Download `fpchecker-php-0.1.0.zip` from the GitHub release into a directory (`vendor-packages/` below; any path works) and install it through a Composer `artifact` repository, then run `composer install`. The zip's `composer.json` carries `"version": "0.1.0"`, which Composer requires for artifact repositories. For an unpacked copy use a `path` repository instead.
 
 ```json
 {
