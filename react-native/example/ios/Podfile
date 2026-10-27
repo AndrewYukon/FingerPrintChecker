@@ -36,5 +36,20 @@ target 'FpcExample' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Xcode 27 only supports deployment targets 15.0+; our pod declares 14.0 (the
+    # supported floor for apps), so lift pod targets to 15.0 for this example only.
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |bc|
+        current = bc.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+        if current && Gem::Version.new(current) < Gem::Version.new('15.0')
+          bc.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+        end
+        # RN 0.76's bundled fmt 11.0.2 fails on Xcode 27's clang (consteval); build fmt as C++17.
+        if target.name == 'fmt'
+          bc.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+        end
+      end
+    end
   end
 end
