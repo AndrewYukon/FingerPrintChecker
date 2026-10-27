@@ -112,7 +112,7 @@ final class WebhookTest extends TestCase
     public function testNonStringHeaderIsATypeError(): void
     {
         $this->expectException(\TypeError::class);
-        Webhook::verifyWebhookSignature('{}', null, self::secret(), 300, 1); // @phpstan-ignore-line
+        Webhook::verifyWebhookSignature('{}', ['t=1'], self::secret(), 300, 1); // @phpstan-ignore-line
     }
 
     public function testNonAsciiDigitsInTAreMalformed(): void
