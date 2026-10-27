@@ -146,18 +146,64 @@ final class FpCheckerTest extends TestCase
         new FpChecker(null); // @phpstan-ignore-line
     }
 
+    /** @return list<string> every way a client or exception can be turned into text */
+    private function dumps(object $o): array
+    {
+        ob_start();
+        var_dump($o);
+        $varDump = (string) ob_get_clean();
+        ob_start();
+        debug_zval_dump($o);
+        $zval = (string) ob_get_clean();
+        $out = [
+            var_export($o, true),
+            print_r($o, true),
+            $varDump,
+            $zval,
+            print_r((array) $o, true),
+            var_export((array) $o, true),
+            (string) json_encode($o, JSON_PARTIAL_OUTPUT_ON_ERROR),
+        ];
+        if ($o instanceof \Stringable) {
+            $out[] = (string) $o;
+        }
+        try {
+            $out[] = serialize($o);
+        } catch (\Throwable $e) {
+            $out[] = 'serialize threw ' . get_class($e);
+        }
+        return $out;
+    }
+
     public function testReprAndStrHideKey(): void
     {
         $c = new FpChecker(self::SK, self::PK);
-        foreach ([(string) $c, print_r($c, true), var_export(print_r($c, true), true)] as $text) {
-            $this->assertStringNotContainsString(self::SK, $text);
-            $this->assertStringNotContainsString(self::PK, $text);
+        foreach ($this->dumps($c) as $i => $text) {
+            $this->assertStringNotContainsString(self::SK, $text, "dump $i");
+            $this->assertStringNotContainsString(self::PK, $text, "dump $i");
         }
-        ob_start();
-        var_dump($c);
-        $dumped = (string) ob_get_clean();
-        $this->assertStringNotContainsString(self::SK, $dumped);
-        $this->assertStringNotContainsString(self::PK, $dumped);
+        $injected = $this->mk(new FakeTransport(), self::PK);
+        foreach ($this->dumps($injected) as $i => $text) {
+            $this->assertStringNotContainsString(self::SK, $text, "injected dump $i");
+            $this->assertStringNotContainsString(self::PK, $text, "injected dump $i");
+        }
+    }
+
+    public function testApiErrorFromClientHidesKeyInEveryDump(): void
+    {
+        $t = new FakeTransport(self::resp(401, ['error' => 'bad_key']));
+        $e = $this->error(fn () => $this->mk($t, self::PK)->getEvent('e'));
+        foreach ($this->dumps($e) as $i => $text) {
+            $this->assertStringNotContainsString(self::SK, $text, "error dump $i");
+            $this->assertStringNotContainsString(self::PK, $text, "error dump $i");
+        }
+    }
+
+    public function testKeyStillSentAfterMasking(): void
+    {
+        $t = new FakeTransport(self::resp(200, []));
+        $this->mk($t)->getEvent('e');
+        $this->assertSame(self::SK, $t->header(0, 'X-Secret-Key'));
     }
 
     public function testClientCannotBeSerialized(): void

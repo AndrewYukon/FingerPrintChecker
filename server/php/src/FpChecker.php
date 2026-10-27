@@ -19,8 +19,8 @@ final class FpChecker
     private const LOOPBACK = ['localhost', '127.0.0.1', '[::1]', '::1'];
     private const USER_AGENT = 'fpchecker-php/0.1.0';
 
-    private string $secretKey;
-    private ?string $publishableKey;
+    private Secret $secretKey;
+    private ?Secret $publishableKey;
     private string $baseUrl;
     private float $timeout;
     private Transport $transport;
@@ -49,8 +49,8 @@ final class FpChecker
         if (!(is_int($timeout) || is_float($timeout)) || !is_finite((float) $timeout) || $timeout <= 0) {
             throw new InvalidArgumentException('FpChecker: timeout must be a positive finite number');
         }
-        $this->secretKey = $secretKey;
-        $this->publishableKey = $publishableKey;
+        $this->secretKey = new Secret($secretKey);
+        $this->publishableKey = $publishableKey === null ? null : new Secret($publishableKey);
         $this->baseUrl = self::validateBaseUrl($baseUrl);
         $this->timeout = (float) $timeout;
         $this->transport = new CurlTransport();
@@ -337,9 +337,9 @@ final class FpChecker
             if ($this->publishableKey === null) {
                 throw new LogicException('FpChecker: publishableKey is required for this operation');
             }
-            $headers['X-Publishable-Key'] = $this->publishableKey;
+            $headers['X-Publishable-Key'] = $this->publishableKey->reveal();
         } elseif ($auth) {
-            $headers['X-Secret-Key'] = $this->secretKey;
+            $headers['X-Secret-Key'] = $this->secretKey->reveal();
         }
         $data = null;
         if ($body !== null) {
