@@ -32,11 +32,8 @@ class FingerPrintChecker {
         if (tags != null) 'tags': tags,
       });
       return _mapReply(reply);
-    } on PlatformException {
-      return const FpFailure('bridge_error', 0);
-    } on MissingPluginException {
-      return const FpFailure('bridge_error', 0);
     } catch (_) {
+      // Covers PlatformException, MissingPluginException and anything else.
       return const FpFailure('bridge_error', 0);
     }
   }
@@ -45,18 +42,41 @@ class FingerPrintChecker {
 const _bridgeError = FpFailure('bridge_error', 0);
 
 String? _str(Object? v) => v is String ? v : null;
-num? _num(Object? v) => v is num ? v : null;
+
+/// Thrown internally when a numeric field is not an integral value.
+class _BadNumber implements Exception {
+  const _BadNumber();
+}
+
+/// Absent or non-numeric -> null. Integral num (int, or double without a
+/// fractional part) -> int. Fractional or non-finite -> [_BadNumber].
+int? _int(Object? v) {
+  if (v is int) return v;
+  if (v is double) {
+    if (v.isFinite && v == v.truncateToDouble()) return v.toInt();
+    throw const _BadNumber();
+  }
+  return null;
+}
 List<String> _strList(Object? v) =>
     v is List ? v.whereType<String>().toList(growable: false) : const [];
 
 FpIdentifyResult _mapReply(Object? reply) {
+  try {
+    return _mapReplyUnchecked(reply);
+  } on _BadNumber {
+    return _bridgeError;
+  }
+}
+
+FpIdentifyResult _mapReplyUnchecked(Object? reply) {
   if (reply is! Map) return _bridgeError;
   final ok = reply['ok'];
   if (ok is! bool) return _bridgeError;
   if (!ok) {
     final reason = reply['reason'];
     if (reason is! String) return _bridgeError;
-    return FpFailure(reason, _num(reply['httpStatus'])?.toInt() ?? 0);
+    return FpFailure(reason, _int(reply['httpStatus']) ?? 0);
   }
   final visitorId = reply['visitorId'];
   final attestation = reply['attestation'];
@@ -66,13 +86,13 @@ FpIdentifyResult _mapReply(Object? reply) {
     visitorId: visitorId,
     attestation: attestation,
     eventId: _str(reply['eventId']),
-    trustScore: _num(reply['trustScore']),
-    identityConfidence: _num(reply['identityConfidence']),
+    trustScore: _int(reply['trustScore']),
+    identityConfidence: _int(reply['identityConfidence']),
     isNew: isNew is bool ? isNew : null,
     trustDeductions: _strList(reply['trustDeductions']),
     shadowDeductions: _strList(reply['shadowDeductions']),
     proofStatus: _str(reply['proofStatus']),
-    expiresIn: _num(reply['expiresIn']),
+    expiresIn: _int(reply['expiresIn']),
     rulesVersion: _str(reply['rulesVersion']),
     sealedResult: _str(reply['sealedResult']),
     rawJson: _str(reply['rawJson']) ?? '',

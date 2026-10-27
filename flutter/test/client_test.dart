@@ -54,8 +54,8 @@ void main() {
           'visitorId': 'v1',
           'attestation': 'att',
           'eventId': 'e1',
-          'trustScore': 80, // int
-          'identityConfidence': 0.9, // double
+          'trustScore': 80.0, // integral double
+          'identityConfidence': 90, // int
           'isNew': true,
           'trustDeductions': ['a', 'b'],
           'shadowDeductions': ['c'],
@@ -71,7 +71,8 @@ void main() {
     expect(s.visitorId, 'v1');
     expect(s.attestation, 'att');
     expect(s.trustScore, 80);
-    expect(s.identityConfidence, 0.9);
+    expect(s.trustScore, isA<int>());
+    expect(s.identityConfidence, 90);
     expect(s.isNew, true);
     expect(s.trustDeductions, ['a', 'b']);
     expect(s.shadowDeductions, ['c']);
@@ -160,6 +161,32 @@ void main() {
       final r = await FingerPrintChecker(cfg).identify('t') as FpFailure;
       expect(r.reason, 'bridge_error', reason: '$b');
     }
+  });
+
+  test('fractional or non-finite numeric fields are bridge_error', () async {
+    final base = {'ok': true, 'visitorId': 'v', 'attestation': 'a'};
+    final bad = <Map<String, Object?>>[
+      {...base, 'trustScore': 80.5},
+      {...base, 'identityConfidence': double.nan},
+      {...base, 'expiresIn': double.infinity},
+      {'ok': false, 'reason': 'x', 'httpStatus': double.nan},
+      {'ok': false, 'reason': 'x', 'httpStatus': double.infinity},
+      {'ok': false, 'reason': 'x', 'httpStatus': 429.5},
+    ];
+    for (final b in bad) {
+      mock((_) async => b);
+      final r = await FingerPrintChecker(cfg).identify('t') as FpFailure;
+      expect(r.reason, 'bridge_error', reason: '$b');
+    }
+  });
+
+  test('non-String-key tags are invalid_tags, bridge not called', () async {
+    mock((_) async => {'ok': true, 'visitorId': 'v', 'attestation': 'a'});
+    final r = await FingerPrintChecker(cfg).identify('t', tags: {
+      'k': <Object?, Object?>{1: 'x'},
+    }) as FpFailure;
+    expect(r.reason, 'invalid_tags');
+    expect(calls, isEmpty);
   });
 
   test('custom channel is honoured', () async {

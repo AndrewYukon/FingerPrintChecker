@@ -23,13 +23,13 @@ final class FpSuccess extends FpIdentifyResult {
   final String visitorId;
   final String attestation;
   final String? eventId;
-  final num? trustScore;
-  final num? identityConfidence;
+  final int? trustScore;
+  final int? identityConfidence;
   final bool? isNew;
   final List<String> trustDeductions;
   final List<String> shadowDeductions;
   final String? proofStatus;
-  final num? expiresIn;
+  final int? expiresIn;
   final String? rulesVersion;
   final String? sealedResult;
   final String rawJson;
