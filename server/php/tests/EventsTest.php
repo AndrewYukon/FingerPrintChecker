@@ -180,9 +180,15 @@ final class EventsTest extends TestCase
 
     public function testSignalsVersionOnlyOneOrTwo(): void
     {
-        foreach ([3, 0, '1', 1.0, true, null] as $v) {
+        foreach ([3, 0, '1', true, null] as $v) {
             $this->assertNull(Events::parseWebhookEvent(self::sig(['version' => $v]))->signalsVersion);
         }
+    }
+
+    public function testFloatSignalsVersionIsNotAVersion(): void
+    {
+        $e = Events::parseWebhookEvent('{"data":{"visitorId":"v","signals":{"version":1.0}}}');
+        $this->assertNull($e->signalsVersion);
     }
 
     public function testEventWithoutSignalsHasNoBot(): void
