@@ -28,12 +28,13 @@ function mapReply(reply: unknown): FpIdentifyResult {
     if (typeof reply.reason !== 'string') return fail('bridge_error');
     return fail(reply.reason, optNum(reply.httpStatus) ?? 0);
   }
-  if (typeof reply.visitorId !== 'string' || typeof reply.attestation !== 'string') {
+  if (typeof reply.attestation !== 'string' || reply.attestation === '') return fail('bridge_error');
+  if (reply.visitorId != null && typeof reply.visitorId !== 'string') {
     return fail('bridge_error');
   }
   return {
     ok: true,
-    visitorId: reply.visitorId,
+    visitorId: optStr(reply.visitorId),
     attestation: reply.attestation,
     eventId: optStr(reply.eventId),
     trustScore: optNum(reply.trustScore),

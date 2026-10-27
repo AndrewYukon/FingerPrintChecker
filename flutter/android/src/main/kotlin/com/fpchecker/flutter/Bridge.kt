@@ -23,7 +23,7 @@ internal fun failureReply(reason: String, httpStatus: Int): Map<String, Any?> =
 
 internal fun replyOf(result: FpIdentifyResult): Map<String, Any?> = when (result) {
     is FpIdentifyResult.Failure -> failureReply(result.reason, result.httpStatus)
-    is FpIdentifyResult.Success -> buildMap {
+    is FpIdentifyResult.Success -> if (result.attestation.isEmpty()) failureReply("bridge_error", 0) else buildMap {
         put("ok", true)
         put("visitorId", result.visitorId)
         put("attestation", result.attestation)

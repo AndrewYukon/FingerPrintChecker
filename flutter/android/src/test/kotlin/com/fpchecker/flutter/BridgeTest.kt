@@ -63,6 +63,20 @@ class BridgeTest {
         assertEquals("{}", reply["rawJson"])
     }
 
+    @Test fun replyOfNullVisitorIdIsSentAsNull() {
+        val reply = replyOf(FpIdentifyResult.Success(attestation = "att", rawJson = "{}"))
+        assertEquals(true, reply["ok"])
+        assertTrue(reply.containsKey("visitorId"))
+        assertNull(reply["visitorId"])
+    }
+
+    @Test fun replyOfEmptyAttestationIsBridgeError() {
+        assertEquals(
+            mapOf("ok" to false, "reason" to "bridge_error", "httpStatus" to 0),
+            replyOf(FpIdentifyResult.Success(attestation = "", rawJson = "{}", visitorId = "v")),
+        )
+    }
+
     @Test fun replyOfFailure() {
         assertEquals(
             mapOf("ok" to false, "reason" to "network", "httpStatus" to 0),

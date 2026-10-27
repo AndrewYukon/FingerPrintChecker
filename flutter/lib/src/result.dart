@@ -5,7 +5,7 @@ sealed class FpIdentifyResult {
 
 final class FpSuccess extends FpIdentifyResult {
   const FpSuccess({
-    required this.visitorId,
+    this.visitorId,
     required this.attestation,
     this.eventId,
     this.trustScore,
@@ -20,7 +20,8 @@ final class FpSuccess extends FpIdentifyResult {
     this.rawJson = '',
   });
 
-  final String visitorId;
+  /// Present only when the project enables score details; null otherwise.
+  final String? visitorId;
   final String attestation;
   final String? eventId;
   final int? trustScore;

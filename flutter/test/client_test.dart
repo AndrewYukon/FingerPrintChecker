@@ -145,14 +145,26 @@ void main() {
     expect(r.reason, 'bridge_error');
   });
 
+  test('visitorId is optional: absent or null maps to null', () async {
+    for (final r in <Map<String, Object?>>[
+      {'ok': true, 'attestation': 'a'},
+      {'ok': true, 'visitorId': null, 'attestation': 'a'},
+    ]) {
+      mock((_) async => r);
+      final s = await FingerPrintChecker(cfg).identify('t') as FpSuccess;
+      expect(s.visitorId, isNull);
+      expect(s.attestation, 'a');
+    }
+  });
+
   test('bridge_error for malformed replies', () async {
     final bad = <Object?>[
       null,
       'str',
       <String, Object?>{'visitorId': 'v', 'attestation': 'a'},
-      {'ok': true, 'attestation': 'a'},
       {'ok': true, 'visitorId': 'v'},
-      {'ok': true, 'visitorId': 1, 'attestation': 'a'},
+      {'ok': true, 'visitorId': 'v', 'attestation': ''},
+      {'ok': true, 'visitorId': 'v', 'attestation': 5},
       {'ok': false},
       {'ok': 'yes'},
     ];

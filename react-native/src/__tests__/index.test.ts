@@ -80,7 +80,22 @@ describe('identify', () => {
     expect(await make().identify('tok')).toEqual({ ok: false, reason: 'bridge_error', httpStatus: 0 });
     identifyMock.mockResolvedValueOnce(null);
     expect(await make().identify('tok')).toEqual({ ok: false, reason: 'bridge_error', httpStatus: 0 });
-    identifyMock.mockResolvedValueOnce({ ok: true, visitorId: 1 });
+    identifyMock.mockResolvedValueOnce({ ok: true, visitorId: 1, attestation: 'a' });
     expect(await make().identify('tok')).toEqual({ ok: false, reason: 'bridge_error', httpStatus: 0 });
+    identifyMock.mockResolvedValueOnce({ ok: true, visitorId: 'v', attestation: '' });
+    expect(await make().identify('tok')).toEqual({ ok: false, reason: 'bridge_error', httpStatus: 0 });
+    identifyMock.mockResolvedValueOnce({ ok: true, visitorId: 'v' });
+    expect(await make().identify('tok')).toEqual({ ok: false, reason: 'bridge_error', httpStatus: 0 });
+  });
+
+  it('accepts a missing or null visitorId', async () => {
+    identifyMock.mockResolvedValueOnce({ ok: true, attestation: 'a1', rawJson: '{}' });
+    const r1 = await make().identify('tok');
+    expect(r1).toMatchObject({ ok: true, attestation: 'a1' });
+    expect((r1 as { visitorId?: string }).visitorId).toBeUndefined();
+    identifyMock.mockResolvedValueOnce({ ok: true, visitorId: null, attestation: 'a1' });
+    const r2 = await make().identify('tok');
+    expect(r2).toMatchObject({ ok: true, attestation: 'a1' });
+    expect((r2 as { visitorId?: string }).visitorId).toBeUndefined();
   });
 });

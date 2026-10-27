@@ -80,10 +80,11 @@ FpIdentifyResult _mapReplyUnchecked(Object? reply) {
   }
   final visitorId = reply['visitorId'];
   final attestation = reply['attestation'];
-  if (visitorId is! String || attestation is! String) return _bridgeError;
+  if (attestation is! String || attestation.isEmpty) return _bridgeError;
+  if (visitorId != null && visitorId is! String) return _bridgeError;
   final isNew = reply['isNew'];
   return FpSuccess(
-    visitorId: visitorId,
+    visitorId: visitorId as String?,
     attestation: attestation,
     eventId: _str(reply['eventId']),
     trustScore: _int(reply['trustScore']),

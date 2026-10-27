@@ -187,16 +187,17 @@ final class BridgeTests: XCTestCase {
     XCTAssertEqual(got, ["a"])
   }
 
-  func testSuccessWithoutVisitorIdOrAttestationIsBridgeError() {
-    for s in [
-      FPSuccessV2(attestation: "att", raw: Data()),
-      FPSuccessV2(attestation: "att", visitorId: "", raw: Data()),
-      FPSuccessV2(attestation: "", visitorId: "v", raw: Data()),
-    ] {
-      let r = Bridge.reply(.success(s))
-      XCTAssertEqual(r["ok"] as? Bool, false)
-      XCTAssertEqual(r["reason"] as? String, "bridge_error")
-    }
+  func testNilVisitorIdIsSentAsNull() {
+    let r = Bridge.reply(.success(FPSuccessV2(attestation: "att", raw: Data())))
+    XCTAssertEqual(r["ok"] as? Bool, true)
+    XCTAssertTrue(r.keys.contains("visitorId"))
+    XCTAssertTrue(r["visitorId"] is NSNull)
+  }
+
+  func testEmptyAttestationIsBridgeError() {
+    let r = Bridge.reply(.success(FPSuccessV2(attestation: "", visitorId: "v", raw: Data())))
+    XCTAssertEqual(r["ok"] as? Bool, false)
+    XCTAssertEqual(r["reason"] as? String, "bridge_error")
   }
 
   func testBaseUrlSchemeCaseAndMissingHost() throws {

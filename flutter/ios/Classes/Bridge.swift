@@ -31,12 +31,10 @@ enum Bridge {
     case .failure(let reason, let httpStatus):
       return failure(reason, httpStatus)
     case .success(let s):
-      guard let visitorId = s.visitorId, !visitorId.isEmpty, !s.attestation.isEmpty else {
-        return failure("bridge_error", 0)
-      }
+      guard !s.attestation.isEmpty else { return failure("bridge_error", 0) }
       var out: [String: Any] = [
         "ok": true,
-        "visitorId": visitorId,
+        "visitorId": s.visitorId.map { $0 as Any } ?? NSNull(),
         "attestation": s.attestation,
         "trustDeductions": s.trustDeductions ?? [],
         "shadowDeductions": s.shadowDeductions ?? [],

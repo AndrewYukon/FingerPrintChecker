@@ -36,7 +36,7 @@ Future<String> runIdentify() async {
   final checker = FingerPrintChecker(const FpConfig(publishableKey: _publishableKey));
   final result = await checker.identify((intent as IntentToken).token);
   return switch (result) {
-    FpSuccess(:final visitorId) => visitorId,
+    FpSuccess(:final visitorId) => visitorId ?? 'ok',
     FpFailure(:final reason, :final httpStatus) => '$reason ($httpStatus)',
   };
 }

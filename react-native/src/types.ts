@@ -14,7 +14,8 @@ export type FpConfig = {
 };
 
 export type FpSuccess = {
-  visitorId: string;
+  /** Present only when the project enables score details (as do the score fields). */
+  visitorId?: string;
   attestation: string;
   eventId?: string;
   trustScore?: number;

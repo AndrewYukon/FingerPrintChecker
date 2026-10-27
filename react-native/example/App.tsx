@@ -28,7 +28,7 @@ export default function App() {
     try {
       const token = await fetchIntentToken(FPC_INTENT_URL);
       const r = await checker.identify(token);
-      setResult(r.ok ? `visitorId: ${r.visitorId}` : `failed: ${r.reason} (${r.httpStatus})`);
+      setResult(r.ok ? (r.visitorId ? `visitorId: ${r.visitorId}` : "ok") : `failed: ${r.reason} (${r.httpStatus})`);
     } catch (e) {
       setResult(`failed: ${e instanceof Error ? e.message : 'network'}`);
     } finally {
