@@ -27,6 +27,7 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             server/node/package-lock.json
+            tools/cli/package-lock.json
             integrations/cloudflare-worker/package-lock.json
 
       - uses: actions/setup-python@v5
@@ -46,6 +47,7 @@ jobs:
           set -euo pipefail
           npm ci
           npm ci --prefix server/node
+          npm ci --prefix tools/cli
           python -m pip install --upgrade pip
           python -m pip install -e "server/python[test]"
           echo "- install: ok" >> "$GITHUB_STEP_SUMMARY"
@@ -90,6 +92,14 @@ jobs:
           npm test
           npm run build
           echo "- server/node test and build: ok" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: tools/cli test and build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: tools/cli
+        run: |
+          npm test
+          npm run build
+          echo "- tools/cli test and build: ok" >> "$GITHUB_STEP_SUMMARY"
 
       - name: server/python pytest
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}

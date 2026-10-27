@@ -37,6 +37,7 @@ devices (a Mac with three browsers, an iPhone, two Android phones, one home Wi-F
 | **iOS apps** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, source in [`apple/`](apple) | Available, 0.7.0 |
 | macOS apps (Swift Package) | Same package as iOS | Available, 0.7.0 |
 | Command-line tools | Protocol + examples in [`cli/`](cli/README.md) | Examples |
+| Management CLI and MCP server | `npx -y @fingerprintchecker/cli`, source in [`tools/cli/`](tools/cli/README.md): manage projects, rulesets and webhooks from a terminal or an AI assistant | Available, 0.1.0 |
 
 Every platform ends the same way: the client gets an `attestation`, and only your backend, holding your secret key,
 asks for a decision. The wire format of the native SDKs is specified in [PROTOCOL.md](PROTOCOL.md); conformance vectors
