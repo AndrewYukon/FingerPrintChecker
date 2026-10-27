@@ -24,3 +24,12 @@
 
 ## Concerns
 - Example not run on a device/emulator (build only).
+
+## Fix round 1
+- Bridge.kt: `handle()` wraps everything in `withContext(Dispatchers.Default)` plus catch Throwable -> bridge_error (CancellationException rethrown); only IAE from `configFrom` -> bad_config. Factory/FpChecker construction now runs off the main thread, still atomic via computeIfAbsent.
+- Instance key is `instanceKey(FpCheckerConfig)` (parsed Android fields), so iOS-only/unknown keys do not create instances.
+- Module: `OnceResolver` guarantees exactly-once resolve with a bridge_error fallback if map conversion throws; identify after `invalidate()` resolves bridge_error; cancellation (in-flight or before start, via `invokeOnCompletion`) resolves bridge_error.
+- Tests: 28 (was 21): real multi-thread race (16 calls, slow factory, latch), ignored-key instance test, factory ISE and self-referencing-tags StackOverflowError -> bridge_error, tag cases (nested list/map, null, fractional, non-map dropped), OnceResolver exactly-once and conversion fallback.
+- Not testable on plain JVM: `ReadableMap.toHashMap` / `Arguments.makeNativeMap` themselves need the RN runtime; only the fallback logic (OnceResolver) is tested. Module-level invalidate paths are likewise untested.
+- Tests were added together with the fix rather than watched failing first.
+- Results: BridgeTest 28/28, assembleDebug OK, `npm run typecheck` OK, `npm test` 15/15.

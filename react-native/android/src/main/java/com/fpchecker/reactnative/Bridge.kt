@@ -4,6 +4,9 @@ import com.fpchecker.FpCheckerConfig
 import com.fpchecker.FpEventOptions
 import com.fpchecker.FpIdentifyResult
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.ConcurrentHashMap
 
 /*
@@ -83,15 +86,9 @@ internal fun configFrom(map: Map<String, Any?>): FpCheckerConfig {
     )
 }
 
-/** Canonical, key-order independent string for a config map; identifies the native instance. */
-private fun canonicalKey(value: Any?): String = when (value) {
-    is Map<*, *> -> value.entries.sortedBy { it.key.toString() }
-        .joinToString(",", "{", "}") { "${it.key}:${canonicalKey(it.value)}" }
-    is List<*> -> value.joinToString(",", "[", "]") { canonicalKey(it) }
-    is Number -> value.toDouble().let { if (it == Math.rint(it) && it.isFinite()) it.toLong().toString() else it.toString() }
-    is String -> "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
-    else -> value.toString()
-}
+/** Canonical string of the Android-relevant parsed fields; iOS-only or unknown keys never matter. */
+internal fun instanceKey(c: FpCheckerConfig): String =
+    "${c.baseUrl}|${c.publishableKey}|${c.cloudProjectNumber}|${c.powDifficulty}|${c.integrityTimeoutMillis}|${c.integrityProbes}"
 
 /** JS numbers arrive as Double; whole values become Long so tags serialise as integers. */
 private fun normalizeTags(value: Any?): Any? = when (value) {
@@ -110,12 +107,21 @@ internal interface Identifier {
 
 /**
  * Owns one [Identifier] per distinct config and turns every outcome into a reply map. [handle] never throws
- * (except coroutine cancellation, which must propagate).
+ * (except coroutine cancellation, which must propagate). Work runs on [Dispatchers.Default], so the factory
+ * (native SDK construction) never runs on the caller's (main) thread.
  */
 internal class IdentifyHandler(private val factory: (FpCheckerConfig) -> Identifier) {
     private val instances = ConcurrentHashMap<String, Identifier>()
 
-    suspend fun handle(args: Map<String, Any?>): Map<String, Any?> {
+    suspend fun handle(args: Map<String, Any?>): Map<String, Any?> = try {
+        withContext(Dispatchers.Default) { run(args) }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Throwable) {
+        fail("bridge_error")
+    }
+
+    private suspend fun run(args: Map<String, Any?>): Map<String, Any?> {
         val configMap = (args["config"] as? Map<*, *>)?.entries?.associate { it.key.toString() to it.value }
             ?: return fail("bad_config")
         val config = try {
@@ -128,19 +134,28 @@ internal class IdentifyHandler(private val factory: (FpCheckerConfig) -> Identif
         val linkedId = args["linkedId"] as? String
         @Suppress("UNCHECKED_CAST")
         val tags = normalizeTags(args["tags"]) as? Map<String, Any?>
-        return try {
-            val identifier = instances.computeIfAbsent(canonicalKey(configMap)) { factory(config) }
-            replyOf(identifier.identify(token, FpEventOptions(linkedId = linkedId, tags = tags)))
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Throwable) {
-            fail("bridge_error")
-        }
+        val identifier = instances.computeIfAbsent(instanceKey(config)) { factory(config) }
+        return replyOf(identifier.identify(token, FpEventOptions(linkedId = linkedId, tags = tags)))
     }
 
     fun close() {
         val all = instances.values.toList()
         instances.clear()
         all.forEach { runCatching { it.close() } }
+    }
+}
+
+/** Resolves a promise exactly once; a converter failure falls back to a `bridge_error` reply. */
+internal class OnceResolver<T>(private val convert: (Map<String, Any?>) -> T, private val resolve: (T) -> Unit) {
+    private val done = AtomicBoolean(false)
+
+    fun resolve(reply: Map<String, Any?>) {
+        if (!done.compareAndSet(false, true)) return
+        val out = try {
+            convert(reply)
+        } catch (_: Throwable) {
+            convert(failureReply("bridge_error", 0))
+        }
+        resolve(out)
     }
 }

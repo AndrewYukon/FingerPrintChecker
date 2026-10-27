@@ -2,7 +2,7 @@ package com.fpchecker.reactnative
 
 import com.fpchecker.FpEventOptions
 import com.fpchecker.FpIdentifyResult
-import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
@@ -12,6 +12,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
 
 class BridgeTest {
@@ -186,17 +187,23 @@ class BridgeTest {
 
     @Test fun concurrentSameConfigUsesOneInstanceAndBothResolve() = runBlocking {
         val created = AtomicInteger()
-        val gate = CompletableDeferred<Unit>()
         val h = IdentifyHandler {
             created.incrementAndGet()
-            FakeIdentifier { _, _ -> gate.await(); okResult }
+            Thread.sleep(50) // slow construction widens the race window
+            FakeIdentifier { _, _ -> okResult }
         }
-        // Same config, different key order must still map to one instance.
-        val a = async { h.handle(args(config = linkedMapOf("publishableKey" to "pk", "powDifficulty" to 10.0))) }
-        val b = async { h.handle(args(config = linkedMapOf("powDifficulty" to 10.0, "publishableKey" to "pk"))) }
-        gate.complete(Unit)
-        val replies = listOf(a, b).awaitAll()
+        val n = 16
+        val start = CountDownLatch(1)
+        val jobs = (0 until n).map { i ->
+            // Alternate key order and add an iOS-only key: still the same Android config.
+            val cfg = if (i % 2 == 0) linkedMapOf("publishableKey" to "pk", "powDifficulty" to 10.0)
+            else linkedMapOf("powDifficulty" to 10.0, "useAppAttest" to true, "publishableKey" to "pk")
+            async(Dispatchers.Default) { start.await(); h.handle(args(config = cfg)) }
+        }
+        start.countDown()
+        val replies = jobs.awaitAll()
         assertEquals(1, created.get())
+        assertEquals(n, replies.size)
         assertTrue(replies.all { it["ok"] == true })
     }
 
@@ -208,5 +215,73 @@ class BridgeTest {
         assertEquals(2, made.size)
         h.close()
         assertTrue(made.all { it.closed })
+    }
+
+    @Test fun iosOnlyAndUnknownKeysDoNotCreateExtraInstances() = runBlocking {
+        val created = AtomicInteger()
+        val h = IdentifyHandler { created.incrementAndGet(); FakeIdentifier { _, _ -> okResult } }
+        h.handle(args(config = mapOf("publishableKey" to "pk")))
+        h.handle(args(config = mapOf("publishableKey" to "pk", "useDeviceCheck" to true, "future" to "x")))
+        assertEquals(1, created.get())
+        h.handle(args(config = mapOf("publishableKey" to "pk", "powDifficulty" to 9.0)))
+        assertEquals(2, created.get())
+    }
+
+    @Test fun nonIllegalArgumentExceptionFromTagNormalisationIsBridgeError() = runBlocking {
+        val h = IdentifyHandler { FakeIdentifier { _, _ -> okResult } }
+        // Stack overflow from a self-referencing tag map is a non-IAE Throwable inside normalizeTags.
+        val loop = HashMap<String, Any?>()
+        loop["self"] = loop
+        assertEquals(failureReply("bridge_error", 0), h.handle(args(extra = mapOf("intentToken" to "t", "tags" to loop))))
+    }
+
+    @Test fun nonIllegalArgumentExceptionFromFactoryIsBridgeError() = runBlocking {
+        val h = IdentifyHandler { throw IllegalStateException("keystore") }
+        assertEquals(failureReply("bridge_error", 0), h.handle(args()))
+    }
+
+    // --- tags ----------------------------------------------------------------------------------
+
+    private fun tagsSeen(tags: Any?): Map<String, Any?>? = runBlocking {
+        var seen: FpEventOptions? = null
+        IdentifyHandler { FakeIdentifier { _, o -> seen = o; okResult } }
+            .handle(args(extra = mapOf("intentToken" to "t", "tags" to tags)))
+        seen!!.tags
+    }
+
+    @Test fun tagsNestedListNullFractionalAndNestedMap() {
+        val got = tagsSeen(
+            mapOf("l" to listOf(1.0, "a", null, listOf(2.0)), "n" to null, "f" to 1.5, "m" to mapOf("k" to mapOf("z" to 3.0))),
+        )
+        assertEquals(
+            mapOf("l" to listOf(1L, "a", null, listOf(2L)), "n" to null, "f" to 1.5, "m" to mapOf("k" to mapOf("z" to 3L))),
+            got,
+        )
+    }
+
+    @Test fun nonMapTagsAreDropped() {
+        assertNull(tagsSeen("not a map"))
+        assertNull(tagsSeen(listOf(1.0)))
+    }
+
+    // --- OnceResolver --------------------------------------------------------------------------
+
+    @Test fun onceResolverResolvesExactlyOnce() {
+        val out = mutableListOf<Map<String, Any?>>()
+        val r = OnceResolver<Map<String, Any?>>({ it }, { out.add(it) })
+        r.resolve(failureReply("a", 0))
+        r.resolve(failureReply("b", 0))
+        assertEquals(listOf(failureReply("a", 0)), out)
+    }
+
+    @Test fun onceResolverFallsBackToBridgeErrorWhenConversionThrows() {
+        val out = mutableListOf<String>()
+        var first = true
+        val r = OnceResolver<String>(
+            { if (first) { first = false; throw IllegalStateException("convert") } else it["reason"] as String },
+            { out.add(it) },
+        )
+        r.resolve(okResult.let(::replyOf))
+        assertEquals(listOf("bridge_error"), out)
     }
 }
