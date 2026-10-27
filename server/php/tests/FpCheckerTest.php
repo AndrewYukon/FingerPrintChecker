@@ -194,6 +194,7 @@ final class FpCheckerTest extends TestCase
         $t = new FakeTransport(self::resp(401, ['error' => 'bad_key']));
         $e = $this->error(fn () => $this->mk($t, self::PK)->getEvent('e'));
         foreach ($this->dumps($e) as $i => $text) {
+            if (($p = strpos($text, self::SK)) !== false) { fwrite(STDERR, "CTX$i: " . substr($text, max(0, $p - 400), 600) . "\n"); }
             $this->assertStringNotContainsString(self::SK, $text, "error dump $i");
             $this->assertStringNotContainsString(self::PK, $text, "error dump $i");
         }
