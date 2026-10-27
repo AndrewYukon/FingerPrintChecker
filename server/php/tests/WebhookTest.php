@@ -161,4 +161,22 @@ final class WebhookTest extends TestCase
         Webhook::verifyWebhookSignature($body, self::sign($body, 7), self::secret(), 300, 7);
         $this->addToAssertionCount(1);
     }
+
+    public function testTraceCarriesNoSecret(): void
+    {
+        $prev = ini_set('zend.exception_ignore_args', '0');
+        try {
+            try {
+                Webhook::verifyWebhookSignature('{}', self::sign('{}', 1000, 'other'), self::secret(), 300, 1000);
+                $this->fail('accepted');
+            } catch (WebhookSignatureError $e) {
+                $trace = $e->getTrace();
+                foreach ([json_encode($trace), var_export($trace, true), $e->getTraceAsString()] as $dump) {
+                    $this->assertStringNotContainsString(self::secret(), (string) $dump);
+                }
+            }
+        } finally {
+            ini_set('zend.exception_ignore_args', $prev === false ? '1' : $prev);
+        }
+    }
 }

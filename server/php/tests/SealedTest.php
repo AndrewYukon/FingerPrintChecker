@@ -173,4 +173,31 @@ final class SealedTest extends TestCase
     {
         $this->assertSame(['version' => 1, 'x' => 2], Sealed::unsealResult(self::seal('{"version":1,"x":2}'), [self::key('a')]));
     }
+
+    public function testTraceCarriesNoKeyMaterial(): void
+    {
+        $prev = ini_set('zend.exception_ignore_args', '0');
+        try {
+            $keyText = self::key('b');
+            $keyBytes = (string) base64_decode($keyText);
+            foreach ([
+                fn () => Sealed::unsealResult(self::vectors()['cases'][0]['blob'], [$keyText]), // unknown_key
+                fn () => Sealed::unsealResult('x', [$keyText, 'not base64!']), // invalid_key
+            ] as $call) {
+                try {
+                    $call();
+                    $this->fail('accepted');
+                } catch (SealedResultError $e) {
+                    $trace = $e->getTrace();
+                    foreach ([json_encode($trace, JSON_INVALID_UTF8_SUBSTITUTE), var_export($trace, true), $e->getTraceAsString()] as $dump) {
+                        $this->assertStringNotContainsString($keyText, (string) $dump);
+                        $this->assertStringNotContainsString($keyBytes, (string) $dump);
+                        $this->assertStringNotContainsString(bin2hex($keyBytes), (string) $dump);
+                    }
+                }
+            }
+        } finally {
+            ini_set('zend.exception_ignore_args', $prev === false ? '1' : $prev);
+        }
+    }
 }
