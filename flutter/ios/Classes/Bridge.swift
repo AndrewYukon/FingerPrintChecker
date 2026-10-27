@@ -31,9 +31,12 @@ enum Bridge {
     case .failure(let reason, let httpStatus):
       return failure(reason, httpStatus)
     case .success(let s):
+      guard let visitorId = s.visitorId, !visitorId.isEmpty, !s.attestation.isEmpty else {
+        return failure("bridge_error", 0)
+      }
       var out: [String: Any] = [
         "ok": true,
-        "visitorId": s.visitorId ?? "",
+        "visitorId": visitorId,
         "attestation": s.attestation,
         "trustDeductions": s.trustDeductions ?? [],
         "shadowDeductions": s.shadowDeductions ?? [],
@@ -185,5 +188,39 @@ final class ReplyOnce: @unchecked Sendable {
     done = true
     lock.unlock()
     if first { deliver(value) }
+  }
+}
+
+/// Tracks in-flight calls. `finish` may run before `register` (a fast task); neither order leaves an entry.
+final class InflightTracker: @unchecked Sendable {
+  private let lock = NSLock()
+  private var entries: [UUID: (task: Task<Void, Never>, once: ReplyOnce)] = [:]
+  private var finishedEarly: Set<UUID> = []
+  private var closed = false
+
+  var count: Int { lock.lock(); defer { lock.unlock() }; return entries.count }
+
+  /// False when the call already finished or the tracker is closed; the caller must then not expect tracking.
+  func register(_ id: UUID, task: Task<Void, Never>, once: ReplyOnce) -> Bool {
+    lock.lock(); defer { lock.unlock() }
+    if finishedEarly.remove(id) != nil { return false }
+    if closed { return false }
+    entries[id] = (task, once)
+    return true
+  }
+
+  func finish(_ id: UUID) {
+    lock.lock(); defer { lock.unlock() }
+    if entries.removeValue(forKey: id) == nil && !closed { finishedEarly.insert(id) }
+  }
+
+  /// Closes the tracker and returns everything still pending.
+  func drain() -> [(task: Task<Void, Never>, once: ReplyOnce)] {
+    lock.lock(); defer { lock.unlock() }
+    closed = true
+    let all = Array(entries.values)
+    entries = [:]
+    finishedEarly = []
+    return all
   }
 }

@@ -116,6 +116,16 @@ class BridgeTest {
         }
     }
 
+    @Test fun configFromBaseUrlRulesAreStrict() {
+        for (u in listOf("", "ftp://x", "http://10.0.2.2", "https://", "not a url")) {
+            assertThrows(u, IllegalArgumentException::class.java) {
+                configFrom(mapOf("publishableKey" to "pk_x", "baseUrl" to u))
+            }
+        }
+        assertEquals("http://localhost:8080", configFrom(mapOf("publishableKey" to "pk_x", "baseUrl" to "HTTP://localhost:8080")).baseUrl)
+        assertEquals("https://fpchecker.com", configFrom(mapOf("publishableKey" to "pk_x", "baseUrl" to "HTTPS://fpchecker.com")).baseUrl)
+    }
+
     @Test fun configFromRejectsLoopbackLookalikeHost() {
         assertThrows(IllegalArgumentException::class.java) {
             configFrom(mapOf("publishableKey" to "pk_x", "baseUrl" to "http://localhost.evil.com"))

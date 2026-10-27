@@ -41,10 +41,19 @@ internal fun replyOf(result: FpIdentifyResult): Map<String, Any?> = when (result
     }
 }
 
-private fun hostOf(url: String): String {
-    val rest = url.substringAfter("://")
-    val authority = rest.substringBefore('/').substringBefore('?').substringBefore('#').substringAfterLast('@')
-    return if (authority.startsWith("[")) authority.substringBefore(']') + "]" else authority.substringBefore(':')
+/** https needs a host; http only on loopback; anything else (or unparsable) is rejected. Scheme is case-insensitive. */
+private fun validBaseUrl(url: String): String {
+    val uri = try { java.net.URI(url) } catch (_: java.net.URISyntaxException) { null }
+    val scheme = uri?.scheme?.lowercase()
+    val host = uri?.host?.lowercase()?.removePrefix("[")?.removeSuffix("]")
+    require(!host.isNullOrEmpty()) { "baseUrl is not a valid URL" }
+    when (scheme) {
+        "https" -> Unit
+        "http" -> require(host in LOOPBACK_HOSTS) { "http baseUrl is only allowed on loopback" }
+        else -> throw IllegalArgumentException("baseUrl must be https")
+    }
+    // The native config only accepts a lowercase scheme prefix.
+    return scheme + url.substring(url.indexOf(':'))
 }
 
 private fun wholeNumber(v: Any?, field: String): Long? = when (v) {
@@ -66,9 +75,6 @@ internal fun configFrom(map: Map<String, Any?>): FpCheckerConfig {
         is String -> b
         else -> throw IllegalArgumentException("baseUrl must be a string")
     }
-    if (baseUrl.startsWith("http://")) {
-        require(hostOf(baseUrl).lowercase() in LOOPBACK_HOSTS) { "http baseUrl is only allowed on loopback" }
-    }
     val probes = when (val p = map["integrityProbes"]) {
         null -> true
         is Boolean -> p
@@ -77,7 +83,7 @@ internal fun configFrom(map: Map<String, Any?>): FpCheckerConfig {
     val pow = wholeNumber(map["powDifficulty"], "powDifficulty")
     require(pow == null || pow in Int.MIN_VALUE..Int.MAX_VALUE) { "powDifficulty out of range" }
     return FpCheckerConfig(
-        baseUrl = baseUrl,
+        baseUrl = validBaseUrl(baseUrl),
         publishableKey = pk,
         cloudProjectNumber = wholeNumber(map["cloudProjectNumber"], "cloudProjectNumber"),
         powDifficulty = pow?.toInt(),

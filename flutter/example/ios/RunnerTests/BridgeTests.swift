@@ -14,7 +14,7 @@ private final class FakeIdentifier: Identifying, @unchecked Sendable {
   }
 }
 
-private func ok() -> FPResultV2 { .success(FPSuccessV2(attestation: "att", raw: Data("{}".utf8))) }
+private func ok() -> FPResultV2 { .success(FPSuccessV2(attestation: "att", visitorId: "v", raw: Data("{}".utf8))) }
 
 final class BridgeTests: XCTestCase {
   // MARK: reply mapping
@@ -45,7 +45,7 @@ final class BridgeTests: XCTestCase {
     let r = Bridge.reply(ok())
     XCTAssertEqual(r["trustDeductions"] as? [String], [])
     XCTAssertEqual(r["shadowDeductions"] as? [String], [])
-    XCTAssertEqual(r["visitorId"] as? String, "")
+    XCTAssertEqual(r["visitorId"] as? String, "v")
     XCTAssertNil(r["trustScore"])
     XCTAssertNil(r["eventId"])
     XCTAssertEqual(r["rawJson"] as? String, "{}")
@@ -63,7 +63,7 @@ final class BridgeTests: XCTestCase {
   }
 
   func testNonUtf8RawGivesEmptyRawJson() {
-    let s = FPSuccessV2(attestation: "att", raw: Data([0xff, 0xfe, 0xfd]))
+    let s = FPSuccessV2(attestation: "att", visitorId: "v", raw: Data([0xff, 0xfe, 0xfd]))
     XCTAssertEqual(Bridge.reply(.success(s))["rawJson"] as? String, "")
   }
 
@@ -185,5 +185,47 @@ final class BridgeTests: XCTestCase {
     once.resolve(Bridge.failure("a", 0))
     once.resolve(Bridge.failure("b", 0))
     XCTAssertEqual(got, ["a"])
+  }
+
+  func testSuccessWithoutVisitorIdOrAttestationIsBridgeError() {
+    for s in [
+      FPSuccessV2(attestation: "att", raw: Data()),
+      FPSuccessV2(attestation: "att", visitorId: "", raw: Data()),
+      FPSuccessV2(attestation: "", visitorId: "v", raw: Data()),
+    ] {
+      let r = Bridge.reply(.success(s))
+      XCTAssertEqual(r["ok"] as? Bool, false)
+      XCTAssertEqual(r["reason"] as? String, "bridge_error")
+    }
+  }
+
+  func testBaseUrlSchemeCaseAndMissingHost() throws {
+    _ = try Bridge.config(from: ["publishableKey": "pk", "baseUrl": "HTTP://localhost:8080"])
+    _ = try Bridge.config(from: ["publishableKey": "pk", "baseUrl": "HTTPS://fpchecker.com"])
+    assertBadConfig(["publishableKey": "pk", "baseUrl": "http://10.0.2.2"])
+    assertBadConfig(["publishableKey": "pk", "baseUrl": "https://"])
+    assertBadConfig(["publishableKey": "pk", "baseUrl": "ftp://x"])
+  }
+
+  func testInflightTrackerToleratesBothOrders() {
+    let tracker = InflightTracker()
+    let once = ReplyOnce { _ in }
+    // finish before register: nothing may stay behind
+    let early = UUID()
+    tracker.finish(early)
+    XCTAssertFalse(tracker.register(early, task: Task {}, once: once))
+    XCTAssertEqual(tracker.count, 0)
+    // register then finish
+    let late = UUID()
+    XCTAssertTrue(tracker.register(late, task: Task {}, once: once))
+    XCTAssertEqual(tracker.count, 1)
+    tracker.finish(late)
+    XCTAssertEqual(tracker.count, 0)
+    // drain closes the tracker
+    let id = UUID()
+    XCTAssertTrue(tracker.register(id, task: Task {}, once: once))
+    XCTAssertEqual(tracker.drain().count, 1)
+    XCTAssertFalse(tracker.register(UUID(), task: Task {}, once: once))
+    XCTAssertEqual(tracker.count, 0)
   }
 }

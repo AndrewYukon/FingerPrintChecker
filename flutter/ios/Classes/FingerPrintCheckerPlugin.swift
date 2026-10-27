@@ -7,7 +7,7 @@ public final class SwiftFingerPrintCheckerPlugin: NSObject, FlutterPlugin {
 
   private let lock = NSLock()
   private var handler: IdentifyHandler? = IdentifyHandler { NativeIdentifier(checker: FingerPrintChecker(config: $0)) }
-  private var inflight: [UUID: (task: Task<Void, Never>, once: ReplyOnce)] = [:]
+  private let inflight = InflightTracker()
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: channelName, binaryMessenger: registrar.messenger())
@@ -19,12 +19,10 @@ public final class SwiftFingerPrintCheckerPlugin: NSObject, FlutterPlugin {
   /// Cancels in-flight work; each pending call still replies `bridge_error`, exactly once.
   public func detachFromEngine(for registrar: FlutterPluginRegistrar) {
     lock.lock()
-    let pending = inflight
-    inflight = [:]
     let old = handler
     handler = nil
     lock.unlock()
-    for (_, entry) in pending {
+    for entry in inflight.drain() {
       entry.task.cancel()
       entry.once.resolve(Bridge.failure("bridge_error", 0))
     }
@@ -54,20 +52,15 @@ public final class SwiftFingerPrintCheckerPlugin: NSObject, FlutterPlugin {
       self?.finish(id)
       once.resolve(Task.isCancelled ? Bridge.failure("bridge_error", 0) : reply)
     }
-    lock.lock()
-    if handler == nil {
-      lock.unlock()
+    if !inflight.register(id, task: task, once: once) {
+      // Either the call already finished (reply sent) or the engine detached; resolve is idempotent.
       task.cancel()
-      once.resolve(Bridge.failure("bridge_error", 0))
-      return
+      lock.lock()
+      let detached = handler == nil
+      lock.unlock()
+      if detached { once.resolve(Bridge.failure("bridge_error", 0)) }
     }
-    inflight[id] = (task, once)
-    lock.unlock()
   }
 
-  private func finish(_ id: UUID) {
-    lock.lock()
-    inflight[id] = nil
-    lock.unlock()
-  }
+  private func finish(_ id: UUID) { inflight.finish(id) }
 }
