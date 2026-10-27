@@ -1394,7 +1394,7 @@
           "Bots"
         ],
         "summary": "Check a request your backend received",
-        "description": "Backend only. Forward the method, URL, client address and headers of a request you received and get back\nwho or what sent it. Header-only: no script ran in the sender, so `bot.types` holds only the types the\nheaders give away (`automation_tool`, `headless`, `missing_headers`). The address facts (`ip`, `vpn`,\n`proxy`) come from our own data; there is no device clock, so no `timezone_mismatch`. Not charged, and no\nevent is written.\n\n`bot.result` is `good` for a verified or signed directory bot, `bad` for a directory bot that is not\n(`unknown` or `spoofed`) or for any request whose headers gave it away, and `not_detected` otherwise.\nOnly signers listed in the Bot directory can be `signed`; a valid signature from anyone else is ignored.\n\nSend `url` as the visitor requested it: the original host and scheme, not the address of your origin behind\na CDN or load balancer. A signed request is checked against that host. Chrome sends no client hints over\nplain http, so the missing-client-hints rule only applies to `https` URLs.\n\nForward only the headers you need, never `Cookie` or `Authorization`: `user-agent`, `accept`,\n`accept-language`, `accept-encoding`, `sec-ch-ua`, `sec-ch-ua-mobile`, `sec-ch-ua-platform`,\n`sec-fetch-site`, `sec-fetch-mode`, `sec-fetch-dest`, `sec-fetch-user`, `signature`, `signature-input`,\n`signature-agent`, `upgrade-insecure-requests`. The body is at most 32 KiB, with at most 64 headers\n(values up to 4096 characters) and a `url` up to 2048 characters.\n",
+        "description": "Backend only. Forward the method, URL, client address and headers of a request you received and get back\nwho or what sent it. Header-only: no script ran in the sender, so `bot.types` holds only the types the\nheaders give away (`automation_tool`, `headless`, `missing_headers`). The address facts (`ip`, `vpn`,\n`proxy`) come from our own data; there is no device clock, so no `timezone_mismatch`. Not charged, and no\nevent is written.\n\n`bot.result` is `good` for a verified or signed directory bot, `bad` for a directory bot that is not\n(`unknown` or `spoofed`) or for any request whose headers gave it away, and `not_detected` otherwise.\nOnly signers listed in the Bot directory can be `signed`; a valid signature from anyone else is ignored.\n\nSend `url` as the visitor requested it: the original host and scheme, not the address of your origin behind\na CDN or load balancer. A signed request is checked against that host. Chrome sends no client hints over\nplain http, so the missing-client-hints rule only applies to `https` URLs.\n\nForward only the headers you need, never `Cookie` or `Authorization`: `user-agent`, `accept`,\n`accept-language`, `accept-encoding`, `sec-ch-ua`, `sec-ch-ua-mobile`, `sec-ch-ua-platform`,\n`sec-fetch-site`, `sec-fetch-mode`, `sec-fetch-dest`, `sec-fetch-user`, `signature`, `signature-input`,\n`signature-agent`, `upgrade-insecure-requests`, and every header named in the request's `Signature-Input`\n(a covered header you leave out makes the signature uncheckable: the identity is `unknown`). The body is at\nmost 32 KiB, with at most 64 headers (values up to 4096 characters) and a `url` up to 2048 characters.\n\n`ip` is the client address your platform vouches for, never a value the visitor can set: Express `req.ip`\nwith a hop-count `trust proxy`; Next.js the header your own proxy sets (for example `x-real-ip`), never the\nleftmost `X-Forwarded-For` entry. An IPv4-mapped IPv6 address is read as the IPv4 address.\n\nCall it once per visitor request and reuse the answer. Never retry a signed request: the second attempt\nreplays the nonce and comes back `spoofed`.\n\nLimits: 1200 requests per minute per project (`429` with `reason: rate_limited`) and 3000 per minute per\ncalling address, checked before authentication (`429` with `error: rate_limited`). Treat both bodies as\nrate limited.\n",
         "security": [
           {
             "secretKey": []
@@ -1595,7 +1595,7 @@
           {
             "name": "bot",
             "in": "query",
-            "description": "`true` matches events where the bot result is `bad` (good bots are not counted), `false` those where it is `not_detected`.",
+            "description": "`true` matches events where the bot result is `bad` (good bots are not counted), `false` those where it is `not_detected`. An event whose bot result is `good` matches neither `true` nor `false`; in a rule the field `bot` is `false` for a good bot.",
             "schema": {
               "$ref": "#/components/schemas/BoolParam"
             }
@@ -3475,6 +3475,7 @@
           {
             "name": "bot",
             "in": "query",
+            "description": "`true` matches events where the bot result is `bad` (good bots are not counted), `false` those where it is `not_detected`. An event whose bot result is `good` matches neither `true` nor `false`.",
             "schema": {
               "$ref": "#/components/schemas/BoolParam"
             }
@@ -4170,7 +4171,7 @@
         }
       },
       "RateLimitedReason": {
-        "description": "Rate limited, by the route's own limit (`reason`) or by the per-IP limit that runs before authentication (`error`).",
+        "description": "Rate limited, by the route's own limit (body `{ ok: false, reason: rate_limited }`) or by the per-IP limit that runs before authentication (body `{ ok: false, error: rate_limited }`). Clients must accept both bodies.",
         "content": {
           "application/json": {
             "schema": {
@@ -4583,7 +4584,7 @@
           },
           "requestFilters": {
             "type": "object",
-            "description": "Request filters: `ipDeny`, `headerRules`, `blockCrawlers`."
+            "description": "Request filters: `ipDeny`, `headerRules`, `blockCrawlers`. `blockCrawlers` refuses every directory bot by User-Agent, including search engines and synthetic monitors (Datadog Synthetics, Checkly, UptimeRobot, Lighthouse, GTmetrix); to allow some of them use rules (an allow rule on `botId`) with the filter off, since the filter runs before rules."
           },
           "ruleset": {
             "$ref": "#/components/schemas/ManagementRuleset"
