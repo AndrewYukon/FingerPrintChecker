@@ -122,7 +122,7 @@ var botCheckHeaders = map[string]bool{
 
 // BotCheckHeaders builds BotCheckRequest.Headers from a request's headers (r.Header). It keeps only
 // the headers the check needs, with lower-cased names, and drops everything else, including Cookie
-// and Authorization. A header sent more than once is joined with ", ".
+// and Authorization. h is expected to be canonical (as net/http delivers it). A header sent more than once is joined with ", ".
 func BotCheckHeaders(h http.Header) map[string]string {
 	out := make(map[string]string)
 	for name, values := range h {
@@ -130,11 +130,7 @@ func BotCheckHeaders(h http.Header) map[string]string {
 		if !botCheckHeaders[key] || len(values) == 0 {
 			continue
 		}
-		joined := strings.Join(values, ", ")
-		if prev, ok := out[key]; ok {
-			joined = prev + ", " + joined
-		}
-		out[key] = joined
+		out[key] = strings.Join(values, ", ")
 	}
 	return out
 }

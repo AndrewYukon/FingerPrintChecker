@@ -33,20 +33,27 @@ if verdict.get("ok") is False:
 import os
 
 from fastapi import FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
-from fpchecker import FpChecker, bot_check_headers
+from fpchecker import FpChecker, FpCheckerApiError, bot_check_headers
 
 fp = FpChecker(os.environ["FPCHECKER_SECRET_KEY"])
 app = FastAPI()
 
 @app.middleware("http")
 async def block_bad_bots(request: Request, call_next):
-    verdict = fp.bot_check(  # blocking call: use a threadpool (run_in_threadpool) under load
-        method=request.method,
-        url=str(request.url),  # original host and scheme; behind a proxy rebuild it from X-Forwarded-*
-        ip=request.client.host,  # behind a proxy use the forwarded client address
-        headers=bot_check_headers(request.headers),
-    )
+    if request.client is None:  # no peer address (e.g. some test clients): nothing to check
+        return await call_next(request)
+    try:
+        verdict = await run_in_threadpool(  # bot_check blocks; keep it off the event loop
+            fp.bot_check,
+            method=request.method,
+            url=str(request.url),  # original host and scheme; behind a proxy rebuild it from X-Forwarded-*
+            ip=request.client.host,  # behind a proxy use the forwarded client address
+            headers=bot_check_headers(request.headers),
+        )
+    except FpCheckerApiError:
+        return await call_next(request)  # fail open: an outage of the check must not take your site down
     if verdict["bot"]["result"] == "bad":
         return JSONResponse({"error": "forbidden"}, status_code=403)
     return await call_next(request)  # "good" = a verified or signed directory bot; verdict["bot"]["info"] says which

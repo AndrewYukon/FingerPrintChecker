@@ -32,16 +32,20 @@ import { FpChecker, botCheckHeaders } from '@fingerprintchecker/node';
 
 const fp = new FpChecker({ secretKey: process.env.FPCHECKER_SECRET_KEY! });
 const app = express();
-app.set('trust proxy', true); // so req.ip is the client, not your load balancer
+app.set('trust proxy', 1); // number of proxy hops in front of you (or a CIDR list), never `true`: req.ip must not be spoofable
 
 app.use(async (req, res, next) => {
-  const verdict = await fp.botCheck({
-    method: req.method,
-    url: `${req.protocol}://${req.get('host')}${req.originalUrl}`, // original host and scheme
-    ip: req.ip!,
-    headers: botCheckHeaders(req.headers),
-  });
-  if (verdict.bot.result === 'bad') return res.status(403).end();
+  try {
+    const verdict = await fp.botCheck({
+      method: req.method,
+      url: `${req.protocol}://${req.get('host')}${req.originalUrl}`, // original host and scheme
+      ip: req.ip!,
+      headers: botCheckHeaders(req.headers),
+    });
+    if (verdict.bot.result === 'bad') return res.status(403).end();
+  } catch {
+    // Failure policy: fail open. An outage or rate limit of the check must not take your site down.
+  }
   next(); // 'good' = a verified or signed directory bot; verdict.bot.info says which
 });
 ```

@@ -73,10 +73,10 @@ class WebhookEvent:
     rule_action: Optional[RuleAction] = None
     rule_action_present: bool = False
     mobile: Optional[MobileSignals] = None
-    signals_version: Optional[int] = None
-    bot: Optional[BotSignals] = None
     vpn_methods: Tuple[str, ...] = ()
     raw: Dict[str, Any] = field(default_factory=dict)
+    signals_version: Optional[int] = None
+    bot: Optional[BotSignals] = None
 
 
 @dataclass(frozen=True)
