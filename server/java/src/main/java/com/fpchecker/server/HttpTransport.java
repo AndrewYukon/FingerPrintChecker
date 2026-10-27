@@ -24,16 +24,16 @@ final class HttpTransport implements Transport {
 
     @Override
     public Response send(Request request) throws IOException {
-        HttpRequest.BodyPublisher publisher = request.body == null
-                ? HttpRequest.BodyPublishers.noBody()
-                : HttpRequest.BodyPublishers.ofByteArray(request.body);
-        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(request.url))
-                .timeout(request.timeout)
-                .method(request.method, publisher);
-        for (Map.Entry<String, String> h : request.headers.entrySet()) {
-            builder.header(h.getKey(), h.getValue());
-        }
         try {
+            HttpRequest.BodyPublisher publisher = request.body == null
+                    ? HttpRequest.BodyPublishers.noBody()
+                    : HttpRequest.BodyPublishers.ofByteArray(request.body);
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(request.url))
+                    .timeout(request.timeout)
+                    .method(request.method, publisher);
+            for (Map.Entry<String, String> h : request.headers.entrySet()) {
+                builder.header(h.getKey(), h.getValue());
+            }
             HttpResponse<byte[]> res = client.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
             Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
             for (Map.Entry<String, List<String>> e : res.headers().map().entrySet()) {
@@ -47,6 +47,10 @@ final class HttpTransport implements Transport {
             InterruptedIOException io = new InterruptedIOException("interrupted");
             io.initCause(e);
             throw io;
+        } catch (RuntimeException e) {
+            // IllegalArgumentException, SecurityException, UncheckedIOException ...: report as a network failure.
+            // Only the class name is kept; the original message or cause could echo a request header value.
+            throw new IOException("request failed: " + e.getClass().getSimpleName());
         }
     }
 }

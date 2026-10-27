@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-/** Scripted transport: each queued item is a Transport.Response or an IOException. */
+/** Scripted transport: each queued item is a Transport.Response, an IOException or a RuntimeException. */
 final class FakeTransport implements Transport {
     final LinkedList<Object> queue = new LinkedList<>();
     final List<Request> calls = new ArrayList<>();
@@ -28,6 +28,9 @@ final class FakeTransport implements Transport {
         Object next = queue.removeFirst();
         if (next instanceof IOException) {
             throw (IOException) next;
+        }
+        if (next instanceof RuntimeException) {
+            throw (RuntimeException) next;
         }
         return (Response) next;
     }

@@ -390,6 +390,9 @@ public final class FpChecker {
                 }
             } catch (IOException e) {
                 failure = e;
+            } catch (RuntimeException e) {
+                // A transport must report failures as IOException; never let an unchecked one escape raw.
+                failure = new IOException("request failed: " + e.getClass().getSimpleName());
             }
 
             if (failure != null) {
