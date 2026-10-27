@@ -289,11 +289,12 @@ public class FpCheckerTests
     public async Task RouteChangingPathIdsRejectedWithoutRequest(string? id)
     {
         var (client, handler, _) = Mk(R(Resp(200, new { })));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.GetEventAsync(id!));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.UpdateEventAsync(id!, new { }));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.GetVisitorAsync(id!));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.DeleteVisitorAsync(id!));
+        Assert.Throws<ArgumentException>(() => { _ = client.GetEventAsync(id!); });
+        Assert.Throws<ArgumentException>(() => { _ = client.UpdateEventAsync(id!, new { }); });
+        Assert.Throws<ArgumentException>(() => { _ = client.GetVisitorAsync(id!); });
+        Assert.Throws<ArgumentException>(() => { _ = client.DeleteVisitorAsync(id!); });
         Assert.Empty(handler.Calls);
+        await Task.CompletedTask;
     }
 
     [Fact]
@@ -336,9 +337,10 @@ public class FpCheckerTests
     public async Task PublishableOpsNeedKey()
     {
         var (client, handler, _) = Mk(R());
-        await Assert.ThrowsAsync<InvalidOperationException>(() => client.IdentifyAsync(new { }));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => client.GetChallengeAsync(new Dictionary<string, object?> { ["intent"] = "i" }));
+        Assert.Throws<InvalidOperationException>(() => { _ = client.IdentifyAsync(new { }); });
+        Assert.Throws<InvalidOperationException>(() => { _ = client.GetChallengeAsync(new Dictionary<string, object?> { ["intent"] = "i" }); });
         Assert.Empty(handler.Calls);
+        await Task.CompletedTask;
     }
 
     [Fact]
@@ -723,7 +725,63 @@ public class FpCheckerTests
     {
         var (client, handler, _) = Mk(R(Resp(200, new { })));
         client.Dispose();
-        await Assert.ThrowsAsync<ObjectDisposedException>(() => client.GetHealthAsync());
+        Assert.Throws<ObjectDisposedException>(() => { _ = client.GetHealthAsync(); });
+        client.Dispose(); // idempotent
         Assert.Empty(handler.Calls);
+        await Task.CompletedTask;
+    }
+
+    private sealed class Unserializable
+    {
+        public int Boom => throw new InvalidOperationException("sk_test_123 inside");
+    }
+
+    [Fact]
+    public void UnserializableBodyThrowsSynchronouslyWithoutRequest()
+    {
+        var (client, handler, _) = Mk(R(Resp(200, new { })));
+        var e = Assert.Throws<ArgumentException>(() => { _ = client.CheckQuotaAsync(new Unserializable()); });
+        Assert.DoesNotContain(SK, e.Message + e);
+        Assert.Empty(handler.Calls);
+    }
+
+    [Fact]
+    public void NullBotCheckHeadersThrowSynchronously()
+    {
+        var (client, _, _) = Mk(R());
+        Assert.Throws<ArgumentNullException>(() => { _ = client.BotCheckAsync("GET", "https://x.test/", "1.1.1.1", null!); });
+    }
+
+    // --- D1: the whole handler chain is checked ---
+
+    private sealed class PassThrough : DelegatingHandler
+    {
+        public PassThrough(HttpMessageHandler? inner = null)
+        {
+            if (inner is not null)
+            {
+                InnerHandler = inner;
+            }
+        }
+    }
+
+    [Fact]
+    public void DelegatingWrapperAroundRedirectFollowingHandlerRejected()
+    {
+        var opts = new FpCheckerOptions { SecretKey = SK };
+        var e1 = Assert.Throws<ArgumentException>(() => new FpChecker(opts, new PassThrough(new HttpClientHandler())));
+        Assert.Throws<ArgumentException>(() => new FpChecker(opts, new PassThrough(new SocketsHttpHandler())));
+        Assert.Throws<ArgumentException>(() => new FpChecker(opts, new PassThrough(new PassThrough(new HttpClientHandler()))));
+        Assert.DoesNotContain(SK, e1.Message + e1);
+    }
+
+    [Fact]
+    public void DelegatingWrapperAroundRedirectFreeHandlerAccepted()
+    {
+        var opts = new FpCheckerOptions { SecretKey = SK };
+        using var a = new FpChecker(opts, new PassThrough(new SocketsHttpHandler { AllowAutoRedirect = false }));
+        using var b = new FpChecker(opts, new PassThrough(new PassThrough(new HttpClientHandler { AllowAutoRedirect = false })));
+        using var c = new FpChecker(opts, new PassThrough(new FakeHandler()));
+        using var d = new FpChecker(opts, new PassThrough()); // chain ends in null: nothing to check
     }
 }
