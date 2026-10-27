@@ -29,6 +29,8 @@
 | **Android 应用**（Kotlin / Java） | Maven Central 上的 `com.fpchecker:fpchecker-android`，源码在 [`android/`](android) | 可用，0.7.0 |
 | **iOS 应用**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`，源码在 [`apple/`](apple) | 可用，0.7.0 |
 | macOS 应用（Swift Package） | 与 iOS 使用同一个包 | 可用，0.7.0 |
+| **Flutter 应用** | git 依赖，ref `flutter/v0.1.0`，源码在 [`flutter/`](flutter) | 可用，0.1.0 |
+| **React Native 应用** | `npm install @fingerprintchecker/react-native`，源码在 [`react-native/`](react-native) | 可用，0.1.0 |
 | 命令行工具 | 协议 + 示例见 [`cli/`](cli/README.md) | 示例 |
 
 所有平台的终点都一样：客户端拿到 `attestation`，只有持有密钥（secret key）的你的后端才去请求决策。原生 SDK 的传输格式在 [PROTOCOL.md](PROTOCOL.md) 中规定；一致性测试向量在 [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json)，每个 SDK 都必须能复现这些向量。
@@ -182,7 +184,7 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 | React 封装，`@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
 | Vue 封装，`@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
-npm 包（`@fingerprintchecker/agent`、`react`、`vue`、`node`）和 PyPI 包 `fingerprintchecker` 已发布（自 2026-10-26）：用 `npm install` / `pip install fingerprintchecker` 安装。只有 PHP 和 .NET 还没上架 Packagist 和 nuget.org：请从 GitHub release 获取（见各自 README）。Go 用 `go get github.com/AndrewYukon/FingerPrintChecker/server/go`。
+npm 包（`@fingerprintchecker/agent`、`react`、`vue`、`node`）和 PyPI 包 `fingerprintchecker` 已发布（自 2026-10-26）：用 `npm install` / `pip install fingerprintchecker` 安装。PHP 和 .NET 从 GitHub release 安装（见各自 README）。Go 用 `go get github.com/AndrewYukon/FingerPrintChecker/server/go`。
 
 Cloudflare Worker proxy (English): [integrations/cloudflare-worker](integrations/cloudflare-worker/README.md)
 

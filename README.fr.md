@@ -34,6 +34,8 @@ et un même Wi-Fi domestique) :
 | **Applications Android** (Kotlin / Java) | `com.fpchecker:fpchecker-android` sur Maven Central, sources dans [`android/`](android) | Disponible, 0.7.0 |
 | **Applications iOS** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, sources dans [`apple/`](apple) | Disponible, 0.7.0 |
 | Applications macOS (Swift Package) | Même paquet qu'iOS | Disponible, 0.7.0 |
+| **Applications Flutter** | dépendance git, ref `flutter/v0.1.0`, sources dans [`flutter/`](flutter) | Disponible, 0.1.0 |
+| **Applications React Native** | `npm install @fingerprintchecker/react-native`, sources dans [`react-native/`](react-native) | Disponible, 0.1.0 |
 | Outils en ligne de commande | Protocole + exemples dans [`cli/`](cli/README.md) | Exemples |
 
 Toutes les plateformes se terminent de la même façon : le client obtient un `attestation`, et seul votre backend, qui détient votre clé secrète, demande une décision. Le format d'échange des SDK natifs est spécifié dans [PROTOCOL.md](PROTOCOL.md) ; les vecteurs de conformité se trouvent dans [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) et chaque SDK doit les reproduire.
@@ -189,7 +191,7 @@ l'ouvre avec la clé du projet (jamais sur l'appareil).
 | Wrapper React, `@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
 | Wrapper Vue, `@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
-Les paquets npm (`@fingerprintchecker/agent`, `react`, `vue`, `node`) et le paquet PyPI `fingerprintchecker` sont publiés (depuis le 2026-10-26) : `npm install` / `pip install fingerprintchecker`. Seuls PHP et .NET ne sont pas encore sur Packagist et nuget.org : installez-les depuis la release GitHub (voir leurs README). Go : `go get github.com/AndrewYukon/FingerPrintChecker/server/go`..
+Les paquets npm (`@fingerprintchecker/agent`, `react`, `vue`, `node`) et le paquet PyPI `fingerprintchecker` sont publiés (depuis le 2026-10-26) : `npm install` / `pip install fingerprintchecker`. PHP et .NET s'installent depuis la release GitHub (voir leurs README). Go : `go get github.com/AndrewYukon/FingerPrintChecker/server/go`.
 
 Cloudflare Worker proxy (English): [integrations/cloudflare-worker](integrations/cloudflare-worker/README.md)
 

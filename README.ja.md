@@ -31,6 +31,8 @@ FingerPrint Checker は、どれか 1 台が受け取った時点で残りをす
 | **Android アプリ**（Kotlin / Java） | Maven Central の `com.fpchecker:fpchecker-android`、ソースは [`android/`](android) | 利用可能、0.7.0 |
 | **iOS アプリ**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`、ソースは [`apple/`](apple) | 利用可能、0.7.0 |
 | macOS アプリ（Swift Package） | iOS と同じパッケージ | 利用可能、0.7.0 |
+| **Flutter アプリ** | git 依存関係、ref `flutter/v0.1.0`、ソースは [`flutter/`](flutter) | 利用可能、0.1.0 |
+| **React Native アプリ** | `npm install @fingerprintchecker/react-native`、ソースは [`react-native/`](react-native) | 利用可能、0.1.0 |
 | コマンドラインツール | プロトコルとサンプルは [`cli/`](cli/README.md) | サンプル |
 
 どのプラットフォームでも最終的な流れは同じです。クライアントは `attestation` を受け取り、シークレットキーを持つ自社のバックエンドだけが判定を要求します。ネイティブ SDK のワイヤーフォーマットは [PROTOCOL.md](PROTOCOL.md) に定められており、適合性テストベクターは [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) にあります。すべての SDK はこれらを再現できなければなりません。
@@ -185,7 +187,7 @@ case .failure(let reason, let httpStatus): print("identify failed: \(reason) \(h
 | React ラッパー、`@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
 | Vue ラッパー、`@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
-npm パッケージ（`@fingerprintchecker/agent`、`react`、`vue`、`node`）と PyPI パッケージ `fingerprintchecker` は公開済み（2026-10-26 から）です。`npm install` / `pip install fingerprintchecker` で入手できます。Packagist / nuget.org にまだ無いのは PHP と .NET だけで、GitHub リリースから入手します（各 README を参照）。Go は `go get github.com/AndrewYukon/FingerPrintChecker/server/go` です。
+npm パッケージ（`@fingerprintchecker/agent`、`react`、`vue`、`node`）と PyPI パッケージ `fingerprintchecker` は公開済み（2026-10-26 から）です。`npm install` / `pip install fingerprintchecker` で入手できます。PHP と .NET は GitHub リリースからインストールします（各 README を参照）。Go は `go get github.com/AndrewYukon/FingerPrintChecker/server/go` です。
 
 Cloudflare Worker proxy (English): [integrations/cloudflare-worker](integrations/cloudflare-worker/README.md)
 

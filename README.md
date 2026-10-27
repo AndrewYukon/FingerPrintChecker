@@ -36,6 +36,8 @@ devices (a Mac with three browsers, an iPhone, two Android phones, one home Wi-F
 | **Android apps** (Kotlin / Java) | `com.fpchecker:fpchecker-android` on Maven Central, source in [`android/`](android) | Available, 0.7.0 |
 | **iOS apps** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, source in [`apple/`](apple) | Available, 0.7.0 |
 | macOS apps (Swift Package) | Same package as iOS | Available, 0.7.0 |
+| **Flutter apps** | git dependency, ref `flutter/v0.1.0`, source in [`flutter/`](flutter) | Available, 0.1.0 |
+| **React Native apps** | `npm install @fingerprintchecker/react-native`, source in [`react-native/`](react-native) | Available, 0.1.0 |
 | Command-line tools | Protocol + examples in [`cli/`](cli/README.md) | Examples |
 | Management CLI and MCP server | `npx -y @fingerprintchecker/cli`, source in [`tools/cli/`](tools/cli/README.md): manage projects, rulesets and webhooks from a terminal or an AI assistant | Available, 0.1.0 |
 
@@ -320,7 +322,7 @@ When your project has a sealing key, identify answers carry an optional `sealedR
 | React wrapper, `@fingerprintchecker/react` | [`web/react`](web/react) | `npm install @fingerprintchecker/react` |
 | Vue wrapper, `@fingerprintchecker/vue` | [`web/vue`](web/vue) | `npm install @fingerprintchecker/vue` |
 
-The npm packages (`@fingerprintchecker/agent`, `react`, `vue`, `node`) and the PyPI package `fingerprintchecker` are published (since 2026-10-26); install them with `npm install` / `pip install fingerprintchecker`. Only PHP and .NET are not yet on Packagist and nuget.org: install them from the GitHub release (see their READMEs). Go: `go get github.com/AndrewYukon/FingerPrintChecker/server/go`. How the owner publishes them: [docs/PUBLISHING.md](docs/PUBLISHING.md).
+The npm packages (`@fingerprintchecker/agent`, `react`, `vue`, `node`) and the PyPI package `fingerprintchecker` are published (since 2026-10-26); install them with `npm install` / `pip install fingerprintchecker`. PHP and .NET are installed from the GitHub release (see their READMEs). Go: `go get github.com/AndrewYukon/FingerPrintChecker/server/go`. How the owner publishes them: [docs/PUBLISHING.md](docs/PUBLISHING.md).
 
 ## Cloudflare Worker proxy
 

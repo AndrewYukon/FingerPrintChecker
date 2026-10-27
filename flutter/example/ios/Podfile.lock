@@ -1,0 +1,22 @@
+PODS:
+  - fingerprintchecker (0.1.0):
+    - Flutter
+  - Flutter (1.0.0)
+
+DEPENDENCIES:
+  - fingerprintchecker (from `.symlinks/plugins/fingerprintchecker/ios`)
+  - Flutter (from `Flutter`)
+
+EXTERNAL SOURCES:
+  fingerprintchecker:
+    :path: ".symlinks/plugins/fingerprintchecker/ios"
+  Flutter:
+    :path: Flutter
+
+SPEC CHECKSUMS:
+  fingerprintchecker: 499298d05f2cb7bc9020036bce5985c6409ca9ba
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
+
+PODFILE CHECKSUM: 3ba3a73b1b12adcf321a227a745625fe0888cc82
+
+COCOAPODS: 1.16.2
