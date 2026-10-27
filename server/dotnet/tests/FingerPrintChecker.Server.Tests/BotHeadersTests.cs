@@ -88,6 +88,7 @@ public class BotHeadersTests
     [Fact]
     public void BotCheckHeadersIsNotMutableThroughCast()
     {
-        Assert.False(BotHeaders.BotCheckHeaders is ISet<string>);
+        Assert.Throws<NotSupportedException>(() => ((ISet<string>)BotHeaders.BotCheckHeaders).Add("cookie"));
+        Assert.DoesNotContain("cookie", BotHeaders.BotCheckHeaders);
     }
 }
