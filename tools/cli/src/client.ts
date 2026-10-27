@@ -2,6 +2,20 @@
 // The key lives only in the Authorization header; it is scrubbed from everything that leaves this module.
 import * as ids from './ids.js';
 
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/** The key travels in a header, so the API origin must be https (plain http only for loopback). Never echoes the URL. */
+export function assertApiUrl(raw: string): void {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new ids.InputError('FPCHECKER_API_URL is not a valid URL');
+  }
+  if (u.protocol === 'https:' || (u.protocol === 'http:' && LOOPBACK.has(u.hostname))) return;
+  throw new ids.InputError('FPCHECKER_API_URL must be https (http is allowed only for localhost, 127.0.0.1 and ::1)');
+}
+
 export const DEFAULT_API_URL = 'https://api.fpchecker.com';
 
 export class FpcApiError extends Error {
@@ -46,7 +60,8 @@ export function createClient(opts: ClientOptions) {
   async function call(method: string, path: string, query?: Record<string, string | number | undefined>, body?: unknown): Promise<Json> {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(query ?? {})) if (v !== undefined) qs.set(k, String(v));
-    const url = `${base}/v1/management/${path}${qs.size > 0 ? `?${qs}` : ''}`;
+    const qstr = qs.toString();
+    const url = `${base}/v1/management/${path}${qstr === '' ? '' : `?${qstr}`}`;
     const headers: Record<string, string> = { authorization: `Bearer ${opts.key}`, accept: 'application/json' };
     if (body !== undefined) headers['content-type'] = 'application/json';
     let res: Response;

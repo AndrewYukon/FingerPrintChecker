@@ -3,7 +3,7 @@
 Command line and local [MCP](https://modelcontextprotocol.io) server for [FingerPrint Checker](https://fpchecker.com). Manage projects, environments, events, rulesets and webhooks from a terminal, or let an AI assistant (Claude Desktop, Cursor, Claude Code) read them for you. Node 18+.
 
 ```sh
-export FPCHECKER_MANAGEMENT_KEY=mk_…          # created in the console, Settings > Management keys
+export FPCHECKER_MANAGEMENT_KEY=mk_…          # created in the console at https://fpchecker.com/console/api-keys ("API keys"; owners and admins)
 npx -y @fingerprintchecker/cli projects list
 ```
 
@@ -12,7 +12,7 @@ npx -y @fingerprintchecker/cli projects list
 | Variable | Required | Meaning |
 |---|---|---|
 | `FPCHECKER_MANAGEMENT_KEY` | yes | A management key (`mk_…`). Read-scope keys can only read. |
-| `FPCHECKER_API_URL` | no | API origin. Default `https://api.fpchecker.com`. |
+| `FPCHECKER_API_URL` | no | API origin. Default `https://api.fpchecker.com`. Must be https, except `localhost`, `127.0.0.1` and `::1`; anything else exits 2. |
 
 The key is read **only** from the environment. A command-line argument that starts with `mk_` (or `--opt=mk_…`) is refused with exit code 2, because arguments end up in shell history and process listings. The key is never printed, in output, errors or `--json`.
 
@@ -83,7 +83,7 @@ Read tools: `list_projects`, `get_project`, `get_usage`, `search_events`, `get_e
 ### Claude Code
 
 ```sh
-claude mcp add fpchecker -e FPCHECKER_MANAGEMENT_KEY=mk_… -- npx -y @fingerprintchecker/cli mcp
+claude mcp add --env FPCHECKER_MANAGEMENT_KEY=mk_… fpchecker -- npx -y @fingerprintchecker/cli mcp
 ```
 
 To allow writes, append `--allow-writes` after `mcp`.

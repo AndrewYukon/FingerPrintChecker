@@ -1,7 +1,7 @@
 // Entry point for `fpchecker`: parses arguments, enforces the key rules, runs one command, returns the exit code.
 // 0 ok; 1 the server refused or was unreachable; 2 usage error (bad arguments, no key, a key on the command line).
 import { parseArgs } from 'node:util';
-import { createClient, DEFAULT_API_URL, FpcApiError, FpcNetworkError } from '../client.js';
+import { assertApiUrl, createClient, DEFAULT_API_URL, FpcApiError, FpcNetworkError } from '../client.js';
 import { formatHuman, formatJson } from '../format.js';
 import { InputError } from '../ids.js';
 import { runMcp } from '../mcp.js';
@@ -71,7 +71,9 @@ export async function run(argv: string[], deps: RunDeps): Promise<number> {
       deps.stderr(`error: ${KEY_ENV} is not set. Create a management key in the console and export it.\n`);
       return 2;
     }
-    const client = createClient({ apiUrl: deps.env.FPCHECKER_API_URL?.trim() || DEFAULT_API_URL, key, fetch: deps.fetch });
+    const apiUrl = deps.env.FPCHECKER_API_URL?.trim() || DEFAULT_API_URL;
+    assertApiUrl(apiUrl);
+    const client = createClient({ apiUrl, key, fetch: deps.fetch });
     if (isMcp) {
       await runMcp(client, { allowWrites: values['allow-writes'] === true });
       return 0;

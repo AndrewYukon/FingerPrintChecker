@@ -207,3 +207,29 @@ describe('usage errors', () => {
     expect(r.out).toContain('fpchecker');
   });
 });
+
+describe('FPCHECKER_API_URL', () => {
+  for (const url of ['http://api.fpchecker.com', 'ftp://127.0.0.1', 'not a url', `http://example.com/${KEY}`]) {
+    it(`rejects ${url.replace(KEY, '<key>')}`, async () => {
+      const r = await cli(['usage'], { FPCHECKER_API_URL: url });
+      expect(r.code).toBe(2);
+      expect(r.err).toContain('FPCHECKER_API_URL');
+      expect(r.out + r.err).not.toContain(KEY);
+      expect(fake.seen).toHaveLength(0);
+    });
+  }
+
+  it('allows http on loopback', async () => {
+    for (const host of ['localhost', '127.0.0.1', '[::1]']) {
+      const seen: string[] = [];
+      const code = await run(['usage'], {
+        env: { FPCHECKER_MANAGEMENT_KEY: KEY, FPCHECKER_API_URL: `http://${host}:9` },
+        stdout: () => {},
+        stderr: () => {},
+        fetch: (async (u: string | URL) => (seen.push(String(u)), new Response('{"ok":true}'))) as typeof fetch,
+      });
+      expect(code).toBe(0);
+      expect(seen).toEqual([`http://${host}:9/v1/management/usage`]);
+    }
+  });
+});
