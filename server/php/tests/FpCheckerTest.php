@@ -45,6 +45,20 @@ final class FpCheckerTest extends TestCase
         $this->fail('expected FpCheckerApiError');
     }
 
+    /**
+     * Calls a client method without a closure frame: a closure in the exception trace would drag the
+     * test's FakeTransport (which records the real headers) into print_r of the exception.
+     */
+    private function capture(FpChecker $c, string $method, mixed ...$args): FpCheckerApiError
+    {
+        try {
+            $c->$method(...$args);
+        } catch (FpCheckerApiError $e) {
+            return $e;
+        }
+        $this->fail('expected FpCheckerApiError');
+    }
+
     // --- surface ---
 
     /** @return list<array{string, string, string, list<array<string, mixed>>, bool, list<string>}> */
@@ -192,9 +206,8 @@ final class FpCheckerTest extends TestCase
     public function testApiErrorFromClientHidesKeyInEveryDump(): void
     {
         $t = new FakeTransport(self::resp(401, ['error' => 'bad_key']));
-        $e = $this->error(fn () => $this->mk($t, self::PK)->getEvent('e'));
+        $e = $this->capture($this->mk($t, self::PK), 'getEvent', 'e');
         foreach ($this->dumps($e) as $i => $text) {
-            if (($p = strpos($text, self::SK)) !== false) { fwrite(STDERR, "CTX$i: " . substr($text, max(0, $p - 400), 600) . "\n"); }
             $this->assertStringNotContainsString(self::SK, $text, "error dump $i");
             $this->assertStringNotContainsString(self::PK, $text, "error dump $i");
         }
@@ -461,7 +474,7 @@ final class FpCheckerTest extends TestCase
     public function testErrorNeverContainsSecret(): void
     {
         $t = new FakeTransport(self::resp(401, ['error' => 'bad_key']));
-        $e = $this->error(fn () => $this->mk($t)->getEvent('e'));
+        $e = $this->capture($this->mk($t), 'getEvent', 'e');
         $this->assertNoSecret($e);
     }
 
@@ -480,7 +493,7 @@ final class FpCheckerTest extends TestCase
     {
         $leaky = new RuntimeException('boom ' . self::SK);
         $t = new FakeTransport($leaky);
-        $e = $this->error(fn () => $this->mk($t)->checkQuota([]));
+        $e = $this->capture($this->mk($t), 'checkQuota', []);
         $this->assertSame([0, 'network_error'], [$e->status(), $e->code()]);
         $this->assertNull($e->getPrevious());
         $this->assertNoSecret($e);
