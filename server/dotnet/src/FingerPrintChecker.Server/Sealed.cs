@@ -63,7 +63,7 @@ public static class Sealed
         }
 
         var aad = raw.AsSpan(0, 8).ToArray();
-        var keyId = raw.AsSpan(4, 4);
+        var keyId = raw.AsSpan(4, 4).ToArray();
         var candidates = keyBytes.Where(k => SHA256.HashData(k).AsSpan(0, 4).SequenceEqual(keyId)).ToList();
         if (candidates.Count == 0)
         {
