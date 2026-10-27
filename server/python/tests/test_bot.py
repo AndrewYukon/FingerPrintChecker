@@ -106,3 +106,19 @@ def test_search_events_passes_bot_filters_as_query():
     client, calls = mk([resp(200, {"ok": True})])
     client.search_events({"bot_result": "good", "bot_category": "ai_crawler", "bot_identity": "signed", "bot_id": "googlebot"})
     assert calls[0].full_url.endswith("/v1/events?bot_result=good&bot_category=ai_crawler&bot_identity=signed&bot_id=googlebot")
+
+
+SIG_INPUT = 'sig1=("@authority" "content-type" "X-Custom" "cookie" "signature-agent");created=1;keyid="k";tag="web-bot-auth"'
+
+
+def test_header_helper_keeps_signature_input_covered_components():
+    out = bot_check_headers({
+        "Signature-Input": SIG_INPUT, "Signature-Agent": '"https://chatgpt.com"', "Content-Type": "text/plain",
+        "X-Custom": "v", "X-Other": "no", "Cookie": "sid=1", "Authorization": "x",
+    })
+    assert out["content-type"] == "text/plain" and out["x-custom"] == "v"
+    assert "x-other" not in out and "cookie" not in out and "authorization" not in out
+
+
+def test_header_helper_no_extras_without_signature_input():
+    assert bot_check_headers({"content-type": "x", "user-agent": "u"}) == {"user-agent": "u"}

@@ -5,6 +5,7 @@
 - Add `Client.BotCheck(ctx, BotCheckRequest) (*BotCheckResult, error)` (`POST /v1/bot-check`) with the types `BotCheckRequest`, `BotCheckResult`, `BotSignal`, `BotInfo`, and the `BotCheckHeaders(http.Header)` helper that builds the forwardable header map (never Cookie or Authorization).
 - `EventSignals` gains `Version` (1 or 2) and `Bot` (`BotSignal`): `Result` may be `good`, and v2 events carry `Info` (nil when no directory bot was named, always nil for version 1).
 - Event search accepts the filters `bot_result`, `bot_category`, `bot_identity`, `bot_id`.
+- `BotCheckHeaders` also keeps the headers named in the request's `signature-input` (never Cookie or Authorization), so signed agents verify.
 - OpenAPI updated to fp-guard ba3762c (branch feat/bot-classification).
 
 ## 0.3.0

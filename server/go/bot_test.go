@@ -158,3 +158,29 @@ func TestBotSearchFiltersForwarded(t *testing.T) {
 		t.Fatal(gotQuery)
 	}
 }
+
+func TestBotCheckHeadersFollowSignatureInput(t *testing.T) {
+	h := http.Header{}
+	h.Set("Signature-Input", `sig1=("@authority" "content-type" "X-Custom" "cookie" "signature-agent");created=1;keyid="k";tag="web-bot-auth"`)
+	h.Set("Signature-Agent", `"https://chatgpt.com"`)
+	h.Set("Content-Type", "text/plain")
+	h.Set("X-Custom", "v")
+	h.Set("X-Other", "no")
+	h.Set("Cookie", "sid=1")
+	h.Set("Authorization", "x")
+	got := BotCheckHeaders(h)
+	if got["content-type"] != "text/plain" || got["x-custom"] != "v" {
+		t.Fatalf("covered components missing: %v", got)
+	}
+	for _, k := range []string{"x-other", "cookie", "authorization"} {
+		if _, ok := got[k]; ok {
+			t.Fatalf("%s forwarded", k)
+		}
+	}
+	plain := http.Header{}
+	plain.Set("Content-Type", "x")
+	plain.Set("User-Agent", "u")
+	if g := BotCheckHeaders(plain); len(g) != 1 || g["user-agent"] != "u" {
+		t.Fatalf("%v", g)
+	}
+}

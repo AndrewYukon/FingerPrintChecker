@@ -60,19 +60,38 @@ export const BOT_CHECK_HEADERS: readonly string[] = [
 type HeaderValue = string | string[] | number | undefined | null;
 type HeaderSource = Headers | Record<string, HeaderValue>;
 
+/** Never forwarded, even when a signature covers them: they carry credentials. */
+const NEVER_FORWARD = ['cookie', 'authorization', 'proxy-authorization'];
+const MAX_EXTRA = 32;
+
+/** Non-`@` component names covered by a `signature-input` value (lower-cased). */
+function coveredHeaders(signatureInput: string): string[] {
+  const names: string[] = [];
+  for (const list of signatureInput.matchAll(/\(([^)]*)\)/g))
+    for (const q of (list[1] ?? '').matchAll(/"([^"]*)"/g)) {
+      const n = (q[1] ?? '').toLowerCase();
+      if (n !== '' && !n.startsWith('@')) names.push(n);
+    }
+  return names;
+}
+
 /**
  * Build the header map for `botCheck` from a `Headers` object or a Node/Express
- * `req.headers` object. Keeps only the allowed headers (lower-cased names) and drops the rest,
- * including Cookie and Authorization. Repeated values are joined with ", ".
+ * `req.headers` object. Keeps the allowed headers plus any header named as a covered component in the
+ * request's `signature-input` (so a signed request can be verified); lower-cased names. Drops the rest,
+ * including Cookie and Authorization, which are never forwarded. Repeated values are joined with ", ".
  */
 export function botCheckHeaders(source: HeaderSource): Record<string, string> {
-  const out: Record<string, string> = {};
+  const all: Record<string, string> = {};
   const put = (name: string, value: HeaderValue) => {
-    const key = name.toLowerCase();
-    if (value === undefined || value === null || !BOT_CHECK_HEADERS.includes(key)) return;
-    out[key] = Array.isArray(value) ? value.join(', ') : String(value);
+    if (value === undefined || value === null) return;
+    all[name.toLowerCase()] = Array.isArray(value) ? value.join(', ') : String(value);
   };
   if (typeof Headers !== 'undefined' && source instanceof Headers) source.forEach((v, k) => put(k, v));
   else for (const [k, v] of Object.entries(source as Record<string, HeaderValue>)) put(k, v);
-  return out;
+
+  const wanted = new Set(BOT_CHECK_HEADERS);
+  const extra = coveredHeaders(all['signature-input'] ?? '').filter((n) => !NEVER_FORWARD.includes(n));
+  for (const n of extra.slice(0, MAX_EXTRA)) wanted.add(n);
+  return Object.fromEntries(Object.entries(all).filter(([k]) => wanted.has(k)));
 }

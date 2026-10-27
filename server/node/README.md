@@ -52,6 +52,13 @@ app.use(async (req, res, next) => {
 
 `bot.result` is `good`, `bad` or `not_detected`; `bot.info` (`id`, `name`, `provider`, `category`, `identity`) is set when the request named a directory bot. A 400 throws `FpCheckerApiError` with `code` `invalid_request` or `invalid_ip` and the offending `field` in `body`.
 
+Rules of use:
+- Call `botCheck` once per request and reuse the answer; do not call it again for the same request.
+- Never retry a signed request: a retry replays the signature nonce and the request is then judged `spoofed` (`bad`).
+- `ip` must be the trusted client IP, not an address a client can set. With Express set `trust proxy` to your proxy hop count or CIDR list (never `true`), then use `req.ip`.
+- Limits: 3,000 checks per minute per client IP and 1,200 per minute per project (429 beyond that).
+- `botCheckHeaders` also forwards any header named in the request's `signature-input`, so signed agents verify; Cookie and Authorization are never forwarded.
+
 Event signals come in two versions: `signals.version` 1 (before server 0.48.0, no `good`, no `bot.info`) and 2. `searchEvents` also filters by `botResult`, `botCategory`, `botIdentity` and `botId`.
 
 ## Sealed results

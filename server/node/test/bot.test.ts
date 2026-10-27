@@ -77,6 +77,26 @@ describe('botCheckHeaders', () => {
   });
 });
 
+describe('botCheckHeaders signature-input', () => {
+  const si = 'sig1=("@authority" "content-type" "X-Custom" "cookie" "signature-agent");created=1;keyid="k";tag="web-bot-auth"';
+  it('also keeps non-@ covered components, never cookie/authorization', () => {
+    const out = botCheckHeaders(new Headers({
+      'Signature-Input': si, 'Signature-Agent': '"https://chatgpt.com"', 'Content-Type': 'text/plain',
+      'X-Custom': 'v', 'X-Other': 'no', Cookie: 'sid=1', Authorization: 'x',
+    }));
+    expect(out['content-type']).toBe('text/plain');
+    expect(out['x-custom']).toBe('v');
+    expect(out).not.toHaveProperty('x-other');
+    expect(out).not.toHaveProperty('cookie');
+    expect(out).not.toHaveProperty('authorization');
+    expect(botCheckHeaders({ 'signature-input': 'sig1=("authorization" "x-a");created=1', authorization: 'x', 'x-a': '1' }))
+      .toEqual({ 'signature-input': 'sig1=("authorization" "x-a");created=1', 'x-a': '1' });
+  });
+  it('keeps nothing extra without signature-input', () => {
+    expect(botCheckHeaders({ 'content-type': 'x', 'user-agent': 'u' })).toEqual({ 'user-agent': 'u' });
+  });
+});
+
 describe('signals v1 and v2', () => {
   const ev = (signals: unknown) => JSON.stringify({ id: 'e', type: 'identify', data: { visitorId: 'v_1', signals } });
 

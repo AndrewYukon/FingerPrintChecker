@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -120,17 +121,59 @@ var botCheckHeaders = map[string]bool{
 	"upgrade-insecure-requests": true,
 }
 
-// BotCheckHeaders builds BotCheckRequest.Headers from a request's headers (r.Header). It keeps only
-// the headers the check needs, with lower-cased names, and drops everything else, including Cookie
-// and Authorization. h is expected to be canonical (as net/http delivers it). A header sent more than once is joined with ", ".
+// neverForward lists headers that are not forwarded even when a signature covers them: they carry credentials.
+var neverForward = map[string]bool{"cookie": true, "authorization": true, "proxy-authorization": true}
+
+const maxExtraHeaders = 32
+
+var (
+	sigComponentList = regexp.MustCompile(`\(([^)]*)\)`)
+	sigComponentName = regexp.MustCompile(`"([^"]*)"`)
+)
+
+// coveredHeaders returns the non-"@" component names covered by a signature-input value (lower-cased).
+func coveredHeaders(signatureInput string) []string {
+	var names []string
+	for _, l := range sigComponentList.FindAllStringSubmatch(signatureInput, -1) {
+		for _, q := range sigComponentName.FindAllStringSubmatch(l[1], -1) {
+			n := strings.ToLower(q[1])
+			if n != "" && !strings.HasPrefix(n, "@") {
+				names = append(names, n)
+			}
+		}
+	}
+	return names
+}
+
+// BotCheckHeaders builds BotCheckRequest.Headers from a request's headers (r.Header). It keeps the
+// headers the check needs plus any header named as a covered component in the request's
+// signature-input (so a signed request can be verified), with lower-cased names, and drops everything
+// else; Cookie and Authorization are never forwarded. h is expected to be canonical (as net/http
+// delivers it). A header sent more than once is joined with ", ".
 func BotCheckHeaders(h http.Header) map[string]string {
-	out := make(map[string]string)
+	all := make(map[string]string, len(h))
 	for name, values := range h {
-		key := strings.ToLower(name)
-		if !botCheckHeaders[key] || len(values) == 0 {
+		if len(values) > 0 {
+			all[strings.ToLower(name)] = strings.Join(values, ", ")
+		}
+	}
+	wanted := make(map[string]bool, len(botCheckHeaders)+maxExtraHeaders)
+	for k := range botCheckHeaders {
+		wanted[k] = true
+	}
+	added := 0
+	for _, n := range coveredHeaders(all["signature-input"]) {
+		if neverForward[n] || wanted[n] || added >= maxExtraHeaders {
 			continue
 		}
-		out[key] = strings.Join(values, ", ")
+		wanted[n] = true
+		added++
+	}
+	out := make(map[string]string)
+	for k, v := range all {
+		if wanted[k] {
+			out[k] = v
+		}
 	}
 	return out
 }
