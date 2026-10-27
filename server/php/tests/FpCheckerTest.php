@@ -90,7 +90,7 @@ final class FpCheckerTest extends TestCase
 
     public function testEveryOperationIdHasMethod(): void
     {
-        $missing = array_values(array_filter(array_keys(self::operations()), static fn ($id) => !is_callable([FpChecker::class, $id])));
+        $missing = array_values(array_filter(array_keys(self::operations()), static fn ($id) => !method_exists(FpChecker::class, $id)));
         $this->assertSame([], $missing);
     }
 
