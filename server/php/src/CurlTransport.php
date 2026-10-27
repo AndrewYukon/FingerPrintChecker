@@ -32,7 +32,6 @@ final class CurlTransport implements Transport
             // A redirect would forward X-Secret-Key to another origin: never follow.
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_MAXREDIRS => 0,
-            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_CONNECTTIMEOUT_MS => $ms,
             CURLOPT_TIMEOUT_MS => $ms,
             CURLOPT_NOSIGNAL => true,
@@ -45,6 +44,12 @@ final class CurlTransport implements Transport
                 return strlen($line);
             },
         ];
+        // CURLOPT_PROTOCOLS is deprecated in newer libcurl; the string form replaces it where defined.
+        if (defined('CURLOPT_PROTOCOLS_STR')) {
+            $options[CURLOPT_PROTOCOLS_STR] = 'http,https';
+        } else {
+            $options[CURLOPT_PROTOCOLS] = CURLPROTO_HTTP | CURLPROTO_HTTPS;
+        }
         if ($body !== null) {
             $options[CURLOPT_POSTFIELDS] = $body;
         }

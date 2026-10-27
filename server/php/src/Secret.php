@@ -9,7 +9,9 @@ use LogicException;
 /**
  * Holds a key so that no plain copy sits in any inspectable property. var_export, (array) casts,
  * var_dump and debug_zval_dump ignore __debugInfo, so the value is stored XOR-masked with a random
- * per-instance pad: dumps show only masked bytes.
+ * per-instance pad: dumps show only masked bytes. The masking protects against accidental logging and
+ * dumps only. It is not secrecy: the pad lives in the same object, and anyone who can run code in the
+ * process can read the key.
  *
  * @internal
  */
