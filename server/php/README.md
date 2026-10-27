@@ -43,6 +43,12 @@ if (($verdict['ok'] ?? null) === false) {
 When the browser reports an `eventId`, fetch the event from your server and check it before trusting anything. Do not accept the browser's own claims about the visitor.
 
 ```php
+/** Your own store; `markUsed` returns false when the id was seen before (database unique key, Redis SET NX). */
+interface UsedEvents
+{
+    public function markUsed(string $eventId): bool;
+}
+
 function verifyEvent(FpChecker $fp, string $eventId, UsedEvents $used): array
 {
     // 1. Shape: ev_ followed by 20 Crockford base32 characters.
@@ -55,11 +61,15 @@ function verifyEvent(FpChecker $fp, string $eventId, UsedEvents $used): array
         throw new RuntimeException('event id mismatch');
     }
     // 3. Fresh: created within the last 5 minutes. An unparseable createdAt fails closed.
-    $created = isset($event['createdAt']) && is_string($event['createdAt']) ? strtotime($event['createdAt']) : false;
-    if ($created === false || abs(time() - $created) > 300) {
+    // createdAt looks like 2026-10-27T12:00:00Z or 2026-10-27T12:00:00.123Z; anything else is refused.
+    $created = null;
+    foreach (['!Y-m-d\TH:i:sp', '!Y-m-d\TH:i:s.vp'] as $format) {
+        $created ??= DateTimeImmutable::createFromFormat($format, is_string($event['createdAt'] ?? null) ? $event['createdAt'] : '') ?: null;
+    }
+    if ($created === null || abs(time() - $created->getTimestamp()) > 300) {
         throw new RuntimeException('event too old or unreadable');
     }
-    // 4. Single use: an event id is accepted once. $used is your store (database unique key, Redis SET NX).
+    // 4. Single use: an event id is accepted once.
     if (!$used->markUsed($eventId)) {
         throw new RuntimeException('event already used');
     }
@@ -87,7 +97,7 @@ try {
 } catch (FpCheckerApiError) {
     $verdict = null; // fail open: an outage of the check must not take your site down
 }
-if ($verdict !== null && $verdict['bot']['result'] === 'bad') {
+if ($verdict !== null && ($verdict['bot']['result'] ?? null) === 'bad') {
     http_response_code(403);
     exit;
 }

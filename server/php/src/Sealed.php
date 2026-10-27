@@ -24,7 +24,7 @@ final class Sealed
      * @return array<string, mixed>
      * @throws SealedResultError
      */
-    public static function unsealResult(mixed $blob, mixed $keys): array
+    public static function unsealResult(mixed $blob, #[\SensitiveParameter] mixed $keys): array
     {
         if (!is_iterable($keys)) {
             throw new SealedResultError('invalid_key');
@@ -47,7 +47,7 @@ final class Sealed
         $keyId = substr($raw, 4, 4);
         $candidates = array_values(array_filter(
             $keyBytes,
-            static fn (string $k): bool => substr(hash('sha256', $k, true), 0, 4) === $keyId,
+            static fn (#[\SensitiveParameter] string $k): bool => substr(hash('sha256', $k, true), 0, 4) === $keyId,
         ));
         if ($candidates === []) {
             throw new SealedResultError('unknown_key');
@@ -90,7 +90,7 @@ final class Sealed
     }
 
     /** Canonical standard base64 only (regex, length, decode, re-encode equality). */
-    private static function strictB64(mixed $value): ?string
+    private static function strictB64(#[\SensitiveParameter] mixed $value): ?string
     {
         if (!is_string($value) || strlen($value) % 4 !== 0 || preg_match('/\A[A-Za-z0-9+\/]*={0,2}\z/', $value) !== 1) {
             return null;
