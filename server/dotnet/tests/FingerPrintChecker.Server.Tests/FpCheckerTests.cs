@@ -791,5 +791,6 @@ public class FpCheckerTests
         var opts = new FpCheckerOptions { SecretKey = "sk_live_serialise_me_not" };
         var json = System.Text.Json.JsonSerializer.Serialize(opts);
         Assert.DoesNotContain("sk_live_serialise_me_not", json);
+        Assert.Contains("[redacted]", json);
     }
 }
