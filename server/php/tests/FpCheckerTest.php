@@ -794,11 +794,8 @@ final class FpCheckerTest extends TestCase
 
     // --- debug output on construction errors ---
 
-    public function testConstructionErrorTraceHidesSecretOnPhp82Plus(): void
+    public function testConstructionErrorTraceHidesSecret(): void
     {
-        if (PHP_VERSION_ID < 80200) {
-            $this->markTestSkipped('#[\SensitiveParameter] needs PHP 8.2+; on 8.1 the constructor frame lists its arguments');
-        }
         try {
             new FpChecker(self::SK, null, 'ftp://x.test');
             $this->fail('accepted ftp');
