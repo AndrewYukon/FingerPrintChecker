@@ -88,9 +88,9 @@ public class ReadmeSnippets
         {
             Webhook.VerifyWebhookSignature(rawBody, Request.Headers["FPC-Signature"].ToString(), Environment.GetEnvironmentVariable("FPC_WEBHOOK_SECRET")!);
         }
-        catch (WebhookSignatureException e)
+        catch (WebhookSignatureException)
         {
-            return Results.BadRequest(); // e.Code: malformed_header | bad_signature | expired | future
+            return Results.BadRequest(); // the exception's Code: malformed_header | bad_signature | expired | future
         }
 
         var ev = Events.ParseWebhookEvent(Encoding.UTF8.GetString(rawBody)); // only after verifying
@@ -144,12 +144,18 @@ public class ReadmeSnippets
         public string Path => "/p";
         public string QueryString => "?q=1";
         public Stream Body { get; } = new MemoryStream(Encoding.UTF8.GetBytes("{}"));
-        public HeaderBag Headers { get; } = new() { { "User-Agent", new[] { "x" } } };
+        public HeaderBag Headers { get; } = new() { { "User-Agent", new Values("x") } };
     }
 
-    private sealed class HeaderBag : Dictionary<string, string[]>
+    // Stand-in for ASP.NET's StringValues: ToString() is a non-null string.
+    private readonly record struct Values(string Text)
     {
-        public new string[] this[string key] => TryGetValue(key, out var v) ? v : Array.Empty<string>();
+        public override string ToString() => Text;
+    }
+
+    private sealed class HeaderBag : Dictionary<string, Values>
+    {
+        public new Values this[string key] => TryGetValue(key, out var v) ? v : new Values("");
     }
 
     private static class Results

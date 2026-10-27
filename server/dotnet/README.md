@@ -153,9 +153,9 @@ try
 {
     Webhook.VerifyWebhookSignature(rawBody, Request.Headers["FPC-Signature"].ToString(), Environment.GetEnvironmentVariable("FPC_WEBHOOK_SECRET")!);
 }
-catch (WebhookSignatureException e)
+catch (WebhookSignatureException)
 {
-    return Results.BadRequest(); // e.Code: malformed_header | bad_signature | expired | future
+    return Results.BadRequest(); // the exception's Code: malformed_header | bad_signature | expired | future
 }
 
 var ev = Events.ParseWebhookEvent(Encoding.UTF8.GetString(rawBody)); // only after verifying
