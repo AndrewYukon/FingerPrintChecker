@@ -11,7 +11,13 @@
     "ios",
     "*.podspec",
     "README.md",
-    "LICENSE"
+    "CHANGELOG.md",
+    "LICENSE",
+    "!android/build",
+    "!android/.gradle",
+    "!android/src/test",
+    "!android/src/androidTest",
+    "!**/.DS_Store"
   ],
   "sideEffects": false,
   "scripts": {
