@@ -46,6 +46,8 @@ target 'FpcExample' do
           bc.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
         end
         # RN 0.76's bundled fmt 11.0.2 fails on Xcode 27's clang (consteval); build fmt as C++17.
+        # Drop this override when the example moves to an RN version whose fmt builds under Xcode 27's clang.
+        # (UI-level coverage lives in the Task 9 E2E; the hostless FpcExampleTests cover bridge logic only.)
         if target.name == 'fmt'
           bc.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
         end

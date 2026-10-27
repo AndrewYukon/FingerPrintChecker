@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Button, SafeAreaView, StyleSheet, Text} from 'react-native';
+import {Button, NativeModules, SafeAreaView, StyleSheet, Text} from 'react-native';
 import {FingerPrintChecker} from '@fingerprintchecker/react-native';
 import {FPC_INTENT_URL, FPC_PK} from './config';
 
@@ -16,6 +16,8 @@ async function fetchIntentToken(url: string): Promise<string> {
   }
   throw new Error(body.error ?? `intent_${response.status}`);
 }
+
+const nativeLinked = NativeModules.FingerPrintCheckerModule != null;
 
 const checker = new FingerPrintChecker({publishableKey: FPC_PK});
 
@@ -38,6 +40,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.root}>
+      <Text testID="native-status">{nativeLinked ? 'native module: linked' : 'native module: not linked'}</Text>
       <Button title="Identify" onPress={run} disabled={busy} testID="identify" />
       <Text style={styles.result} testID="result">
         {result}

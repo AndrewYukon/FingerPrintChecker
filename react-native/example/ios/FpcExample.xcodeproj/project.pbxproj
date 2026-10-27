@@ -15,6 +15,7 @@
 		7699B88040F8A987B510C191 /* libPods-FpcExample-FpcExampleTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 19F6CBCC0A4E27FBF8BF4A61 /* libPods-FpcExample-FpcExampleTests.a */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		C188D7D111C335BBC850D476 /* BridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C707384665F8C3AC469B9A1E /* BridgeTests.swift */; };
+		F4496E3696FE688A76128F62 /* SceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 7B801677A64ED608603BFEE5 /* SceneDelegate.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -42,8 +43,10 @@
 		5709B34CF0A7D63546082F79 /* Pods-FpcExample.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FpcExample.release.xcconfig"; path = "Target Support Files/Pods-FpcExample/Pods-FpcExample.release.xcconfig"; sourceTree = "<group>"; };
 		5B7EB9410499542E8C5724F5 /* Pods-FpcExample-FpcExampleTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FpcExample-FpcExampleTests.debug.xcconfig"; path = "Target Support Files/Pods-FpcExample-FpcExampleTests/Pods-FpcExample-FpcExampleTests.debug.xcconfig"; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-FpcExample.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-FpcExample.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		7B801677A64ED608603BFEE5 /* SceneDelegate.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = FpcExample/SceneDelegate.m; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = FpcExample/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		89C6BE57DB24E9ADA2F236DE /* Pods-FpcExample-FpcExampleTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FpcExample-FpcExampleTests.release.xcconfig"; path = "Target Support Files/Pods-FpcExample-FpcExampleTests/Pods-FpcExample-FpcExampleTests.release.xcconfig"; sourceTree = "<group>"; };
+		98118D655D75952F8B96A89F /* SceneDelegate.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = FpcExample/SceneDelegate.h; sourceTree = "<group>"; };
 		C707384665F8C3AC469B9A1E /* BridgeTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BridgeTests.swift; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -95,6 +98,8 @@
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB71A68108700A75B9A /* main.m */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
+				98118D655D75952F8B96A89F /* SceneDelegate.h */,
+				7B801677A64ED608603BFEE5 /* SceneDelegate.m */,
 			);
 			name = FpcExample;
 			sourceTree = "<group>";
@@ -398,6 +403,7 @@
 			files = (
 				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
+				F4496E3696FE688A76128F62 /* SceneDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
