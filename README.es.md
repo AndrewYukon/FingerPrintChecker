@@ -36,6 +36,7 @@ dispositivos reales (un Mac con tres navegadores, un iPhone, dos teléfonos Andr
 | **Aplicaciones Flutter** | dependencia git, ref `flutter/v0.1.1`, código fuente en [`flutter/`](flutter) | Disponible, 0.1.1 |
 | **Aplicaciones React Native** | `npm install @fingerprintchecker/react-native`, código fuente en [`react-native/`](react-native) | Disponible, 0.1.1 |
 | Herramientas de línea de comandos | Protocolo + ejemplos en [`cli/`](cli/README.md) | Ejemplos |
+| CLI de gestión y servidor MCP | `npx -y @fingerprintchecker/cli`, código en [`tools/cli/`](tools/cli/README.md): gestiona proyectos, conjuntos de reglas y webhooks desde la terminal o un asistente de IA | Disponible, 0.1.0 |
 
 Todas las plataformas terminan igual: el cliente obtiene un `attestation`, y solo tu backend, que posee tu clave secreta, solicita una decisión. El formato de transmisión de los SDK nativos se especifica en [PROTOCOL.md](PROTOCOL.md); los vectores de conformidad están en [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) y todos los SDK deben reproducirlos.
 

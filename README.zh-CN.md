@@ -32,6 +32,7 @@
 | **Flutter 应用** | git 依赖，ref `flutter/v0.1.1`，源码在 [`flutter/`](flutter) | 可用，0.1.1 |
 | **React Native 应用** | `npm install @fingerprintchecker/react-native`，源码在 [`react-native/`](react-native) | 可用，0.1.1 |
 | 命令行工具 | 协议 + 示例见 [`cli/`](cli/README.md) | 示例 |
+| 管理 CLI 与 MCP 服务器 | `npx -y @fingerprintchecker/cli`，源码在 [`tools/cli/`](tools/cli/README.md)：在终端或 AI 助手里管理项目、规则集和 webhook | 可用，0.1.0 |
 
 所有平台的终点都一样：客户端拿到 `attestation`，只有持有密钥（secret key）的你的后端才去请求决策。原生 SDK 的传输格式在 [PROTOCOL.md](PROTOCOL.md) 中规定；一致性测试向量在 [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json)，每个 SDK 都必须能复现这些向量。
 

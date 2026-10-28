@@ -285,6 +285,9 @@ debugger and hooking items only.
 
 - **Switch.** `integrityProbes` (default `true`) in Android `FpCheckerConfig` and Swift `FPConfig`. With `false` the SDK
   runs no probe and reports every item as "not checked".
+- **Not scored yet.** The server records these answers and returns them as signals, but they do not change the
+  trust score or any built-in decision yet; they act only through rules you write. Weights come once real-device
+  traffic has been reviewed.
 - **Where the results go.** They are sent with the identify request but are **never returned to the app**: the identify
   response, the `sealedResult` and the `attestation` do not contain them. They reach **your server** only through the
   events API (`signals.mobile`) and webhooks, and can drive project rules. See [Server SDKs](#sealed-results-server-sdks-and-web-packages).
@@ -294,9 +297,9 @@ debugger and hooking items only.
   detect factory resets, so it is always `null`.
 - **Testing on your own build.** A debuggable Android build and an iOS run launched from Xcode report `debugger = true`,
   so your own test devices will show it. Release builds started normally do not.
-- **iOS VPN meaning.** On iOS `vpn = false` only means "no legacy tunnel interface (`ppp`, `tap`, `tun`) was found". Modern
-  VPN apps, Private Relay and Wi-Fi Calling use other interfaces (`utun*`, `ipsec*`), which are deliberately not counted, so
-  an iOS device can be on a VPN while `vpn` is `false`.
+- **iOS VPN meaning.** From Apple SDK 0.7.1 a device VPN that uses a packet tunnel (the way VPN apps and proxy apps
+  such as WireGuard or Shadowrocket connect) is reported as `vpn = true`. iCloud Private Relay is not a device VPN and
+  does not set it. With 0.7.0, `vpn = false` only meant that no legacy tunnel interface was found.
 - **No new permissions.** The SDK adds no `uses-permission`, no `<queries>`, and does not list the apps on the device.
   A location check uses only a location permission your app already holds, and on Android the device-VPN check runs only when your app already holds `ACCESS_NETWORK_STATE` (the SDK adds no permission); otherwise `vpn` is `null`.
 

@@ -34,6 +34,7 @@ FingerPrint Checker は、どれか 1 台が受け取った時点で残りをす
 | **Flutter アプリ** | git 依存関係、ref `flutter/v0.1.1`、ソースは [`flutter/`](flutter) | 利用可能、0.1.1 |
 | **React Native アプリ** | `npm install @fingerprintchecker/react-native`、ソースは [`react-native/`](react-native) | 利用可能、0.1.1 |
 | コマンドラインツール | プロトコルとサンプルは [`cli/`](cli/README.md) | サンプル |
+| 管理 CLI と MCP サーバー | `npx -y @fingerprintchecker/cli`、ソースは [`tools/cli/`](tools/cli/README.md)：ターミナルや AI アシスタントからプロジェクト、ルールセット、webhook を管理 | 利用可能、0.1.0 |
 
 どのプラットフォームでも最終的な流れは同じです。クライアントは `attestation` を受け取り、シークレットキーを持つ自社のバックエンドだけが判定を要求します。ネイティブ SDK のワイヤーフォーマットは [PROTOCOL.md](PROTOCOL.md) に定められており、適合性テストベクターは [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) にあります。すべての SDK はこれらを再現できなければなりません。
 
