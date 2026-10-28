@@ -48,3 +48,25 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_PREVIEWS: YES
+  # Device-only checks that need a host app (tool-hosted tests cannot run on a phone). Today: the probe latency bench (M22).
+  DemoDeviceTests:
+    type: bundle.unit-test
+    supportedDestinations: [iOS]
+    sources:
+      - path: ../Tests/FingerPrintCheckerTests/ProbeLatencyBench.swift
+    dependencies:
+      - target: Demo
+      - package: FingerPrintChecker
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.fpchecker.demo.devicetests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  DemoDeviceTests:
+    build:
+      targets:
+        Demo: all
+        DemoDeviceTests: [test]
+    test:
+      config: Debug
+      targets: [DemoDeviceTests]
