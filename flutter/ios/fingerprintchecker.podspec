@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'fingerprintchecker'
-  s.version          = '0.1.0'
+  s.version          = '0.1.1'
   s.summary          = 'Flutter plugin for FingerPrintChecker.'
   s.description      = 'Thin Flutter wrapper over the native FingerPrintChecker iOS SDK, vendored under Classes/FingerPrintChecker.'
   s.homepage         = 'https://github.com/AndrewYukon/FingerPrintChecker'

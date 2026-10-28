@@ -14,7 +14,7 @@ dependencies:
     git:
       url: https://github.com/AndrewYukon/FingerPrintChecker
       path: flutter
-      ref: flutter/v0.1.0
+      ref: flutter/v0.1.1
 ```
 
 ## Use

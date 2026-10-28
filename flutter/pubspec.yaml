@@ -1,6 +1,6 @@
 name: fingerprintchecker
 description: Flutter plugin for FingerPrintChecker, a thin wrapper over the native Android and iOS SDKs.
-version: 0.1.0
+version: 0.1.1
 publish_to: none
 
 environment:
