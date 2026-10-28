@@ -16,9 +16,9 @@ Rules for every step below:
 
 | Package | Registry | Name | Version | Source |
 |---|---|---|---|---|
-| Browser agent loader | npm | `@fingerprintchecker/agent` | 0.1.0 | `web/agent` |
-| React wrapper | npm | `@fingerprintchecker/react` | 0.1.0 | `web/react` |
-| Vue wrapper | npm | `@fingerprintchecker/vue` | 0.1.0 | `web/vue` |
+| Browser agent loader | npm | `@fingerprintchecker/agent` | 0.2.0 | `web/agent` |
+| React wrapper | npm | `@fingerprintchecker/react` | 0.1.1 | `web/react` |
+| Vue wrapper | npm | `@fingerprintchecker/vue` | 0.1.1 | `web/vue` |
 | Node.js server SDK | npm | `@fingerprintchecker/node` | 0.3.0 | `server/node` |
 | Python server SDK | PyPI | `fingerprintchecker` (import `fpchecker`) | 0.3.0 | `server/python` |
 | Go server SDK | Go proxy (git tag) | `github.com/AndrewYukon/FingerPrintChecker/server/go` | v0.3.0 | `server/go` |
