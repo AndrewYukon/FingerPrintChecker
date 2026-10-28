@@ -83,12 +83,12 @@ export class FpChecker {
   searchEvents(query: SearchEventsQuery = {}) {
     return this.#call({ method: 'GET', path: '/v1/events', query: toWireQuery(query) });
   }
-  getEvent(eventId: string) { return this.#call({ method: 'GET', path: `/v1/events/${enc(eventId)}` }); }
-  updateEvent(eventId: string, body: Json) {
-    return this.#call({ method: 'PATCH', path: `/v1/events/${enc(eventId)}`, body });
+  async getEvent(eventId: string) { return this.#call({ method: 'GET', path: `/v1/events/${pathId(eventId)}` }); }
+  async updateEvent(eventId: string, body: Json) {
+    return this.#call({ method: 'PATCH', path: `/v1/events/${pathId(eventId)}`, body });
   }
-  getVisitor(visitorId: string) { return this.#call({ method: 'GET', path: `/v1/visitors/${enc(visitorId)}` }); }
-  deleteVisitor(visitorId: string) { return this.#call({ method: 'DELETE', path: `/v1/visitors/${enc(visitorId)}` }); }
+  async getVisitor(visitorId: string) { return this.#call({ method: 'GET', path: `/v1/visitors/${pathId(visitorId)}` }); }
+  async deleteVisitor(visitorId: string) { return this.#call({ method: 'DELETE', path: `/v1/visitors/${pathId(visitorId)}` }); }
   getHealth() { return this.#call({ method: 'GET', path: '/health', noAuth: true }); }
   getStatus() { return this.#call({ method: 'GET', path: '/status', noAuth: true }); }
 
@@ -145,6 +145,13 @@ export class FpChecker {
 }
 
 const enc = encodeURIComponent;
+
+/** A path segment id; ids the server would normalise into another route are refused. */
+function pathId(id: string): string {
+  if (typeof id !== 'string' || id === '' || id === '.' || id === '..')
+    throw new TypeError("FpChecker: id must be a non-empty string and not '.' or '..'");
+  return enc(id);
+}
 
 function validateBaseUrl(raw: string): string {
   let u: URL;

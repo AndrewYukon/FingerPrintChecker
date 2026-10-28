@@ -15,7 +15,7 @@ from .errors import FpCheckerApiError, SealedResultError, WebhookSignatureError
 from .sealed import unseal_result
 from .webhook import verify_webhook_signature
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
     "BOT_CHECK_HEADERS",

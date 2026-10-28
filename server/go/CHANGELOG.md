@@ -1,8 +1,12 @@
 # Changelog
 
-## Unreleased (tag with the next v0.4.0)
+## 0.5.0
 
 - `VerifyWebhookSignature` returns an error for an empty secret instead of verifying against an empty HMAC key.
+- Event and visitor calls refuse an id of `""`, `"."` or `".."` before sending (`ErrInvalidPathID`): the server would normalise such a path into another route. A literal `.` id now gets that error instead of a 404.
+
+## 0.4.0
+
 - Add `Client.BotCheck(ctx, BotCheckRequest) (*BotCheckResult, error)` (`POST /v1/bot-check`) with the types `BotCheckRequest`, `BotCheckResult`, `BotSignal`, `BotInfo`, and the `BotCheckHeaders(http.Header)` helper that builds the forwardable header map (never Cookie or Authorization).
 - `EventSignals` gains `Version` (1 or 2) and `Bot` (`BotSignal`): `Result` may be `good`, and v2 events carry `Info` (nil when no directory bot was named, always nil for version 1).
 - Event search accepts the filters `bot_result`, `bot_category`, `bot_identity`, `bot_id`.
