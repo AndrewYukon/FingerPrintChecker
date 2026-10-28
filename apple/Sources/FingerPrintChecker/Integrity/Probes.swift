@@ -87,11 +87,12 @@ struct MitmProbe: Probe {
     }
 }
 
-/// Version 1 counts only legacy tunnel interfaces (no `ipsec*`: Wi-Fi Calling uses it without any VPN). `utun*` is also used by iCloud Private Relay, Tailscale and
-/// system services, so it is not evidence by itself and is deliberately ignored here (M21).
+/// Counts tunnel interfaces listed under `__SCOPED__`: `ppp*`, `tap*`, `tun*` and `utun*`. `ipsec*` is excluded because Wi-Fi Calling uses it without any VPN.
+/// `utun*` is counted since 0.7.1 (M21 required a real-device check first). Verified 2026-10-28 on an iPhone 16 Pro Max, iOS 26:
+/// no VPN -> [en0]; Shadowrocket VPN on -> [en0, utun3]; iCloud Private Relay on, no VPN -> [en0].
 struct VpnProbe: Probe {
     let code = "vpn"
-    static let prefixes = ["ppp", "tap", "tun"]
+    static let prefixes = ["ppp", "tap", "tun", "utun"]
     func run(_ env: ProbeEnvironment) throws -> ProbeResult {
         guard let scoped = env.proxySettings()?["__SCOPED__"] as? [String: Any] else { return .unavailable }
         return scoped.keys.contains { key in Self.prefixes.contains { key.hasPrefix($0) } } ? .fired : .clean

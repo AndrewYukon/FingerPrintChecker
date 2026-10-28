@@ -121,13 +121,21 @@ final class IntegrityProbeTests: XCTestCase {
 
     // MARK: vpn (M21)
     func testVpnFiredByLegacyTunnelInterfaces() throws {
-        for iface in ["ppp0", "tun0", "tap0"] {
+        for iface in ["ppp0", "tun0", "tap0", "utun3"] {
             let env = FakeEnv(); env.proxy = ["__SCOPED__": [iface: [String: Any]()]]
             XCTAssertEqual(try run(VpnProbe(), env), .fired, iface)
         }
     }
-    func testVpnVersionOneDoesNotCountUtun() throws {
-        let env = FakeEnv(); env.proxy = ["__SCOPED__": ["utun3": [String: Any]()]]
+    func testVpnFiredByUtunNextToWifi() throws {
+        let env = FakeEnv(); env.proxy = ["__SCOPED__": ["en0": [String: Any](), "utun3": [String: Any]()]]
+        XCTAssertEqual(try run(VpnProbe(), env), .fired)
+    }
+    func testVpnCleanWithoutTunnelInterfaces() throws {
+        let env = FakeEnv(); env.proxy = ["__SCOPED__": ["en0": [String: Any]()]]
+        XCTAssertEqual(try run(VpnProbe(), env), .clean)
+        env.proxy = ["__SCOPED__": ["ipsec0": [String: Any]()]]
+        XCTAssertEqual(try run(VpnProbe(), env), .clean)
+        env.proxy = ["__SCOPED__": ["pdp_ip0": [String: Any]()]]
         XCTAssertEqual(try run(VpnProbe(), env), .clean)
         env.proxy = ["__SCOPED__": ["en0": [String: Any](), "pdp_ip0": [String: Any]()]]
         XCTAssertEqual(try run(VpnProbe(), env), .clean)

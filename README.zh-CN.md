@@ -27,10 +27,10 @@
 |---|---|---|
 | **Web 应用**（任意浏览器） | FingerPrint Checker 浏览器 agent `fp-agent.min.js`，部署在你自己的域名下；见 [Web 应用](#web-应用) | 可用 |
 | **Android 应用**（Kotlin / Java） | Maven Central 上的 `com.fpchecker:fpchecker-android`，源码在 [`android/`](android) | 可用，0.7.0 |
-| **iOS 应用**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`，源码在 [`apple/`](apple) | 可用，0.7.0 |
-| macOS 应用（Swift Package） | 与 iOS 使用同一个包 | 可用，0.7.0 |
-| **Flutter 应用** | git 依赖，ref `flutter/v0.1.0`，源码在 [`flutter/`](flutter) | 可用，0.1.0 |
-| **React Native 应用** | `npm install @fingerprintchecker/react-native`，源码在 [`react-native/`](react-native) | 可用，0.1.0 |
+| **iOS 应用**（Swift Package） | `https://github.com/AndrewYukon/FingerPrintChecker`，源码在 [`apple/`](apple) | 可用，0.7.1 |
+| macOS 应用（Swift Package） | 与 iOS 使用同一个包 | 可用，0.7.1 |
+| **Flutter 应用** | git 依赖，ref `flutter/v0.1.1`，源码在 [`flutter/`](flutter) | 可用，0.1.1 |
+| **React Native 应用** | `npm install @fingerprintchecker/react-native`，源码在 [`react-native/`](react-native) | 可用，0.1.1 |
 | 命令行工具 | 协议 + 示例见 [`cli/`](cli/README.md) | 示例 |
 
 所有平台的终点都一样：客户端拿到 `attestation`，只有持有密钥（secret key）的你的后端才去请求决策。原生 SDK 的传输格式在 [PROTOCOL.md](PROTOCOL.md) 中规定；一致性测试向量在 [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json)，每个 SDK 都必须能复现这些向量。
@@ -123,7 +123,7 @@ cd android
 Swift Package Manager：添加 `https://github.com/AndrewYukon/FingerPrintChecker`（product 为 `FingerPrintChecker`，iOS 14+、macOS 11+），或在 `Package.swift` 中：
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.7.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.7.1")
 ```
 
 ```swift
