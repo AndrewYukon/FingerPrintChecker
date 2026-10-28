@@ -106,6 +106,13 @@ placeholder): `npm publish` prints `+ name@version` but the version stays staged
 npmjs.com with 2FA. Until then `npm view` still shows the old version and publishing the same version again fails with
 `409 Cannot publish over previously staged version`. `@fingerprintchecker/node` is not staged.
 
+Because of that, **publish react/vue only after the agent version they need is public** (`npm view
+@fingerprintchecker/agent versions` lists it): on 2026-10-28 react/vue 0.1.1 (`^0.2.0`) were approved while agent
+0.2.x was still staged, and `npm install @fingerprintchecker/react` failed with `ETARGET` until the agent was approved.
+Approving a staged version does not move `latest`; the publish token can: `npm dist-tag add
+@fingerprintchecker/agent@<version> latest`. Listing and approving staged versions needs the owner's 2FA login; the
+token sees no staged versions.
+
 If npm asks for a one-time password, the token was not created with "Bypass 2FA"; create a new one rather than typing codes into scripts.
 
 Verify: `npm view @fingerprintchecker/agent version` (and react, vue, node) prints `0.1.0`; then in an empty directory
