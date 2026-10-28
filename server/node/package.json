@@ -1,6 +1,6 @@
 {
   "name": "@fingerprintchecker/node",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "FingerPrintChecker server SDK for Node.js: API client, sealed result decryption, webhook signature verification.",
   "license": "Apache-2.0",
   "type": "module",
@@ -9,13 +9,25 @@
   "types": "./dist/esm/index.d.ts",
   "exports": {
     ".": {
-      "import": { "types": "./dist/esm/index.d.ts", "default": "./dist/esm/index.js" },
-      "require": { "types": "./dist/cjs/index.d.ts", "default": "./dist/cjs/index.js" }
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md", "LICENSE"],
-  "engines": { "node": ">=18" },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "sideEffects": false,
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json && printf '{\"type\":\"commonjs\"}\\n' > dist/cjs/package.json",

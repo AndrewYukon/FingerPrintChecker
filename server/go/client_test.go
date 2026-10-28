@@ -625,3 +625,30 @@ func TestMobileSignalFiltersForwarded(t *testing.T) {
 		t.Fatal(gotQuery)
 	}
 }
+
+// The server normalises /v1/events/.. to another route, so these ids never leave the client.
+func TestPathIDsThatChangeTheRouteAreRefused(t *testing.T) {
+	rec := &recorder{}
+	c, _ := newTestClient(t, rec)
+	ctx := context.Background()
+	ops := map[string]func(id string) error{
+		"GetEvent": func(id string) error { _, err := c.GetEvent(ctx, id); return err },
+		"UpdateEvent": func(id string) error {
+			_, err := c.UpdateEvent(ctx, id, map[string]any{"tag": map[string]any{}})
+			return err
+		},
+		"GetVisitor":    func(id string) error { _, err := c.GetVisitor(ctx, id); return err },
+		"DeleteVisitor": func(id string) error { _, err := c.DeleteVisitor(ctx, id); return err },
+	}
+	for name, op := range ops {
+		for _, bad := range []string{"", ".", ".."} {
+			err := op(bad)
+			if !errors.Is(err, ErrInvalidPathID) {
+				t.Errorf("%s(%q): want ErrInvalidPathID, got %v", name, bad, err)
+			}
+		}
+	}
+	if rec.count() != 0 {
+		t.Fatalf("%d requests sent, want 0", rec.count())
+	}
+}

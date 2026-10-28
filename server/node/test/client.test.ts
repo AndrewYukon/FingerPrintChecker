@@ -274,3 +274,26 @@ describe('every operation (table from openapi)', () => {
     });
   }
 });
+
+describe('path ids', () => {
+  // The server normalises /v1/events/.. to another route, so these never leave the client.
+  const ops: Array<[string, (c: FpChecker, id: string) => Promise<unknown>]> = [
+    ['getEvent', (c, id) => c.getEvent(id)],
+    ['updateEvent', (c, id) => c.updateEvent(id, { tag: {} })],
+    ['getVisitor', (c, id) => c.getVisitor(id)],
+    ['deleteVisitor', (c, id) => c.deleteVisitor(id)],
+  ];
+  for (const [name, call] of ops)
+    for (const bad of ['', '.', '..'])
+      it(`${name} refuses ${JSON.stringify(bad)} before sending`, async () => {
+        const { client, calls } = mk([]);
+        await expect(call(client, bad)).rejects.toThrow(TypeError);
+        expect(calls).toEqual([]);
+      });
+
+  it('a dot inside an id is still sent', async () => {
+    const { client, calls } = mk([json(200, { ok: true })]);
+    await client.getEvent('a.b');
+    expect(calls[0]!.url).toBe('https://api.fpchecker.com/v1/events/a.b');
+  });
+});

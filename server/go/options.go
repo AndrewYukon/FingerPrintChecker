@@ -15,7 +15,7 @@ const DefaultBaseURL = "https://api.fpchecker.com"
 
 const (
 	defaultTimeout = 10 * time.Second
-	userAgent      = "fpchecker-go/0.4.0"
+	userAgent      = "fpchecker-go/0.5.0"
 )
 
 type config struct {

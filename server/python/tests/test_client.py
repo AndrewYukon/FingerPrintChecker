@@ -486,3 +486,24 @@ def test_mobile_signal_filters_are_forwarded():
                          "locationSpoofed": False, "clonedApp": True})
     assert calls[0].full_url == ("https://api.fpchecker.com/v1/events?rooted=true&hooked=false&emulator=true"
                                  "&mitm=true&locationSpoofed=false&clonedApp=true")
+
+
+@pytest.mark.parametrize("bad", ["", ".", ".."])
+@pytest.mark.parametrize("call", [
+    lambda c, i: c.get_event(i),
+    lambda c, i: c.update_event(i, {"tag": {}}),
+    lambda c, i: c.get_visitor(i),
+    lambda c, i: c.delete_visitor(i),
+])
+def test_path_ids_that_change_the_route_are_refused(call, bad):
+    # The server normalises /v1/events/.. to another route, so these never leave the client.
+    client, calls, _ = mk([])
+    with pytest.raises(ValueError, match=r"not '\.' or '\.\.'"):
+        call(client, bad)
+    assert calls == []
+
+
+def test_dot_inside_an_id_is_still_encoded_and_sent():
+    client, calls, _ = mk([resp(200, {"ok": True})])
+    client.get_event("a.b")
+    assert calls[0].full_url.endswith("/v1/events/a.b")

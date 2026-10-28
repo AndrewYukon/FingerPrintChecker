@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
+- Event and visitor calls refuse an id of `""`, `"."` or `".."` before sending (`ValueError`): the server would normalise such a path into another route. A literal `.` id now gets that error instead of a 404.
 - `verify_webhook_signature` rejects an empty secret up front (a misconfigured env var no longer makes forgeries verify).
 
 ## 0.4.0

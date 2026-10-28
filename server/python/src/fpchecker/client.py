@@ -18,7 +18,7 @@ DEFAULT_BASE_URL = "https://api.fpchecker.com"
 _MAX_RETRIES = 2
 _MAX_DELAY = 10.0
 _LOOPBACK = {"localhost", "127.0.0.1", "::1"}
-_USER_AGENT = "fpchecker-python/0.4.0"
+_USER_AGENT = "fpchecker-python/0.5.0"
 
 Json = Dict[str, Any]
 Query = Mapping[str, Any]
@@ -58,6 +58,13 @@ def _check_header_value(name: str, value: str) -> None:
 
 def _enc(value: str) -> str:
     return quote(str(value), safe="")
+
+
+def _path_id(value: str) -> str:
+    """A path segment id; ids the server would normalise into another route are refused."""
+    if value is None or str(value) in ("", ".", ".."):
+        raise ValueError("FpChecker: id must be a non-empty string and not '.' or '..'")
+    return _enc(value)
 
 
 def _query_string(q: Optional[Query]) -> str:
@@ -183,16 +190,16 @@ class FpChecker:
         return self._call("GET", "/v1/events", query=query)
 
     def get_event(self, event_id: str) -> Json:
-        return self._call("GET", f"/v1/events/{_enc(event_id)}")
+        return self._call("GET", f"/v1/events/{_path_id(event_id)}")
 
     def update_event(self, event_id: str, body: Json) -> Json:
-        return self._call("PATCH", f"/v1/events/{_enc(event_id)}", body=body)
+        return self._call("PATCH", f"/v1/events/{_path_id(event_id)}", body=body)
 
     def get_visitor(self, visitor_id: str) -> Json:
-        return self._call("GET", f"/v1/visitors/{_enc(visitor_id)}")
+        return self._call("GET", f"/v1/visitors/{_path_id(visitor_id)}")
 
     def delete_visitor(self, visitor_id: str) -> Json:
-        return self._call("DELETE", f"/v1/visitors/{_enc(visitor_id)}")
+        return self._call("DELETE", f"/v1/visitors/{_path_id(visitor_id)}")
 
     def get_health(self) -> Json:
         return self._call("GET", "/health", auth=False)

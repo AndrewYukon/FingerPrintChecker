@@ -105,16 +105,16 @@ func (c *Client) SearchEvents(ctx context.Context, q Query) (json.RawMessage, er
 	return c.do(ctx, "GET", "/v1/events", q, nil, authSecret)
 }
 func (c *Client) GetEvent(ctx context.Context, eventID string) (json.RawMessage, error) {
-	return c.do(ctx, "GET", "/v1/events/"+url.PathEscape(eventID), nil, nil, authSecret)
+	return c.doID(ctx, "GET", "/v1/events/", eventID, nil)
 }
 func (c *Client) UpdateEvent(ctx context.Context, eventID string, body any) (json.RawMessage, error) {
-	return c.do(ctx, "PATCH", "/v1/events/"+url.PathEscape(eventID), nil, body, authSecret)
+	return c.doID(ctx, "PATCH", "/v1/events/", eventID, body)
 }
 func (c *Client) GetVisitor(ctx context.Context, visitorID string) (json.RawMessage, error) {
-	return c.do(ctx, "GET", "/v1/visitors/"+url.PathEscape(visitorID), nil, nil, authSecret)
+	return c.doID(ctx, "GET", "/v1/visitors/", visitorID, nil)
 }
 func (c *Client) DeleteVisitor(ctx context.Context, visitorID string) (json.RawMessage, error) {
-	return c.do(ctx, "DELETE", "/v1/visitors/"+url.PathEscape(visitorID), nil, nil, authSecret)
+	return c.doID(ctx, "DELETE", "/v1/visitors/", visitorID, nil)
 }
 func (c *Client) GetHealth(ctx context.Context) (json.RawMessage, error) {
 	return c.do(ctx, "GET", "/health", nil, nil, authNone)
@@ -149,6 +149,15 @@ func encodeQuery(q Query) string {
 		parts[i] = url.QueryEscape(k) + "=" + url.QueryEscape(fmt.Sprint(q[k]))
 	}
 	return "?" + strings.Join(parts, "&")
+}
+
+// doID calls a route ending in one id segment. An id the server would normalise into another route
+// ("", ".", "..") is refused before any request.
+func (c *Client) doID(ctx context.Context, method, prefix, id string, body any) (json.RawMessage, error) {
+	if id == "" || id == "." || id == ".." {
+		return nil, ErrInvalidPathID
+	}
+	return c.do(ctx, method, prefix+url.PathEscape(id), nil, body, authSecret)
 }
 
 func (c *Client) do(ctx context.Context, method, path string, q Query, body any, auth authKind) (json.RawMessage, error) {

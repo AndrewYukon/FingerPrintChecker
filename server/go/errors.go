@@ -2,8 +2,13 @@ package fpchecker
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 )
+
+// ErrInvalidPathID is returned, before any request is sent, for an event or visitor id the server
+// would normalise into another route: "", "." or "..".
+var ErrInvalidPathID = errors.New("fpchecker: id must be a non-empty string and not '.' or '..'")
 
 // APIError is returned for any non-2xx API response and for transport
 // failures (Status 0). 2xx bodies, including {"ok": false} refusals, are
