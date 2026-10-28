@@ -101,6 +101,11 @@ publish server/node
 rm -f "$NPMRC"
 ```
 
+`@fingerprintchecker/agent`, `react` and `vue` use npm **staged publishing** (their version lists hold a `0.0.0-stage`
+placeholder): `npm publish` prints `+ name@version` but the version stays staged until the owner approves it on
+npmjs.com with 2FA. Until then `npm view` still shows the old version and publishing the same version again fails with
+`409 Cannot publish over previously staged version`. `@fingerprintchecker/node` is not staged.
+
 If npm asks for a one-time password, the token was not created with "Bypass 2FA"; create a new one rather than typing codes into scripts.
 
 Verify: `npm view @fingerprintchecker/agent version` (and react, vue, node) prints `0.1.0`; then in an empty directory
