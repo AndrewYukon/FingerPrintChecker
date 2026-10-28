@@ -31,10 +31,10 @@ dispositivos reales (un Mac con tres navegadores, un iPhone, dos teléfonos Andr
 |---|---|---|
 | **Aplicaciones web** (cualquier navegador) | El agente de navegador de FingerPrint Checker `fp-agent.min.js`, servido desde tu propio dominio; consulta [Aplicaciones web](#aplicaciones-web) | Disponible |
 | **Aplicaciones Android** (Kotlin / Java) | `com.fpchecker:fpchecker-android` en Maven Central, código fuente en [`android/`](android) | Disponible, 0.7.0 |
-| **Aplicaciones iOS** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, código fuente en [`apple/`](apple) | Disponible, 0.7.0 |
-| Aplicaciones macOS (Swift Package) | El mismo paquete que iOS | Disponible, 0.7.0 |
-| **Aplicaciones Flutter** | dependencia git, ref `flutter/v0.1.0`, código fuente en [`flutter/`](flutter) | Disponible, 0.1.0 |
-| **Aplicaciones React Native** | `npm install @fingerprintchecker/react-native`, código fuente en [`react-native/`](react-native) | Disponible, 0.1.0 |
+| **Aplicaciones iOS** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, código fuente en [`apple/`](apple) | Disponible, 0.7.1 |
+| Aplicaciones macOS (Swift Package) | El mismo paquete que iOS | Disponible, 0.7.1 |
+| **Aplicaciones Flutter** | dependencia git, ref `flutter/v0.1.1`, código fuente en [`flutter/`](flutter) | Disponible, 0.1.1 |
+| **Aplicaciones React Native** | `npm install @fingerprintchecker/react-native`, código fuente en [`react-native/`](react-native) | Disponible, 0.1.1 |
 | Herramientas de línea de comandos | Protocolo + ejemplos en [`cli/`](cli/README.md) | Ejemplos |
 
 Todas las plataformas terminan igual: el cliente obtiene un `attestation`, y solo tu backend, que posee tu clave secreta, solicita una decisión. El formato de transmisión de los SDK nativos se especifica en [PROTOCOL.md](PROTOCOL.md); los vectores de conformidad están en [`test-vectors/protocol-v1.json`](test-vectors/protocol-v1.json) y todos los SDK deben reproducirlos.
@@ -127,7 +127,7 @@ El APK de release queda sin firmar a menos que `fpcheckerStoreFile`, `fpcheckerS
 Swift Package Manager: añade `https://github.com/AndrewYukon/FingerPrintChecker` (producto `FingerPrintChecker`, iOS 14+, macOS 11+), o en `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.7.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.7.1")
 ```
 
 ```swift

@@ -25,10 +25,10 @@ Rules for every step below:
 | Java server SDK | Maven Central | `com.fpchecker:fpchecker-server-java` | 0.1.0 | `server/java` |
 | PHP server SDK | GitHub release zip | `fpchecker/fpchecker-php` | 0.1.0 | `server/php` |
 | .NET server SDK | GitHub release .nupkg | `FingerPrintChecker.Server` | 0.1.0 | `server/dotnet` |
-| React Native module | npm | `@fingerprintchecker/react-native` | 0.1.0 | `react-native` |
-| Flutter plugin | git tag only (not on pub.dev) | `https://github.com/AndrewYukon/FingerPrintChecker`, path `flutter` | 0.1.0 | `flutter` |
+| React Native module | npm | `@fingerprintchecker/react-native` | 0.1.1 | `react-native` |
+| Flutter plugin | git tag only (not on pub.dev) | `https://github.com/AndrewYukon/FingerPrintChecker`, path `flutter` | 0.1.1 | `flutter` |
 | Android SDK | Maven Central | `com.fpchecker:fpchecker-android` | 0.7.0 | `android/fpchecker` |
-| Apple SDK | Swift Package Manager (git tag) | `https://github.com/AndrewYukon/FingerPrintChecker` | 0.7.0 | `apple/`, `Package.swift` |
+| Apple SDK | Swift Package Manager (git tag) | `https://github.com/AndrewYukon/FingerPrintChecker` | 0.7.1 | `apple/`, `Package.swift` |
 
 0.7.0 (device checks) needs fp-guard 0.46.0 or later: an older server rejects the `*.integrity` component. Android has no 0.6.0;
 it went from 0.5.0 to 0.7.0 so both mobile SDKs share a version again.
@@ -224,9 +224,9 @@ Verify `https://repo1.maven.org/maven2/com/fpchecker/fpchecker-server-java/0.1.0
 **.NET (nuget.org).** Owner action: create a nuget.org API key. Until then, run `dotnet pack -c Release` in `server/dotnet` and attach
 the `.nupkg` to the GitHub release.
 
-## Mobile wrappers: React Native (npm) and Flutter (git tag), 0.1.0
+## Mobile wrappers: React Native (npm) and Flutter (git tag), 0.1.1
 
-Both wrappers sit on the native SDKs (Android 0.7.0, Apple 0.7.0). CI (`packages`) must be green on `main` first.
+Both wrappers sit on the native SDKs (Android 0.7.0, Apple 0.7.1). CI (`packages`) must be green on `main` first.
 
 **React Native** (`@fingerprintchecker/react-native`). Log in as for the other npm packages (see "One-time setup" under npm), then:
 
@@ -235,8 +235,8 @@ git switch main && git pull --ff-only
 (cd react-native && npm ci && npm run typecheck && npm test && npm run build)
 (cd react-native && npm pack --dry-run)   # must list README, LICENSE, lib, android, ios (with PrivacyInfo.xcprivacy), the podspec; nothing from example/, tests or build outputs
 (cd react-native && npm publish --access public)
-git tag react-native/v0.1.0
-git push origin react-native/v0.1.0
+git tag react-native/v0.1.1
+git push origin react-native/v0.1.1
 ```
 
 **Flutter** (`fingerprintchecker`). There is no registry: the plugin is installed as a git dependency and the tag is the release.
@@ -245,11 +245,11 @@ Do not run `flutter pub publish`.
 ```bash
 git switch main && git pull --ff-only
 (cd flutter && flutter pub get && flutter analyze && flutter test)
-git tag flutter/v0.1.0
-git push origin flutter/v0.1.0
+git tag flutter/v0.1.1
+git push origin flutter/v0.1.1
 ```
 
-Verify in an empty Flutter project: add the git dependency with `ref: flutter/v0.1.0` (see `flutter/README.md`) and run `flutter pub get`.
+Verify in an empty Flutter project: add the git dependency with `ref: flutter/v0.1.1` (see `flutter/README.md`) and run `flutter pub get`.
 
 ## After publishing
 

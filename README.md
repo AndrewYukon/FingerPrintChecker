@@ -34,10 +34,10 @@ devices (a Mac with three browsers, an iPhone, two Android phones, one home Wi-F
 |---|---|---|
 | **Web apps** (any browser) | The FingerPrint Checker browser agent `fp-agent.min.js`, served from your own domain; see [Web apps](#web-apps) | Available |
 | **Android apps** (Kotlin / Java) | `com.fpchecker:fpchecker-android` on Maven Central, source in [`android/`](android) | Available, 0.7.0 |
-| **iOS apps** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, source in [`apple/`](apple) | Available, 0.7.0 |
-| macOS apps (Swift Package) | Same package as iOS | Available, 0.7.0 |
-| **Flutter apps** | git dependency, ref `flutter/v0.1.0`, source in [`flutter/`](flutter) | Available, 0.1.0 |
-| **React Native apps** | `npm install @fingerprintchecker/react-native`, source in [`react-native/`](react-native) | Available, 0.1.0 |
+| **iOS apps** (Swift Package) | `https://github.com/AndrewYukon/FingerPrintChecker`, source in [`apple/`](apple) | Available, 0.7.1 |
+| macOS apps (Swift Package) | Same package as iOS | Available, 0.7.1 |
+| **Flutter apps** | git dependency, ref `flutter/v0.1.1`, source in [`flutter/`](flutter) | Available, 0.1.1 |
+| **React Native apps** | `npm install @fingerprintchecker/react-native`, source in [`react-native/`](react-native) | Available, 0.1.1 |
 | Command-line tools | Protocol + examples in [`cli/`](cli/README.md) | Examples |
 | Management CLI and MCP server | `npx -y @fingerprintchecker/cli`, source in [`tools/cli/`](tools/cli/README.md): manage projects, rulesets and webhooks from a terminal or an AI assistant | Available, 0.1.0 |
 
@@ -232,7 +232,7 @@ Swift Package Manager: add `https://github.com/AndrewYukon/FingerPrintChecker` (
 iOS 14+, macOS 11+), or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.7.0")
+.package(url: "https://github.com/AndrewYukon/FingerPrintChecker", from: "0.7.1")
 ```
 
 ```swift
