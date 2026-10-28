@@ -58,7 +58,7 @@ A field the current platform does not have is ignored.
 
 | reason | meaning |
 |---|---|
-| `bad_config` | empty `publishableKey`; `baseUrl` that is not a valid URL; `baseUrl` that is not `https` (plain `http` is accepted only for `localhost`, `127.0.0.1` and `::1`); or `powDifficulty` outside 8 to 28 |
+| `bad_config` | empty `publishableKey`; `baseUrl` that is not a valid URL; `baseUrl` that is not `https` (plain `http` is accepted only for `localhost`, `127.0.0.1` and `::1`); `powDifficulty` outside 8 to 28; or a `cloudProjectNumber` that is zero or negative (Android) |
 | `bad_intent_token` | the intent token is empty |
 | `invalid_tags` | `tags` holds something that is not a string, number, bool, null, or a list or map (string keys) of those |
 | `bridge_error` | any other unexpected failure on the native side |

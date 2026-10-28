@@ -21,6 +21,12 @@ const nativeLinked = NativeModules.FingerPrintCheckerModule != null;
 
 const checker = new FingerPrintChecker({publishableKey: FPC_PK});
 
+// eventId is what your backend sends to the server API; visitorId arrives only with scoreDetails.
+function describeSuccess(eventId?: string, visitorId?: string): string {
+  const lines = [eventId && `eventId: ${eventId}`, visitorId && `visitorId: ${visitorId}`].filter(Boolean);
+  return lines.length ? lines.join('\n') : 'ok';
+}
+
 export default function App() {
   const [result, setResult] = useState('');
   const [busy, setBusy] = useState(false);
@@ -30,7 +36,7 @@ export default function App() {
     try {
       const token = await fetchIntentToken(FPC_INTENT_URL);
       const r = await checker.identify(token);
-      setResult(r.ok ? (r.visitorId ? `visitorId: ${r.visitorId}` : "ok") : `failed: ${r.reason} (${r.httpStatus})`);
+      setResult(r.ok ? describeSuccess(r.eventId, r.visitorId) : `failed: ${r.reason} (${r.httpStatus})`);
     } catch (e) {
       setResult(`failed: ${e instanceof Error ? e.message : 'network'}`);
     } finally {
