@@ -112,6 +112,10 @@ Because of that, **publish react/vue only after the agent version they need is p
 Approving a staged version does not move `latest`; the publish token can: `npm dist-tag add
 @fingerprintchecker/agent@<version> latest`. Listing and approving staged versions needs the owner's 2FA login; the
 token sees no staged versions.
+After approval (or for a version that never waited for approval) npm can still show it as **Validating** on the
+package's Versions tab: npm's own automated review, nothing to click. The version is not installable until it
+finishes; `npm view @fingerprintchecker/agent versions` shows it once it is public. The owner's queue is
+npmjs.com → profile menu → Staged Packages (`/settings/<user>/staged-packages`).
 
 If npm asks for a one-time password, the token was not created with "Bypass 2FA"; create a new one rather than typing codes into scripts.
 
