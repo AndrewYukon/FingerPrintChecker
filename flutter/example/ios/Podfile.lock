@@ -1,5 +1,5 @@
 PODS:
-  - fingerprintchecker (0.1.0):
+  - fingerprintchecker (0.1.1):
     - Flutter
   - Flutter (1.0.0)
 
@@ -14,7 +14,7 @@ EXTERNAL SOURCES:
     :path: Flutter
 
 SPEC CHECKSUMS:
-  fingerprintchecker: 499298d05f2cb7bc9020036bce5985c6409ca9ba
+  fingerprintchecker: 2e17e07a614b3ce00d44d81d6cc4288886fb1af0
   Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
 
 PODFILE CHECKSUM: 3ba3a73b1b12adcf321a227a745625fe0888cc82

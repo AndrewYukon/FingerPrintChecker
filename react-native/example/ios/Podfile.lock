@@ -3,7 +3,7 @@ PODS:
   - DoubleConversion (1.1.6)
   - fast_float (6.1.4)
   - FBLazyVector (0.76.9)
-  - FingerprintcheckerReactNative (0.1.0):
+  - FingerprintcheckerReactNative (0.1.1):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1793,7 +1793,7 @@ SPEC CHECKSUMS:
   DoubleConversion: f16ae600a246532c4020132d54af21d0ddb2a385
   fast_float: 06eeec4fe712a76acc9376682e4808b05ce978b6
   FBLazyVector: 7605ea4810e0e10ae4815292433c09bf4324ba45
-  FingerprintcheckerReactNative: 6419a418b0436c948cdf887dadcde57382933097
+  FingerprintcheckerReactNative: e1dfd122f035884daac8698ea01149658f4db3fb
   fmt: 01b82d4ca6470831d1cc0852a1af644be019e8f6
   glog: 08b301085f15bcbb6ff8632a8ebaf239aae04e6a
   hermes-engine: 9e868dc7be781364296d6ee2f56d0c1a9ef0bb11
