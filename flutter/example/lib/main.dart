@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'intent_client.dart';
+
 import 'package:fingerprintchecker/fingerprintchecker.dart';
 
 const _publishableKey = String.fromEnvironment('FPC_PK');
@@ -33,12 +34,26 @@ Future<String> runIdentify() async {
   }
   final intent = await fetchIntent(_intentUrl);
   if (intent is IntentFailure) return intent.reason;
-  final checker = FingerPrintChecker(const FpConfig(publishableKey: _publishableKey));
+  final checker = FingerPrintChecker(
+    const FpConfig(publishableKey: _publishableKey),
+  );
   final result = await checker.identify((intent as IntentToken).token);
   return switch (result) {
-    FpSuccess(:final visitorId) => visitorId ?? 'ok',
+    FpSuccess(:final eventId, :final visitorId) => describeSuccess(
+      eventId,
+      visitorId,
+    ),
     FpFailure(:final reason, :final httpStatus) => '$reason ($httpStatus)',
   };
+}
+
+/// eventId is what your backend sends to the server API; visitorId arrives only with scoreDetails.
+String describeSuccess(String? eventId, String? visitorId) {
+  final lines = [
+    if (eventId != null) 'eventId: $eventId',
+    if (visitorId != null) 'visitorId: $visitorId',
+  ];
+  return lines.isEmpty ? 'ok' : lines.join('\n');
 }
 
 class HomePage extends StatefulWidget {

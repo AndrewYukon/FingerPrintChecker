@@ -30,7 +30,9 @@ Future<IntentOutcome> fetchIntent(String url) async {
       return IntentToken(token);
     }
     final error = json is Map ? json['error'] : null;
-    return IntentFailure(error is String && error.isNotEmpty ? error : 'bad_response');
+    return IntentFailure(
+      error is String && error.isNotEmpty ? error : 'bad_response',
+    );
   } on FormatException {
     return const IntentFailure('bad_response');
   } catch (_) {
