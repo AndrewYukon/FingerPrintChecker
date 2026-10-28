@@ -16,7 +16,7 @@ Rules for every step below:
 
 | Package | Registry | Name | Version | Source |
 |---|---|---|---|---|
-| Browser agent loader | npm | `@fingerprintchecker/agent` | 0.2.0 | `web/agent` |
+| Browser agent loader | npm | `@fingerprintchecker/agent` | 0.2.1 | `web/agent` |
 | React wrapper | npm | `@fingerprintchecker/react` | 0.1.1 | `web/react` |
 | Vue wrapper | npm | `@fingerprintchecker/vue` | 0.1.1 | `web/vue` |
 | Node.js server SDK | npm | `@fingerprintchecker/node` | 0.3.0 | `server/node` |
