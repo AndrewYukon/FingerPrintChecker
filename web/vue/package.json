@@ -2,6 +2,7 @@
   "name": "@fingerprintchecker/vue",
   "version": "0.1.1",
   "description": "Vue plugin and composable for FingerPrintChecker.",
+  "homepage": "https://fpchecker.com/developers",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

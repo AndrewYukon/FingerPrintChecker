@@ -2,6 +2,7 @@
   "name": "@fingerprintchecker/cli",
   "version": "0.1.0",
   "description": "FingerPrint Checker command line and local MCP server: manage projects, events, rulesets and webhooks from a terminal or an AI assistant.",
+  "homepage": "https://fpchecker.com/developers",
   "license": "Apache-2.0",
   "type": "module",
   "bin": { "fpchecker": "dist/bin.js" },
